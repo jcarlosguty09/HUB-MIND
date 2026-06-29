@@ -204,25 +204,30 @@ const Timer = (() => {
   }
 
   // ---- BUILD CONFIG FROM SECTION ----
-  // Reads timerConfig object saved in the section
   function buildConfigFromSection(sec) {
     const mode = sec.timerMode || 'stopwatch';
     const cfg  = { mode };
     const t    = sec.timerConfig || {};
-    if (mode === 'countdown') {
-      cfg.total  = (parseInt(t.cdMin)    || 0)  * 60 + (parseInt(t.cdSec)    || 0);
-    } else if (mode === 'emom') {
-      cfg.total    = (parseInt(t.emomMin) || 12) * 60;
-      cfg.interval = (parseInt(t.emomInt) || 1)  * 60;
-    } else if (mode === 'tabata') {
-      cfg.work   = parseInt(t.tabWork)   || 20;
-      cfg.rest   = parseInt(t.tabRest)   || 10;
-      cfg.rounds = parseInt(t.tabRounds) || 8;
-    } else if (mode === 'intervals') {
-      cfg.work   = parseInt(t.intWork)   || 40;
-      cfg.rest   = parseInt(t.intRest)   || 20;
-      cfg.rounds = parseInt(t.intRounds) || 6;
+    // Safe parse: returns fallback only if value is truly missing, not if it happens to equal the fallback
+    function n(val, fallback) {
+      const v = parseInt(val);
+      return (!isNaN(v) && v > 0) ? v : fallback;
     }
+    if (mode === 'countdown') {
+      cfg.total    = n(t.cdMin, 0) * 60 + n(t.cdSec, 0);
+    } else if (mode === 'emom') {
+      cfg.total    = n(t.emomMin, 12) * 60;
+      cfg.interval = n(t.emomInt, 1)  * 60;
+    } else if (mode === 'tabata') {
+      cfg.work   = n(t.tabWork,   20);
+      cfg.rest   = n(t.tabRest,   10);
+      cfg.rounds = n(t.tabRounds,  8);
+    } else if (mode === 'intervals') {
+      cfg.work   = n(t.intWork,   40);
+      cfg.rest   = n(t.intRest,   20);
+      cfg.rounds = n(t.intRounds,  6);
+    }
+    console.log('[Timer] config built:', cfg, 'from timerConfig:', t);
     return cfg;
   }
 
