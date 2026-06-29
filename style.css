@@ -60,6 +60,7 @@ body {
 
 /* ---- LOADING SCREEN ---- */
 #loading-screen {
+  transition: opacity 0.4s ease;
   position: fixed;
   inset: 0;
   background: #0a0b0d;
@@ -69,9 +70,9 @@ body {
   z-index: 9999;
   flex-direction: column;
   gap: 0;
-  animation: fadeOut 0.4s ease 1.6s forwards;
+
 }
-@keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
 
 .loading-logo {
   display: flex;
@@ -941,3 +942,5 @@ body {
   .cal-day { min-height: 80px; }
   .wod-editor { min-height: 240px; }
 }
+
+#loading-screen.fade-out { opacity: 0; pointer-events: none; }
