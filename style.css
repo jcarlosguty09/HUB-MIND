@@ -944,3 +944,167 @@ body {
 }
 
 #loading-screen.fade-out { opacity: 0; pointer-events: none; }
+
+/* ============================================
+   SECTIONS v2
+   ============================================ */
+
+.sections-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 12px; }
+
+.sections-empty {
+  text-align: center; padding: 32px 20px; color: var(--text3);
+  border: 1px dashed var(--border2); border-radius: var(--radius);
+}
+.sections-empty i { font-size: 36px; display: block; margin-bottom: 10px; }
+.sections-empty p { font-size: 13px; }
+
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.section-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+.section-name-input {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.section-name-input:focus { border-bottom-color: var(--blue); }
+.section-name-input::placeholder { color: var(--text3); font-weight: 400; font-size: 14px; }
+
+.section-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 17px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.section-delete-btn:hover { color: #ef4444; background: #fee2e2; }
+[data-theme="dark"] .section-delete-btn:hover { background: #450a0a; }
+
+.section-card .wod-editor {
+  margin: 10px 14px 0;
+  width: calc(100% - 28px);
+  min-height: 140px;
+  border-radius: var(--radius-sm);
+}
+
+.section-timer-config {
+  padding: 12px 14px 0;
+}
+.section-timer-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.section-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 12px;
+  gap: 10px;
+}
+
+.add-section-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  background: none;
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.add-section-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+
+.timer-hint { font-size: 12px; color: var(--text3); padding: 4px 0 8px; }
+
+/* Calendar dots v2 */
+.cal-wod-dot {
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--blue-tint);
+  color: var(--blue);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.cal-wod-dot.more { background: var(--surface2); color: var(--text3); }
+
+/* History card v2 */
+.hcard-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Projection nav */
+.proj-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-right: 12px;
+}
+.proj-nav-btn {
+  width: 32px; height: 32px;
+  background: none;
+  border: 1px solid #252a35;
+  border-radius: 6px;
+  color: #8a9ab0;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.proj-nav-btn:hover:not(:disabled) { border-color: #3B82F6; color: #3B82F6; }
+.proj-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.proj-nav-label { font-size: 12px; color: #4a5568; font-family: 'Space Grotesk', sans-serif; min-width: 36px; text-align: center; }
+
+.proj-section-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0f4ff;
+}
