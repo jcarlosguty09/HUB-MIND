@@ -233,12 +233,25 @@ function buildSectionCard(ctx, dateKey, sec, idx) {
 }
 
 function bindTimerFieldEvents(card, dateKey, idx) {
+  const sec = getSections(dateKey)[idx];
+  if (!sec.timerConfig) sec.timerConfig = {};
   card.querySelectorAll('.field-input').forEach(input => {
+    const k = input.dataset.key;
+    if (!k) return;
+    const saved = sec.timerConfig[k];
+    if (saved !== undefined && saved !== null && saved !== '') {
+      // Restore saved value into the visible input
+      input.value = saved;
+    } else {
+      // Capture current default shown in input
+      sec.timerConfig[k] = input.value;
+    }
     input.addEventListener('input', e => {
-      if (!getSections(dateKey)[idx].timerConfig) getSections(dateKey)[idx].timerConfig = {};
       getSections(dateKey)[idx].timerConfig[e.target.dataset.key] = e.target.value;
+      console.log('[App] timerConfig updated:', getSections(dateKey)[idx].timerConfig);
     });
   });
+  console.log('[App] timerConfig after bind:', sec.timerConfig);
 }
 
 function renderTimerFields(mode, cfg) {
