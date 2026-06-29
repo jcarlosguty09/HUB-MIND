@@ -4,28 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>HUB MIND – WOD</title>
-
-  <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0a0b0d" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="HUB MIND" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&display=swap" />
-
-  <!-- Tabler Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
-
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body data-theme="dark">
 
-  <!-- LOADING SCREEN -->
+  <!-- LOADING -->
   <div id="loading-screen">
     <div class="loading-logo">
       <div class="loading-wordmark">HUB MIND</div>
@@ -33,196 +25,89 @@
     </div>
   </div>
 
-  <!-- APP SHELL -->
+  <!-- APP -->
   <div id="app" class="app hidden">
 
-    <!-- TOP BAR -->
     <header class="topbar">
       <div class="topbar-brand">
-        <svg class="brand-icon" width="28" height="28" viewBox="0 0 64 64" fill="none">
-          <rect x="8" y="8" width="13" height="48" rx="3" fill="currentColor"/>
-          <rect x="43" y="8" width="13" height="48" rx="3" fill="currentColor"/>
-          <path d="M21 8 L32 26 L43 8" stroke="currentColor" stroke-width="5" stroke-linejoin="round" fill="none"/>
-          <path d="M21 30 L32 42 L43 30" stroke="currentColor" stroke-width="4" stroke-linejoin="round" fill="none" opacity="0.5"/>
-        </svg>
         <div>
           <div class="brand-name">HUB MIND</div>
           <div class="brand-sub">Training Center</div>
         </div>
       </div>
       <div class="topbar-actions">
-        <button class="icon-btn" id="theme-toggle" aria-label="Cambiar tema">
-          <i class="ti ti-sun"></i>
-        </button>
-        <div class="sync-dot" id="sync-dot" title="Sincronizando..."></div>
+        <button class="icon-btn" id="theme-toggle" aria-label="Cambiar tema"><i class="ti ti-sun"></i></button>
+        <div class="sync-dot" id="sync-dot"></div>
       </div>
     </header>
 
-    <!-- NAV TABS -->
     <nav class="nav-tabs">
-      <button class="nav-tab active" data-view="calendar">
-        <i class="ti ti-calendar"></i>
-        <span>Calendario</span>
-      </button>
-      <button class="nav-tab" data-view="today">
-        <i class="ti ti-barbell"></i>
-        <span>Hoy</span>
-      </button>
-      <button class="nav-tab" data-view="history">
-        <i class="ti ti-history"></i>
-        <span>Historial</span>
-      </button>
+      <button class="nav-tab active" data-view="calendar"><i class="ti ti-calendar"></i><span>Calendario</span></button>
+      <button class="nav-tab" data-view="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
+      <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
 
-    <!-- MAIN CONTENT -->
     <main class="main-content">
 
-      <!-- ========== CALENDAR VIEW ========== -->
+      <!-- CALENDAR VIEW -->
       <section id="view-calendar" class="view active">
         <div class="cal-header">
           <button class="icon-btn" id="prev-month"><i class="ti ti-chevron-left"></i></button>
           <h2 class="cal-month-label" id="cal-month-label">Junio 2026</h2>
           <button class="icon-btn" id="next-month"><i class="ti ti-chevron-right"></i></button>
         </div>
-
-        <div class="cal-grid" id="cal-grid">
-          <!-- Days injected by JS -->
-        </div>
-
-        <!-- DAY DETAIL PANEL (appears below calendar when day selected) -->
+        <div class="cal-grid" id="cal-grid"></div>
         <div class="day-panel" id="day-panel" style="display:none">
           <div class="day-panel-header">
             <div>
-              <div class="day-panel-date" id="day-panel-date">Lunes 29 de Junio</div>
-              <div class="day-panel-hint">Selecciona la clase para ver o editar el WOD</div>
+              <div class="day-panel-date" id="day-panel-date"></div>
+              <div class="day-panel-hint">Secciones del día</div>
             </div>
-            <button class="project-btn" id="project-btn-cal">
-              <i class="ti ti-presentation"></i>
-              Proyectar
-            </button>
+            <button class="project-btn" id="project-btn-cal"><i class="ti ti-presentation"></i> Proyectar</button>
           </div>
-          <div class="class-tabs" id="class-tabs-cal">
-            <button class="class-tab active" data-class="crossfit">CrossFit</button>
-            <button class="class-tab" data-class="hyrox">HYROX</button>
-            <button class="class-tab" data-class="openbox">Open Box</button>
-            <button class="class-tab" data-class="strength">Strength Lab</button>
-          </div>
-          <textarea class="wod-editor" id="wod-editor-cal" placeholder="Escribe el WOD aquí...
-
-Ejemplo:
-WARM-UP (10 min)
-5 min easy bike
-2x: 10 PVC Pass Through, 10 Hip Circle
-
-STRENGTH
-Back Squat 5x3 @80%
-Descanso 3 min
-
-METCON – AMRAP 15
-12 Thrusters 42.5/30 kg
-10 Bar Muscle-Ups
-200m Run"></textarea>
-          <div class="editor-footer">
-            <span class="save-status" id="save-status-cal"></span>
-            <button class="save-btn" id="save-btn-cal">
-              <i class="ti ti-device-floppy"></i>
-              Guardar WOD
-            </button>
-          </div>
+          <div id="sections-cal" class="sections-list"></div>
+          <button class="add-section-btn" id="add-section-cal"><i class="ti ti-plus"></i> Agregar sección</button>
         </div>
       </section>
 
-      <!-- ========== TODAY VIEW ========== -->
+      <!-- TODAY VIEW -->
       <section id="view-today" class="view">
         <div class="today-header">
           <div class="today-date" id="today-date-label"></div>
-          <button class="project-btn" id="project-btn-today">
-            <i class="ti ti-presentation"></i>
-            Proyectar en pantalla
-          </button>
+          <button class="project-btn" id="project-btn-today"><i class="ti ti-presentation"></i> Proyectar</button>
         </div>
-        <div class="class-tabs" id="class-tabs-today">
-          <button class="class-tab active" data-class="crossfit">CrossFit</button>
-          <button class="class-tab" data-class="hyrox">HYROX</button>
-          <button class="class-tab" data-class="openbox">Open Box</button>
-          <button class="class-tab" data-class="strength">Strength Lab</button>
-        </div>
-        <textarea class="wod-editor" id="wod-editor-today" placeholder="No hay WOD para hoy todavía. Escríbelo aquí..."></textarea>
-        <div class="editor-footer">
-          <span class="save-status" id="save-status-today"></span>
-          <button class="save-btn" id="save-btn-today">
-            <i class="ti ti-device-floppy"></i>
-            Guardar WOD
-          </button>
-        </div>
-
-        <!-- Timer config -->
-        <div class="section-divider">
-          <span>Configurar Timer</span>
-        </div>
-        <div class="timer-modes">
-          <button class="timer-mode-btn active" data-mode="stopwatch"><i class="ti ti-clock-play"></i><br>Cronómetro</button>
-          <button class="timer-mode-btn" data-mode="countdown"><i class="ti ti-clock-down"></i><br>Temporizador</button>
-          <button class="timer-mode-btn" data-mode="emom"><i class="ti ti-repeat"></i><br>EMOM</button>
-          <button class="timer-mode-btn" data-mode="tabata"><i class="ti ti-activity"></i><br>Tabata</button>
-          <button class="timer-mode-btn" data-mode="intervals"><i class="ti ti-refresh"></i><br>Intervalos</button>
-        </div>
-        <div class="timer-fields" id="timer-fields">
-          <!-- Injected by JS -->
-        </div>
-        <button class="launch-btn" id="launch-btn">
-          <i class="ti ti-presentation"></i>
-          Proyectar WOD + Timer
-        </button>
+        <div id="sections-today" class="sections-list"></div>
+        <button class="add-section-btn" id="add-section-today"><i class="ti ti-plus"></i> Agregar sección</button>
       </section>
 
-      <!-- ========== HISTORY VIEW ========== -->
+      <!-- HISTORY VIEW -->
       <section id="view-history" class="view">
-        <div class="history-filters">
-          <button class="filter-chip active" data-filter="all">Todos</button>
-          <button class="filter-chip" data-filter="crossfit">CrossFit</button>
-          <button class="filter-chip" data-filter="hyrox">HYROX</button>
-          <button class="filter-chip" data-filter="openbox">Open Box</button>
-          <button class="filter-chip" data-filter="strength">Strength Lab</button>
-        </div>
-        <div class="history-list" id="history-list">
-          <!-- Injected by JS -->
-        </div>
+        <div class="history-list" id="history-list"></div>
       </section>
 
     </main>
   </div>
 
-  <!-- ========== PROJECTION OVERLAY ========== -->
+  <!-- PROJECTION -->
   <div id="projection" class="projection hidden">
     <div class="proj-topbar">
-      <div class="proj-brand">
-        <svg width="22" height="22" viewBox="0 0 64 64" fill="none">
-          <rect x="8" y="8" width="13" height="48" rx="3" fill="white"/>
-          <rect x="43" y="8" width="13" height="48" rx="3" fill="white"/>
-          <path d="M21 8 L32 26 L43 8" stroke="white" stroke-width="5" stroke-linejoin="round" fill="none"/>
-          <path d="M21 30 L32 42 L43 30" stroke="white" stroke-width="4" stroke-linejoin="round" fill="none" opacity="0.55"/>
-        </svg>
-        <span>HUB MIND</span>
-      </div>
+      <div class="proj-brand">HUB MIND</div>
       <div class="proj-meta">
-        <span class="proj-class-badge" id="proj-class-badge">CrossFit</span>
+        <span class="proj-section-name" id="proj-section-name"></span>
         <span class="proj-date" id="proj-date"></span>
       </div>
-      <button class="close-proj-btn" id="close-proj-btn">
-        <i class="ti ti-x"></i>
-        Salir
-      </button>
+      <div class="proj-nav">
+        <button class="proj-nav-btn" id="proj-prev"><i class="ti ti-chevron-left"></i></button>
+        <span class="proj-nav-label" id="proj-nav-label">1 / 1</span>
+        <button class="proj-nav-btn" id="proj-next"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <button class="close-proj-btn" id="close-proj-btn"><i class="ti ti-x"></i> Salir</button>
     </div>
-
     <div class="proj-body">
-      <!-- LEFT: WOD -->
       <div class="proj-wod-panel">
         <div class="proj-wod-label">WOD</div>
         <div class="proj-wod-text" id="proj-wod-text"></div>
       </div>
-
-      <!-- RIGHT: TIMER -->
       <div class="proj-timer-panel">
         <div class="proj-timer-mode-label" id="proj-timer-mode-label">Cronómetro</div>
         <div class="proj-timer-display" id="proj-timer-display">00:00</div>
@@ -234,21 +119,14 @@ METCON – AMRAP 15
           Ronda <span id="proj-round-cur">1</span> / <span id="proj-round-total">1</span>
         </div>
         <div class="proj-timer-controls">
-          <button class="proj-ctrl-btn reset-btn" id="proj-reset" aria-label="Reset">
-            <i class="ti ti-rotate-clockwise-2"></i>
-          </button>
-          <button class="proj-ctrl-btn play-btn" id="proj-play" aria-label="Play/Pausa">
-            <i class="ti ti-player-play"></i>
-          </button>
-          <button class="proj-ctrl-btn skip-btn" id="proj-skip" aria-label="Siguiente">
-            <i class="ti ti-player-skip-forward"></i>
-          </button>
+          <button class="proj-ctrl-btn reset-btn" id="proj-reset"><i class="ti ti-rotate-clockwise-2"></i></button>
+          <button class="proj-ctrl-btn play-btn" id="proj-play"><i class="ti ti-player-play"></i></button>
+          <button class="proj-ctrl-btn skip-btn" id="proj-skip"><i class="ti ti-player-skip-forward"></i></button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
   <div class="toast" id="toast"></div>
 
   <script src="/supabase-client.js"></script>
