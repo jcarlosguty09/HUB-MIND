@@ -1,0 +1,538 @@
+// app.js — HUB MIND WOD App
+// Main application logic
+
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DAYS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const CLASS_LABELS = { crossfit:'CrossFit', hyrox:'HYROX', openbox:'Open Box', strength:'Strength Lab' };
+
+// ---- STATE ----
+const state = {
+  view:         'calendar',
+  curYear:      new Date().getFullYear(),
+  curMonth:     new Date().getMonth(),
+  selectedDate: null,
+  selectedClass: { calendar: 'crossfit', today: 'crossfit' },
+  timerMode:    'stopwatch',
+  wods:         {},         // { 'YYYY-MM-DD': { crossfit: '...', hyrox: '...' } }
+  history:      [],
+  historyFilter:'all',
+  isDark:       true,
+  loadedMonths: new Set(),
+};
+
+const today = new Date();
+const todayKey = fmtKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+// ---- HELPERS ----
+function fmtKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function fmtMonthKey(y, m) { return `${y}-${String(m+1).padStart(2,'0')}`; }
+function fmtDateLabel(dateKey) {
+  const d = new Date(dateKey + 'T12:00:00');
+  return d.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+}
+function qs(sel) { return document.querySelector(sel); }
+function el(id)  { return document.getElementById(id); }
+
+function setSyncState(s) {
+  const dot = el('sync-dot');
+  dot.className = 'sync-dot' + (s === 'syncing' ? ' syncing' : s === 'error' ? ' error' : '');
+}
+
+function showToast(msg, ms = 2000) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ---- THEME ----
+function initTheme() {
+  const saved = localStorage.getItem('hm-theme');
+  if (saved === 'light') {
+    state.isDark = false;
+    document.body.dataset.theme = 'light';
+    el('theme-toggle').innerHTML = '<i class="ti ti-moon"></i>';
+  } else {
+    state.isDark = true;
+    document.body.dataset.theme = 'dark';
+    el('theme-toggle').innerHTML = '<i class="ti ti-sun"></i>';
+  }
+}
+function toggleTheme() {
+  state.isDark = !state.isDark;
+  document.body.dataset.theme = state.isDark ? 'dark' : 'light';
+  el('theme-toggle').innerHTML = `<i class="ti ti-${state.isDark ? 'sun' : 'moon'}"></i>`;
+  localStorage.setItem('hm-theme', state.isDark ? 'dark' : 'light');
+}
+
+// ---- VIEW SWITCHING ----
+function showView(v) {
+  state.view = v;
+  document.querySelectorAll('.view').forEach(s => s.classList.remove('active'));
+  el(`view-${v}`).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === v);
+  });
+  if (v === 'today') renderToday();
+  if (v === 'history') renderHistory();
+}
+
+// ---- CALENDAR ----
+async function loadMonth(y, m) {
+  const key = fmtMonthKey(y, m);
+  if (state.loadedMonths.has(key)) return;
+  setSyncState('syncing');
+  try {
+    const data = await WodAPI.getMonth(key);
+    Object.assign(state.wods, data);
+    state.loadedMonths.add(key);
+    setSyncState('ok');
+  } catch {
+    setSyncState('error');
+  }
+}
+
+async function renderCalendar() {
+  await loadMonth(state.curYear, state.curMonth);
+  const label = `${MONTHS[state.curMonth]} ${state.curYear}`;
+  el('cal-month-label').textContent = label;
+  const grid = el('cal-grid');
+  grid.innerHTML = '';
+
+  DAYS.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'cal-day-name';
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const firstDay  = new Date(state.curYear, state.curMonth, 1).getDay();
+  const daysInMon = new Date(state.curYear, state.curMonth + 1, 0).getDate();
+  const prevDays  = new Date(state.curYear, state.curMonth, 0).getDate();
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const pm = state.curMonth === 0 ? 11 : state.curMonth - 1;
+    const py = state.curMonth === 0 ? state.curYear - 1 : state.curYear;
+    addCalDay(grid, prevDays - i, py, pm, true);
+  }
+
+  for (let d = 1; d <= daysInMon; d++) {
+    addCalDay(grid, d, state.curYear, state.curMonth, false);
+  }
+
+  const rem = (7 - ((firstDay + daysInMon) % 7)) % 7;
+  for (let i = 1; i <= rem; i++) {
+    const nm = state.curMonth === 11 ? 0 : state.curMonth + 1;
+    const ny = state.curMonth === 11 ? state.curYear + 1 : state.curYear;
+    addCalDay(grid, i, ny, nm, true);
+  }
+}
+
+function addCalDay(grid, d, y, m, otherMonth) {
+  const key = fmtKey(y, m, d);
+  const isToday    = key === todayKey;
+  const isSelected = key === state.selectedDate;
+
+  const cell = document.createElement('div');
+  cell.className = 'cal-day' +
+    (otherMonth  ? ' other-month' : '') +
+    (isToday     ? ' today'       : '') +
+    (isSelected  ? ' selected'    : '');
+
+  const numDiv = document.createElement('div');
+  numDiv.className = 'cal-day-num';
+  numDiv.textContent = d;
+  cell.appendChild(numDiv);
+
+  const wod = state.wods[key];
+  if (wod) {
+    const dotsDiv = document.createElement('div');
+    dotsDiv.className = 'cal-wods';
+    Object.keys(wod).forEach(cls => {
+      if (wod[cls]) {
+        const dot = document.createElement('div');
+        dot.className = `cal-wod-dot ${cls}`;
+        dot.textContent = CLASS_LABELS[cls];
+        dotsDiv.appendChild(dot);
+      }
+    });
+    cell.appendChild(dotsDiv);
+  }
+
+  cell.addEventListener('click', () => {
+    if (otherMonth) {
+      state.curYear = y;
+      state.curMonth = m;
+      renderCalendar();
+    }
+    selectDay(y, m, d);
+  });
+
+  grid.appendChild(cell);
+}
+
+function selectDay(y, m, d) {
+  state.selectedDate = fmtKey(y, m, d);
+  renderCalendar();
+  const panel = el('day-panel');
+  panel.style.display = 'block';
+  el('day-panel-date').textContent = fmtDateLabel(state.selectedDate);
+  loadEditorContent('calendar');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ---- EDITOR ----
+function loadEditorContent(ctx) {
+  const key = ctx === 'today' ? todayKey : state.selectedDate;
+  const cls = state.selectedClass[ctx];
+  const text = (state.wods[key] && state.wods[key][cls]) || '';
+  el(`wod-editor-${ctx}`).value = text;
+  el(`save-status-${ctx}`).textContent = '';
+  el(`save-status-${ctx}`).className = 'save-status';
+}
+
+async function saveWod(ctx) {
+  const key  = ctx === 'today' ? todayKey : state.selectedDate;
+  const cls  = state.selectedClass[ctx];
+  const text = el(`wod-editor-${ctx}`).value.trim();
+  const statusEl = el(`save-status-${ctx}`);
+
+  if (!key) return;
+
+  setSyncState('syncing');
+  statusEl.textContent = 'Guardando...';
+  statusEl.className = 'save-status';
+
+  if (!state.wods[key]) state.wods[key] = {};
+  if (text) {
+    state.wods[key][cls] = text;
+  } else {
+    delete state.wods[key][cls];
+  }
+
+  const ok = await WodAPI.save(key, cls, text);
+  setSyncState(ok ? 'ok' : 'error');
+
+  if (ok) {
+    statusEl.textContent = '✓ WOD guardado';
+    statusEl.className = 'save-status ok';
+    showToast('¡WOD guardado!');
+    if (ctx === 'calendar') renderCalendar();
+  } else {
+    statusEl.textContent = 'Error al guardar. Revisa conexión.';
+    statusEl.className = 'save-status error';
+    showToast('Error al guardar');
+  }
+}
+
+function switchClass(ctx, cls) {
+  state.selectedClass[ctx] = cls;
+  const tabsEl = el(`class-tabs-${ctx}`);
+  tabsEl.querySelectorAll('.class-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.class === cls);
+  });
+  loadEditorContent(ctx);
+}
+
+// ---- TODAY VIEW ----
+async function renderToday() {
+  const d = today;
+  el('today-date-label').textContent = d.toLocaleDateString('es-MX', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  await loadMonth(d.getFullYear(), d.getMonth());
+  loadEditorContent('today');
+}
+
+// ---- HISTORY VIEW ----
+async function renderHistory() {
+  setSyncState('syncing');
+  const rows = await WodAPI.getHistory(80);
+  state.history = rows;
+  setSyncState('ok');
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const listEl = el('history-list');
+  listEl.innerHTML = '';
+  const f = state.historyFilter;
+  const rows = f === 'all' ? state.history : state.history.filter(r => r.class_type === f);
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="history-empty"><i class="ti ti-calendar-off"></i><p>No hay WODs guardados aún.</p></div>`;
+    return;
+  }
+  rows.forEach(row => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    card.innerHTML = `
+      <div class="hcard-top">
+        <span class="hcard-date">${fmtDateLabel(row.date)}</span>
+        <span class="hcard-class ${row.class_type}">${CLASS_LABELS[row.class_type]}</span>
+      </div>
+      <div class="hcard-preview">${row.content || ''}</div>`;
+    card.addEventListener('click', () => {
+      state.selectedDate = row.date;
+      state.selectedClass.calendar = row.class_type;
+      const d = new Date(row.date + 'T12:00:00');
+      state.curYear  = d.getFullYear();
+      state.curMonth = d.getMonth();
+      showView('calendar');
+      renderCalendar().then(() => {
+        selectDay(d.getFullYear(), d.getMonth(), d.getDate());
+        switchClass('calendar', row.class_type);
+      });
+    });
+    listEl.appendChild(card);
+  });
+}
+
+// ---- TIMER MODE ----
+function setTimerMode(mode) {
+  state.timerMode = mode;
+  document.querySelectorAll('.timer-mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  el('timer-fields').innerHTML = Timer.FIELDS[mode] || '';
+}
+
+// ---- PROJECTION ----
+function launchProjection(ctx) {
+  const key  = ctx === 'today' ? todayKey : state.selectedDate;
+  const cls  = state.selectedClass[ctx];
+  const text = el(`wod-editor-${ctx}`)?.value?.trim()
+    || (state.wods[key] && state.wods[key][cls])
+    || '';
+
+  if (!text) { showToast('Escribe un WOD primero'); return; }
+
+  // Populate WOD panel
+  el('proj-wod-text').textContent = text;
+
+  // Badge
+  const badge = el('proj-class-badge');
+  badge.className = `proj-class-badge ${cls}`;
+  badge.textContent = CLASS_LABELS[cls];
+
+  // Date
+  el('proj-date').textContent = key ? fmtDateLabel(key) : '';
+
+  // Timer
+  const cfg = Timer.buildConfig(state.timerMode);
+  Timer.configure(cfg);
+
+  const modeLabels = { stopwatch:'Cronómetro', countdown:'Temporizador', emom:'EMOM', tabata:'Tabata', intervals:'Intervalos' };
+  el('proj-timer-mode-label').textContent = modeLabels[state.timerMode] || '';
+
+  const hasPhaseBar   = ['tabata','intervals'].includes(state.timerMode);
+  const hasRoundInfo  = ['tabata','intervals','emom'].includes(state.timerMode);
+  el('proj-phase-bar').style.display  = hasPhaseBar  ? 'block' : 'none';
+  el('proj-round-info').style.display = hasRoundInfo ? 'block' : 'none';
+
+  updateTimerUI(Timer.getState());
+
+  // Show overlay
+  el('projection').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Request fullscreen on desktop
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+}
+
+function closeProjection() {
+  Timer.stop();
+  el('projection').classList.add('hidden');
+  document.body.style.overflow = '';
+  if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+}
+
+function updateTimerUI(s) {
+  const disp = el('proj-timer-display');
+  disp.textContent = s.display;
+  disp.className = 'proj-timer-display' +
+    (s.done      ? ' done'    :
+     !s.running   ? ''        :
+     s.phase === 'rest' ? ' rest' : ' running');
+
+  el('proj-timer-sub').textContent = s.sub || '';
+
+  if (s.phaseProgress !== null && s.phaseProgress !== undefined) {
+    el('proj-phase-fill').style.width = (s.phaseProgress * 100) + '%';
+    el('proj-phase-fill').style.background = s.phase === 'work' ? '#3B82F6' : '#64748B';
+  }
+
+  if (s.totalRounds) {
+    el('proj-round-cur').textContent   = s.round;
+    el('proj-round-total').textContent = s.totalRounds;
+  }
+
+  el('proj-play').innerHTML = s.running
+    ? '<i class="ti ti-player-pause"></i>'
+    : '<i class="ti ti-player-play"></i>';
+}
+
+// ---- PWA INSTALL ----
+let _deferredInstall = null;
+
+function setupPWA() {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _deferredInstall = e;
+    const dismissed = localStorage.getItem('hm-install-dismissed');
+    if (!dismissed) showInstallBanner();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    hideInstallBanner();
+    showToast('¡App instalada! Búscala en tu pantalla de inicio.', 3000);
+  });
+}
+
+function showInstallBanner() {
+  if (document.getElementById('install-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.className = 'install-banner';
+  banner.innerHTML = `
+    <div class="install-banner-text">
+      <strong>Instalar HUB MIND</strong>
+      Agrega la app a tu pantalla de inicio
+    </div>
+    <button class="install-banner-btn" id="install-banner-btn">Instalar</button>
+    <button class="install-banner-close" id="install-banner-close" aria-label="Cerrar">
+      <i class="ti ti-x"></i>
+    </button>`;
+  document.body.appendChild(banner);
+
+  el('install-banner-btn').addEventListener('click', async () => {
+    if (!_deferredInstall) return;
+    _deferredInstall.prompt();
+    const { outcome } = await _deferredInstall.userChoice;
+    if (outcome === 'accepted') hideInstallBanner();
+    _deferredInstall = null;
+  });
+
+  el('install-banner-close').addEventListener('click', () => {
+    hideInstallBanner();
+    localStorage.setItem('hm-install-dismissed', '1');
+  });
+}
+
+function hideInstallBanner() {
+  const b = el('install-banner');
+  if (b) b.remove();
+}
+
+// ---- INIT ----
+async function init() {
+  initTheme();
+  setupPWA();
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  // Nav tabs
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.addEventListener('click', () => showView(btn.dataset.view));
+  });
+
+  // Theme toggle
+  el('theme-toggle').addEventListener('click', toggleTheme);
+
+  // Calendar nav
+  el('prev-month').addEventListener('click', () => {
+    if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; }
+    renderCalendar();
+  });
+  el('next-month').addEventListener('click', () => {
+    if (++state.curMonth > 11) { state.curMonth = 0; state.curYear++; }
+    renderCalendar();
+  });
+
+  // Class tabs (calendar)
+  el('class-tabs-cal').querySelectorAll('.class-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchClass('calendar', btn.dataset.class));
+  });
+
+  // Class tabs (today)
+  el('class-tabs-today').querySelectorAll('.class-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchClass('today', btn.dataset.class));
+  });
+
+  // Save buttons
+  el('save-btn-cal').addEventListener('click',   () => saveWod('calendar'));
+  el('save-btn-today').addEventListener('click', () => saveWod('today'));
+
+  // Project buttons
+  el('project-btn-cal').addEventListener('click',   () => launchProjection('calendar'));
+  el('project-btn-today').addEventListener('click', () => launchProjection('today'));
+  el('launch-btn').addEventListener('click',         () => launchProjection('today'));
+
+  // Timer modes
+  document.querySelectorAll('.timer-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTimerMode(btn.dataset.mode));
+  });
+  el('timer-fields').innerHTML = Timer.FIELDS.stopwatch;
+
+  // Projection controls
+  el('proj-play').addEventListener('click', () => {
+    const s = Timer.getState();
+    if (s.running) Timer.stop(); else Timer.start();
+    updateTimerUI(Timer.getState());
+  });
+  el('proj-reset').addEventListener('click', () => {
+    Timer.reset();
+    updateTimerUI(Timer.getState());
+  });
+  el('proj-skip').addEventListener('click', () => {
+    Timer.skipRound();
+    updateTimerUI(Timer.getState());
+  });
+  el('close-proj-btn').addEventListener('click', closeProjection);
+
+  // Keyboard shortcut: Escape = close projection
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeProjection();
+    if (e.key === ' ' && !el('projection').classList.contains('hidden')) {
+      e.preventDefault();
+      el('proj-play').click();
+    }
+  });
+
+  // Timer tick callback
+  Timer._onTick = updateTimerUI;
+  Timer._onDone = () => {
+    showToast('¡Tiempo!', 3000);
+    // Vibrate on mobile
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  };
+
+  // History filters
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.historyFilter = btn.dataset.filter;
+      renderHistoryList();
+    });
+  });
+
+  // ---- INITIAL LOAD ----
+  // Fade out loading screen
+  setTimeout(() => { el('loading-screen').style.display = 'none'; }, 2000);
+  el('app').classList.remove('hidden');
+
+  await renderCalendar();
+  await renderToday();
+}
+
+// Wait for DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
