@@ -243,10 +243,13 @@ function bindTimerFieldEvents(card, dateKey, idx) {
 
 function renderTimerFields(mode, cfg) {
   let html = Timer.FIELDS[mode] || '';
-  // Inject saved values into inputs
+  // Inject saved values by replacing default value attribute for each key
   if (cfg && Object.keys(cfg).length) {
     Object.entries(cfg).forEach(([k, v]) => {
-      html = html.replace(`data-key="${k}" type="number" value="`, `data-key="${k}" type="number" value="${v}" data-orig="`);
+      if (v === undefined || v === null || v === '') return;
+      // Replace: data-key="KEY" type="number" value="ANYTHING"
+      const re = new RegExp(`(data-key="${k}"[^>]*?)value="[^"]*"`, 'g');
+      html = html.replace(re, `$1value="${v}"`);
     });
   }
   return html;
