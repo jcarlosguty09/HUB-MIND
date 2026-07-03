@@ -25,6 +25,30 @@
     </div>
   </div>
 
+  <!-- LOGIN -->
+  <div id="login-screen" class="hidden">
+    <div class="login-box">
+      <div class="login-brand">
+        <div class="login-wordmark">HUB MIND</div>
+        <div class="login-sub">Training Center</div>
+      </div>
+      <div class="login-form">
+        <div class="field-group">
+          <label class="field-label">Email</label>
+          <input class="field-input" type="email" id="login-email" placeholder="coach@hubmind.com" autocomplete="email" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Contraseña</label>
+          <input class="field-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="login-error hidden" id="login-error"></div>
+        <button class="launch-btn" id="login-btn">
+          <i class="ti ti-login"></i> Entrar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- APP -->
   <div id="app" class="app hidden">
 
@@ -36,7 +60,9 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <span class="role-badge" id="role-badge"></span>
         <button class="icon-btn" id="theme-toggle" aria-label="Cambiar tema"><i class="ti ti-sun"></i></button>
+        <button class="icon-btn" id="logout-btn" aria-label="Cerrar sesión"><i class="ti ti-logout"></i></button>
         <div class="sync-dot" id="sync-dot"></div>
       </div>
     </header>
@@ -53,7 +79,7 @@
       <section id="view-calendar" class="view active">
         <div class="cal-header">
           <button class="icon-btn" id="prev-month"><i class="ti ti-chevron-left"></i></button>
-          <h2 class="cal-month-label" id="cal-month-label">Junio 2026</h2>
+          <h2 class="cal-month-label" id="cal-month-label">Julio 2026</h2>
           <button class="icon-btn" id="next-month"><i class="ti ti-chevron-right"></i></button>
         </div>
         <div class="cal-grid" id="cal-grid"></div>
