@@ -87,9 +87,17 @@ async function sbReq(method, path, body = null, prefer = 'return=representation'
 const RoleAPI = {
   async getRole() {
     try {
-      const rows = await sbReq('GET', `user_roles?select=role&id=eq.${Auth.getUser()?.id}`);
-      return rows?.[0]?.role || 'coach';
-    } catch { return 'coach'; }
+      const userId = Auth.getUser()?.id;
+      if (!userId) return 'coach';
+      // select=role with RLS — token must be valid
+      const rows = await sbReq('GET', `user_roles?select=role&id=eq.${userId}&limit=1`);
+      const role = rows?.[0]?.role;
+      console.log('[Role] userId:', userId, 'role:', role);
+      return role || 'coach';
+    } catch(e) {
+      console.warn('[Role] getRole error:', e.message);
+      return 'coach';
+    }
   },
 };
 
