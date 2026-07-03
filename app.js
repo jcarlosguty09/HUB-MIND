@@ -168,16 +168,17 @@ function buildSectionCard(ctx, dateKey, sec, idx) {
   const card = document.createElement('div');
   card.className = 'section-card';
   card.dataset.id = sec.id;
+  const isCoach = state.role === 'coach';
 
   const mode = sec.timerMode || 'stopwatch';
   const timerFieldsHTML = Timer.FIELDS[mode] || '';
 
   card.innerHTML = `
     <div class="section-card-header">
-      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre de la sección (ej: MetCon, Strength...)" data-idx="${idx}" />
-      <button class="section-delete-btn" data-idx="${idx}" aria-label="Eliminar sección"><i class="ti ti-trash"></i></button>
+      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre de la sección (ej: MetCon, Strength...)" data-idx="${idx}" ${isCoach ? 'readonly style="pointer-events:none"' : ''} />
+      ${isCoach ? '' : `<button class="section-delete-btn" data-idx="${idx}" aria-label="Eliminar sección"><i class="ti ti-trash"></i></button>`}
     </div>
-    <textarea class="wod-editor" data-idx="${idx}" placeholder="Escribe el WOD aquí...">${escHtml(sec.content || '')}</textarea>
+    <textarea class="wod-editor" data-idx="${idx}" placeholder="Escribe el WOD aquí..." ${isCoach ? 'readonly style="background:var(--surface2);cursor:default"' : ''}>${escHtml(sec.content || '')}</textarea>
     <div class="section-timer-config">
       <div class="section-timer-label"><i class="ti ti-clock"></i> Timer</div>
       <div class="timer-modes">
@@ -188,10 +189,8 @@ function buildSectionCard(ctx, dateKey, sec, idx) {
       </div>
       <div class="timer-fields" data-idx="${idx}">${renderTimerFields(mode, sec.timerConfig || {})}</div>
     </div>
-    <div class="section-footer">
-      <span class="save-status" data-idx="${idx}"></span>
-      <button class="save-btn section-save-btn" data-idx="${idx}"><i class="ti ti-device-floppy"></i> Guardar</button>
-    </div>`;
+    ${isCoach ? '' : `<div class="section-footer"><span class="save-status" data-idx="${idx}"></span><button class="save-btn section-save-btn" data-idx="${idx}"><i class="ti ti-device-floppy"></i> Guardar</button></div>`}
+    `;
 
   // Name change
   card.querySelector('.section-name-input').addEventListener('input', e => {
@@ -456,18 +455,14 @@ async function showApp() {
   el('loading-screen').style.display = 'none';
   el('app').classList.remove('hidden');
 
-  // Show role badge
+  // Get role
   const role = await RoleAPI.getRole();
   state.role = role;
+
+  // Role badge
   const badge = el('role-badge');
   badge.textContent = role === 'admin' ? 'Admin' : 'Coach';
   badge.className = 'role-badge ' + role;
-
-  // Hide add/save buttons for coaches (read-only for now — can adjust)
-  // Admin can do everything, coach can project but not edit
-  if (role === 'coach') {
-    document.querySelectorAll('.add-section-btn, .save-btn, .section-delete-btn').forEach(b => b && (b.style.display = 'none'));
-  }
 
   await renderCalendar();
   await renderToday();
@@ -487,8 +482,8 @@ async function init() {
   el('next-month').addEventListener('click', () => { if (++state.curMonth > 11) { state.curMonth = 0;  state.curYear++; } renderCalendar(); });
 
   // Add section buttons
-  el('add-section-cal').addEventListener('click', () => { if (state.selectedDate) addSection('cal', state.selectedDate); });
-  el('add-section-today').addEventListener('click', () => addSection('today', todayKey));
+  el('add-section-cal').addEventListener('click', () => { if (state.selectedDate && state.role === 'admin') addSection('cal', state.selectedDate); });
+  el('add-section-today').addEventListener('click', () => { if (state.role === 'admin') addSection('today', todayKey); });
 
   // Project buttons
   el('project-btn-cal').addEventListener('click', () => { if (state.selectedDate) launchProjection('cal', state.selectedDate); });
