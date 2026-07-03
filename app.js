@@ -444,6 +444,35 @@ function showInstallBanner() {
 }
 function hideInstallBanner() { const b = el('install-banner'); if (b) b.remove(); }
 
+// ---- AUTH UI ----
+async function showLogin() {
+  el('loading-screen').style.display = 'none';
+  el('login-screen').classList.remove('hidden');
+  el('app').classList.add('hidden');
+}
+
+async function showApp() {
+  el('login-screen').classList.add('hidden');
+  el('loading-screen').style.display = 'none';
+  el('app').classList.remove('hidden');
+
+  // Show role badge
+  const role = await RoleAPI.getRole();
+  state.role = role;
+  const badge = el('role-badge');
+  badge.textContent = role === 'admin' ? 'Admin' : 'Coach';
+  badge.className = 'role-badge ' + role;
+
+  // Hide add/save buttons for coaches (read-only for now — can adjust)
+  // Admin can do everything, coach can project but not edit
+  if (role === 'coach') {
+    document.querySelectorAll('.add-section-btn, .save-btn, .section-delete-btn').forEach(b => b && (b.style.display = 'none'));
+  }
+
+  await renderCalendar();
+  await renderToday();
+}
+
 // ---- INIT ----
 async function init() {
   initTheme();
@@ -492,14 +521,43 @@ async function init() {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
   };
 
-  // Loading screen
-  const ls = el('loading-screen');
-  ls.classList.add('fade-out');
-  setTimeout(() => { ls.style.display = 'none'; }, 500);
-  el('app').classList.remove('hidden');
+  // Login form
+  el('login-btn').addEventListener('click', async () => {
+    const email    = el('login-email').value.trim();
+    const password = el('login-password').value;
+    const errEl    = el('login-error');
+    const btn      = el('login-btn');
+    errEl.classList.add('hidden');
+    btn.textContent = 'Entrando...';
+    btn.disabled = true;
+    try {
+      await Auth.signIn(email, password);
+      await showApp();
+    } catch(e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.innerHTML = '<i class="ti ti-login"></i> Entrar';
+      btn.disabled = false;
+    }
+  });
 
-  await renderCalendar();
-  await renderToday();
+  // Enter key on login
+  el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') el('login-btn').click(); });
+
+  // Logout
+  el('logout-btn').addEventListener('click', async () => {
+    await Auth.signOut();
+    showLogin();
+  });
+
+  // Check existing session
+  const session = Auth.loadSession();
+  if (session && Auth.isLoggedIn()) {
+    await showApp();
+  } else {
+    showLogin();
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
