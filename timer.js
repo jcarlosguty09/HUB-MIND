@@ -32,7 +32,7 @@ const Timer = (() => {
       osc.frequency.value = freq;
       const t = ctx.currentTime + delay;
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.4, t + 0.01);
+      gain.gain.linearRampToValueAtTime(1.0, t + 0.005);
       gain.gain.linearRampToValueAtTime(0, t + duration);
       osc.start(t);
       osc.stop(t + duration + 0.05);
@@ -41,14 +41,14 @@ const Timer = (() => {
 
   // 3 short pips — called when 3s remain in a phase
   function pipPipPip() {
-    beep(880, 0.10, 0.0);
-    beep(880, 0.10, 0.35);
-    beep(880, 0.10, 0.70);
+    beep(1200, 0.15, 0.0);
+    beep(1200, 0.15, 0.35);
+    beep(1200, 0.15, 0.70);
   }
 
   // Long beep — phase just changed or done
   function bong() {
-    beep(660, 0.5, 0.0);
+    beep(880, 0.6, 0.0);
   }
 
   // ---- HELPERS ----
