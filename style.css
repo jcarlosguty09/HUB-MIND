@@ -1109,3 +1109,93 @@ body {
   font-weight: 700;
   color: #0a0b0d;
 }
+
+/* ============================================
+   LOGIN SCREEN
+   ============================================ */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.login-brand {
+  text-align: center;
+}
+.login-wordmark {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--text);
+}
+.login-sub {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.login-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+[data-theme="dark"] .login-error {
+  background: #450a0a;
+  color: #fca5a5;
+}
+
+/* ---- ROLE BADGE ---- */
+.role-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.role-badge.admin {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+.role-badge.coach {
+  background: #D1FAE5;
+  color: #065F46;
+}
+[data-theme="dark"] .role-badge.admin {
+  background: #1e2d4a;
+  color: #93C5FD;
+}
+[data-theme="dark"] .role-badge.coach {
+  background: #052e16;
+  color: #6EE7B7;
+}
