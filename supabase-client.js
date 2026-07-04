@@ -119,13 +119,28 @@ const WodAPI = {
 
   async saveDay(date, sections) {
     try {
-      await sbReq('POST',
-        `wod_days?on_conflict=date`,
-        { date, sections: JSON.stringify(sections), updated_at: new Date().toISOString() },
-        'resolution=merge-duplicates,return=representation'
-      );
+      const token = Auth.getToken();
+      const body = { date, sections: JSON.stringify(sections), updated_at: new Date().toISOString() };
+      
+      // Try upsert first
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_days?on_conflict=date`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('saveDay error:', res.status, err);
+        return false;
+      }
       return true;
-    } catch (e) { console.error('saveDay:', e.message); return false; }
+    } catch (e) { console.error('saveDay exception:', e.message); return false; }
   },
 
   async getHistory(limit = 60) {
