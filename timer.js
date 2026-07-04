@@ -26,10 +26,27 @@ const Timer = (() => {
       const ctx = getAudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+
+      // Compressor to maximize perceived loudness
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -6;
+      comp.knee.value = 0;
+      comp.ratio.value = 20;
+      comp.attack.value = 0;
+      comp.release.value = 0.1;
+
+      // Extra gain stage after compressor
+      const masterGain = ctx.createGain();
+      masterGain.gain.value = 3.0;
+
       osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
+      gain.connect(comp);
+      comp.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      osc.type = 'square'; // Square wave = much louder/punchier than sine
       osc.frequency.value = freq;
+
       const t = ctx.currentTime + delay;
       gain.gain.setValueAtTime(0, t);
       gain.gain.linearRampToValueAtTime(1.0, t + 0.005);
