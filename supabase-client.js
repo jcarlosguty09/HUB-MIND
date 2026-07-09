@@ -103,6 +103,7 @@ const RoleAPI = {
 
 // ---- WOD API ----
 const WodAPI = {
+  // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
   async getMonth(yearMonth) {
     const start = `${yearMonth}-01`;
     const d = new Date(yearMonth + '-01'); d.setMonth(d.getMonth() + 1);
@@ -111,18 +112,18 @@ const WodAPI = {
       const rows = await sbReq('GET', `wod_days?select=*&date=gte.${start}&date=lt.${end}&order=date.asc`);
       const map = {};
       for (const row of rows) {
-        map[row.date] = typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections || []);
+        const raw = typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections || {});
+        // Support both old array format and new object format
+        map[row.date] = Array.isArray(raw) ? {} : raw;
       }
       return map;
     } catch (e) { console.warn('getMonth:', e.message); return {}; }
   },
 
-  async saveDay(date, sections) {
+  async saveDay(date, dayData) {
     try {
       const token = Auth.getToken();
-      const body = { date, sections: JSON.stringify(sections), updated_at: new Date().toISOString() };
-      
-      // Try upsert first
+      const body = { date, sections: JSON.stringify(dayData), updated_at: new Date().toISOString() };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_days?on_conflict=date`, {
         method: 'POST',
         headers: {
@@ -133,12 +134,7 @@ const WodAPI = {
         },
         body: JSON.stringify(body),
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error('saveDay error:', res.status, err);
-        return false;
-      }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); console.error('saveDay:', res.status, err); return false; }
       return true;
     } catch (e) { console.error('saveDay exception:', e.message); return false; }
   },
@@ -146,10 +142,10 @@ const WodAPI = {
   async getHistory(limit = 60) {
     try {
       const rows = await sbReq('GET', `wod_days?select=*&order=date.desc&limit=${limit}`);
-      return rows.map(r => ({
-        date: r.date,
-        sections: typeof r.sections === 'string' ? JSON.parse(r.sections) : (r.sections || []),
-      }));
+      return rows.map(r => {
+        const raw = typeof r.sections === 'string' ? JSON.parse(r.sections) : (r.sections || {});
+        return { date: r.date, data: Array.isArray(raw) ? {} : raw };
+      });
     } catch (e) { console.warn('getHistory:', e.message); return []; }
   },
 };
