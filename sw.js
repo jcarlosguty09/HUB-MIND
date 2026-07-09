@@ -1,5 +1,5 @@
 // sw.js — HUB MIND Service Worker
-const CACHE = 'hubmind-v10';
+const CACHE = 'hubmind-v12';
 const ASSETS = [
   '/',
   '/index.html',
