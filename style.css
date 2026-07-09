@@ -1199,3 +1199,97 @@ body {
   background: #052e16;
   color: #6EE7B7;
 }
+
+/* ============================================
+   CLASS TYPE TABS v4
+   ============================================ */
+.class-type-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.class-type-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.class-type-tab:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Active states per class color */
+.class-type-tab.active.blue   { background:#DBEAFE; border-color:#3B82F6; color:#1E40AF; }
+.class-type-tab.active.yellow { background:#FEF3C7; border-color:#F59E0B; color:#92400E; }
+.class-type-tab.active.purple { background:#F3E8FF; border-color:#A855F7; color:#6B21A8; }
+.class-type-tab.active.orange { background:#FEE2CC; border-color:#F97316; color:#7C2D12; }
+.class-type-tab.active.green  { background:#D1FAE5; border-color:#10B981; color:#065F46; }
+
+[data-theme="dark"] .class-type-tab.active.blue   { background:#1e2d4a; border-color:#3B82F6; color:#93C5FD; }
+[data-theme="dark"] .class-type-tab.active.yellow { background:#451a03; border-color:#F59E0B; color:#FDE68A; }
+[data-theme="dark"] .class-type-tab.active.purple { background:#2e1065; border-color:#A855F7; color:#D8B4FE; }
+[data-theme="dark"] .class-type-tab.active.orange { background:#431407; border-color:#F97316; color:#FDBA74; }
+[data-theme="dark"] .class-type-tab.active.green  { background:#052e16; border-color:#10B981; color:#6EE7B7; }
+
+.tab-count {
+  background: var(--blue);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+/* Calendar dots per class */
+.cal-wod-dot.blue   { background:#DBEAFE; color:#1E40AF; }
+.cal-wod-dot.yellow { background:#FEF3C7; color:#92400E; }
+.cal-wod-dot.purple { background:#F3E8FF; color:#6B21A8; }
+.cal-wod-dot.orange { background:#FEE2CC; color:#7C2D12; }
+.cal-wod-dot.green  { background:#D1FAE5; color:#065F46; }
+
+[data-theme="dark"] .cal-wod-dot.blue   { background:#1e2d4a; color:#93C5FD; }
+[data-theme="dark"] .cal-wod-dot.yellow { background:#451a03; color:#FDE68A; }
+[data-theme="dark"] .cal-wod-dot.purple { background:#2e1065; color:#D8B4FE; }
+[data-theme="dark"] .cal-wod-dot.orange { background:#431407; color:#FDBA74; }
+[data-theme="dark"] .cal-wod-dot.green  { background:#052e16; color:#6EE7B7; }
+
+/* History card classes row */
+.hcard-classes { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+
+/* Projection class badge colors */
+.proj-class-badge.blue   { background:#1e2d4a; color:#93C5FD; }
+.proj-class-badge.yellow { background:#451a03; color:#FDE68A; }
+.proj-class-badge.purple { background:#2e1065; color:#D8B4FE; }
+.proj-class-badge.orange { background:#431407; color:#FDBA74; }
+.proj-class-badge.green  { background:#052e16; color:#6EE7B7; }
+
+/* Dual nav groups in projection topbar */
+.proj-nav-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.proj-nav-group-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
