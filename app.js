@@ -1,9 +1,17 @@
-// app.js — HUB MIND WOD App v2
-// Sections per day, each with independent timer config
+// app.js — HUB MIND WOD App v4
+// Structure: Day → Classes → Sections
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAYS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MODE_LABELS = { stopwatch:'Cronómetro', countdown:'Temporizador', emom:'EMOM', tabata:'Tabata', intervals:'Intervalos' };
+
+const CLASSES = [
+  { id: 'crossfit',     label: 'CrossFit',         color: 'blue'   },
+  { id: 'hyrox',        label: 'HYROX',             color: 'yellow' },
+  { id: 'strength',     label: 'Strength Lab',      color: 'purple' },
+  { id: 'openbox_hyrox',label: 'Open Box (HYROX)',  color: 'orange' },
+  { id: 'openbox',      label: 'Open Box',          color: 'green'  },
+];
 
 // ---- STATE ----
 const state = {
@@ -11,14 +19,18 @@ const state = {
   curYear:  new Date().getFullYear(),
   curMonth: new Date().getMonth(),
   selectedDate: null,
-  // wods[dateKey] = [ { id, name, content, timerMode, timerConfig:{} }, ... ]
+  selectedClass: { cal: 'crossfit', today: 'crossfit' },
+  // wods[dateKey] = { crossfit: [...sections], hyrox: [...sections], ... }
   wods: {},
   history: [],
   isDark: true,
   loadedMonths: new Set(),
+  role: 'coach',
   // Projection
+  projClasses: [],   // active classes for the day
+  projClassIdx: 0,
   projSections: [],
-  projIdx: 0,
+  projSectionIdx: 0,
   projDateKey: null,
 };
 
@@ -33,6 +45,10 @@ function fmtDateLabel(k) {
 }
 function el(id) { return document.getElementById(id); }
 function uid()  { return Math.random().toString(36).slice(2, 9); }
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getClassInfo(id) { return CLASSES.find(c => c.id === id) || CLASSES[0]; }
 
 function setSyncState(s) {
   const dot = el('sync-dot');
@@ -65,7 +81,7 @@ function showView(v) {
   document.querySelectorAll('.view').forEach(s => s.classList.remove('active'));
   el(`view-${v}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-  if (v === 'today')   renderSections('today', todayKey);
+  if (v === 'today')   renderDay('today', todayKey);
   if (v === 'history') renderHistory();
 }
 
@@ -75,10 +91,8 @@ async function loadMonth(y, m) {
   if (state.loadedMonths.has(key)) return;
   setSyncState('syncing');
   try {
-    // rows: { date, sections: JSON string }
-    const rows = await WodAPI.getMonth(key);
-    // WodAPI returns { 'YYYY-MM-DD': [ ...sections ] }
-    Object.assign(state.wods, rows);
+    const data = await WodAPI.getMonth(key);
+    Object.assign(state.wods, data);
     state.loadedMonths.add(key);
     setSyncState('ok');
   } catch { setSyncState('error'); }
@@ -90,7 +104,12 @@ async function renderCalendar() {
   el('cal-month-label').textContent = `${MONTHS[state.curMonth]} ${state.curYear}`;
   const grid = el('cal-grid');
   grid.innerHTML = '';
-  DAYS.forEach(d => { const h = document.createElement('div'); h.className = 'cal-day-name'; h.textContent = d; grid.appendChild(h); });
+  DAYS.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'cal-day-name';
+    h.textContent = d;
+    grid.appendChild(h);
+  });
   const firstDay  = new Date(state.curYear, state.curMonth, 1).getDay();
   const daysInMon = new Date(state.curYear, state.curMonth + 1, 0).getDate();
   const prevDays  = new Date(state.curYear, state.curMonth, 0).getDate();
@@ -109,24 +128,26 @@ async function renderCalendar() {
 }
 
 function addCalDay(grid, d, y, m, other) {
-  const key      = fmtKey(y, m, d);
-  const isToday  = key === todayKey;
-  const isSel    = key === state.selectedDate;
-  const cell     = document.createElement('div');
+  const key     = fmtKey(y, m, d);
+  const isToday = key === todayKey;
+  const isSel   = key === state.selectedDate;
+  const cell    = document.createElement('div');
   cell.className = 'cal-day' + (other ? ' other-month' : '') + (isToday ? ' today' : '') + (isSel ? ' selected' : '');
   const num = document.createElement('div'); num.className = 'cal-day-num'; num.textContent = d;
   cell.appendChild(num);
-  const secs = state.wods[key];
-  if (secs && secs.length) {
+  const dayData = state.wods[key];
+  if (dayData) {
     const dots = document.createElement('div'); dots.className = 'cal-wods';
-    secs.slice(0, 3).forEach(s => {
-      const dot = document.createElement('div');
-      dot.className = 'cal-wod-dot';
-      dot.textContent = s.name || 'Sección';
-      dots.appendChild(dot);
+    CLASSES.forEach(cls => {
+      const secs = dayData[cls.id];
+      if (secs && secs.length) {
+        const dot = document.createElement('div');
+        dot.className = `cal-wod-dot ${cls.color}`;
+        dot.textContent = cls.label;
+        dots.appendChild(dot);
+      }
     });
-    if (secs.length > 3) { const more = document.createElement('div'); more.className = 'cal-wod-dot more'; more.textContent = `+${secs.length - 3}`; dots.appendChild(more); }
-    cell.appendChild(dots);
+    if (dots.children.length) cell.appendChild(dots);
   }
   cell.addEventListener('click', () => {
     if (other) { state.curYear = y; state.curMonth = m; renderCalendar(); }
@@ -141,125 +162,154 @@ function selectDay(y, m, d) {
   const panel = el('day-panel');
   panel.style.display = 'block';
   el('day-panel-date').textContent = fmtDateLabel(state.selectedDate);
-  renderSections('cal', state.selectedDate);
+  renderDay('cal', state.selectedDate);
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ---- SECTIONS ----
-function getSections(dateKey) {
-  if (!state.wods[dateKey]) state.wods[dateKey] = [];
+// ---- DAY RENDER (class tabs + sections) ----
+function getDayData(dateKey) {
+  if (!state.wods[dateKey]) state.wods[dateKey] = {};
   return state.wods[dateKey];
 }
-
-function renderSections(ctx, dateKey) {
-  const container = el(`sections-${ctx}`);
-  container.innerHTML = '';
-  const sections = getSections(dateKey);
-  if (!sections.length) {
-    container.innerHTML = `<div class="sections-empty"><i class="ti ti-layout-list"></i><p>Sin secciones. Agrega una para empezar.</p></div>`;
-    return;
-  }
-  sections.forEach((sec, idx) => {
-    container.appendChild(buildSectionCard(ctx, dateKey, sec, idx));
-  });
+function getSections(dateKey, classId) {
+  const day = getDayData(dateKey);
+  if (!day[classId]) day[classId] = [];
+  return day[classId];
 }
 
-function buildSectionCard(ctx, dateKey, sec, idx) {
+function renderDay(ctx, dateKey) {
+  const container = el(`day-content-${ctx}`);
+  container.innerHTML = '';
+
+  // Class tabs
+  const tabsEl = document.createElement('div');
+  tabsEl.className = 'class-type-tabs';
+  CLASSES.forEach(cls => {
+    const tab = document.createElement('button');
+    tab.className = `class-type-tab ${cls.color}${state.selectedClass[ctx] === cls.id ? ' active' : ''}`;
+    tab.dataset.class = cls.id;
+    const secs = getSections(dateKey, cls.id);
+    tab.innerHTML = `${cls.label}${secs.length ? `<span class="tab-count">${secs.length}</span>` : ''}`;
+    tab.addEventListener('click', () => {
+      state.selectedClass[ctx] = cls.id;
+      renderDay(ctx, dateKey);
+    });
+    tabsEl.appendChild(tab);
+  });
+  container.appendChild(tabsEl);
+
+  // Sections for selected class
+  const classId = state.selectedClass[ctx];
+  const sections = getSections(dateKey, classId);
+  const sectionsEl = document.createElement('div');
+  sectionsEl.className = 'sections-list';
+
+  if (!sections.length) {
+    sectionsEl.innerHTML = `<div class="sections-empty"><i class="ti ti-layout-list"></i><p>Sin secciones. Agrega una para empezar.</p></div>`;
+  } else {
+    sections.forEach((sec, idx) => {
+      sectionsEl.appendChild(buildSectionCard(ctx, dateKey, classId, sec, idx));
+    });
+  }
+  container.appendChild(sectionsEl);
+
+  // Add section button (admin only)
+  if (state.role === 'admin') {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-section-btn';
+    addBtn.innerHTML = '<i class="ti ti-plus"></i> Agregar sección';
+    addBtn.addEventListener('click', () => addSection(ctx, dateKey, classId));
+    container.appendChild(addBtn);
+  }
+}
+
+// ---- SECTION CARD ----
+function buildSectionCard(ctx, dateKey, classId, sec, idx) {
   const card = document.createElement('div');
   card.className = 'section-card';
-  card.dataset.id = sec.id;
   const isCoach = state.role === 'coach';
-
   const mode = sec.timerMode || 'stopwatch';
-  const timerFieldsHTML = Timer.FIELDS[mode] || '';
 
   card.innerHTML = `
     <div class="section-card-header">
-      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre de la sección (ej: MetCon, Strength...)" data-idx="${idx}" ${isCoach ? 'readonly style="pointer-events:none"' : ''} />
-      ${isCoach ? '' : `<button class="section-delete-btn" data-idx="${idx}" aria-label="Eliminar sección"><i class="ti ti-trash"></i></button>`}
+      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre (ej: MetCon, Strength...)" ${isCoach ? 'readonly style="pointer-events:none"' : ''} />
+      ${isCoach ? '' : `<button class="section-delete-btn" aria-label="Eliminar"><i class="ti ti-trash"></i></button>`}
     </div>
-    <textarea class="wod-editor" data-idx="${idx}" placeholder="Escribe el WOD aquí..." ${isCoach ? 'readonly style="background:var(--surface2);cursor:default"' : ''}>${escHtml(sec.content || '')}</textarea>
+    <textarea class="wod-editor" placeholder="Escribe el WOD aquí..." ${isCoach ? 'readonly style="background:var(--surface2);cursor:default"' : ''}>${escHtml(sec.content || '')}</textarea>
     <div class="section-timer-config">
       <div class="section-timer-label"><i class="ti ti-clock"></i> Timer</div>
       <div class="timer-modes">
         ${['stopwatch','countdown','emom','tabata','intervals'].map(m =>
-          `<button class="timer-mode-btn${mode === m ? ' active' : ''}" data-mode="${m}" data-idx="${idx}">
+          `<button class="timer-mode-btn${mode === m ? ' active' : ''}" data-mode="${m}">
             <i class="ti ti-${modeIcon(m)}"></i><br>${MODE_LABELS[m]}
           </button>`).join('')}
       </div>
-      <div class="timer-fields" data-idx="${idx}">${renderTimerFields(mode, sec.timerConfig || {})}</div>
+      <div class="timer-fields">${renderTimerFields(mode, sec.timerConfig || {})}</div>
     </div>
-    ${isCoach ? '' : `<div class="section-footer"><span class="save-status" data-idx="${idx}"></span><button class="save-btn section-save-btn" data-idx="${idx}"><i class="ti ti-device-floppy"></i> Guardar</button></div>`}
-    `;
+    ${isCoach ? '' : `<div class="section-footer"><span class="save-status"></span><button class="save-btn section-save-btn"><i class="ti ti-device-floppy"></i> Guardar</button></div>`}`;
 
-  // Name change
+  // Name
   card.querySelector('.section-name-input').addEventListener('input', e => {
-    getSections(dateKey)[idx].name = e.target.value;
+    getSections(dateKey, classId)[idx].name = e.target.value;
   });
-
-  // Content change
+  // Content
   card.querySelector('.wod-editor').addEventListener('input', e => {
-    getSections(dateKey)[idx].content = e.target.value;
+    getSections(dateKey, classId)[idx].content = e.target.value;
   });
-
-  // Timer mode buttons
+  // Timer modes
   card.querySelectorAll('.timer-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const newMode = btn.dataset.mode;
-      getSections(dateKey)[idx].timerMode = newMode;
-      getSections(dateKey)[idx].timerConfig = {};
+      getSections(dateKey, classId)[idx].timerMode = newMode;
+      getSections(dateKey, classId)[idx].timerConfig = {};
       card.querySelectorAll('.timer-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === newMode));
-      card.querySelector(`.timer-fields[data-idx="${idx}"]`).innerHTML = renderTimerFields(newMode, {});
-      bindTimerFieldEvents(card, dateKey, idx);
+      card.querySelector('.timer-fields').innerHTML = renderTimerFields(newMode, {});
+      bindTimerFields(card, dateKey, classId, idx);
     });
   });
-
-  // Timer field changes
-  bindTimerFieldEvents(card, dateKey, idx);
-
+  bindTimerFields(card, dateKey, classId, idx);
   // Delete
-  card.querySelector('.section-delete-btn').addEventListener('click', () => {
-    getSections(dateKey).splice(idx, 1);
-    renderSections(ctx, dateKey);
-  });
-
-  // Save
-  card.querySelector('.section-save-btn').addEventListener('click', async () => {
-    await saveDay(ctx, dateKey, idx, card);
-  });
-
+  if (!isCoach) {
+    card.querySelector('.section-delete-btn').addEventListener('click', () => {
+      getSections(dateKey, classId).splice(idx, 1);
+      renderDay(ctx, dateKey);
+    });
+    // Save
+    card.querySelector('.section-save-btn').addEventListener('click', async () => {
+      const statusEl = card.querySelector('.save-status');
+      statusEl.textContent = 'Guardando...';
+      statusEl.className = 'save-status';
+      const ok = await saveDay(dateKey);
+      statusEl.textContent = ok ? '✓ Guardado' : 'Error';
+      statusEl.className = 'save-status ' + (ok ? 'ok' : 'error');
+      if (ok && ctx === 'cal') renderCalendar();
+    });
+  }
   return card;
 }
 
-function bindTimerFieldEvents(card, dateKey, idx) {
-  const sec = getSections(dateKey)[idx];
+function bindTimerFields(card, dateKey, classId, idx) {
+  const sec = getSections(dateKey, classId)[idx];
   if (!sec.timerConfig) sec.timerConfig = {};
   card.querySelectorAll('.field-input').forEach(input => {
     const k = input.dataset.key;
     if (!k) return;
-    const saved = sec.timerConfig[k];
-    if (saved !== undefined && saved !== null && saved !== '') {
-      // Restore saved value into the visible input
-      input.value = saved;
+    if (sec.timerConfig[k] !== undefined && sec.timerConfig[k] !== '') {
+      input.value = sec.timerConfig[k];
     } else {
-      // Capture current default shown in input
       sec.timerConfig[k] = input.value;
     }
     input.addEventListener('input', e => {
-      getSections(dateKey)[idx].timerConfig[e.target.dataset.key] = e.target.value;
-      console.log('[App] timerConfig updated:', getSections(dateKey)[idx].timerConfig);
+      getSections(dateKey, classId)[idx].timerConfig[k] = e.target.value;
     });
   });
-  console.log('[App] timerConfig after bind:', sec.timerConfig);
 }
 
 function renderTimerFields(mode, cfg) {
   let html = Timer.FIELDS[mode] || '';
-  // Inject saved values by replacing default value attribute for each key
   if (cfg && Object.keys(cfg).length) {
     Object.entries(cfg).forEach(([k, v]) => {
       if (v === undefined || v === null || v === '') return;
-      // Replace: data-key="KEY" type="number" value="ANYTHING"
       const re = new RegExp(`(data-key="${k}"[^>]*?)value="[^"]*"`, 'g');
       html = html.replace(re, `$1value="${v}"`);
     });
@@ -271,43 +321,31 @@ function modeIcon(m) {
   return { stopwatch:'clock-play', countdown:'clock-down', emom:'repeat', tabata:'activity', intervals:'refresh' }[m] || 'clock';
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function addSection(ctx, dateKey) {
-  const sections = getSections(dateKey);
-  sections.push({ id: uid(), name: '', content: '', timerMode: 'stopwatch', timerConfig: {} });
-  renderSections(ctx, dateKey);
-  // Scroll to last card
-  const container = el(`sections-${ctx}`);
+function addSection(ctx, dateKey, classId) {
+  getSections(dateKey, classId).push({ id: uid(), name: '', content: '', timerMode: 'stopwatch', timerConfig: {} });
+  renderDay(ctx, dateKey);
+  const container = el(`day-content-${ctx}`);
   const cards = container.querySelectorAll('.section-card');
   if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ---- SAVE ----
-async function saveDay(ctx, dateKey, idx, card) {
-  const statusEl = card ? card.querySelector(`.save-status[data-idx="${idx}"]`) : null;
-  if (statusEl) { statusEl.textContent = 'Guardando...'; statusEl.className = 'save-status'; }
+async function saveDay(dateKey) {
   setSyncState('syncing');
-  const sections = getSections(dateKey);
-  const ok = await WodAPI.saveDay(dateKey, sections);
+  const ok = await WodAPI.saveDay(dateKey, state.wods[dateKey] || {});
   setSyncState(ok ? 'ok' : 'error');
-  if (ok) {
-    if (statusEl) { statusEl.textContent = '✓ Guardado'; statusEl.className = 'save-status ok'; }
-    showToast('¡Guardado!');
-    if (ctx === 'cal') renderCalendar();
-  } else {
-    if (statusEl) { statusEl.textContent = 'Error al guardar'; statusEl.className = 'save-status error'; }
-    showToast('Error al guardar');
-  }
+  if (ok) showToast('¡Guardado!');
+  else showToast('Error al guardar');
+  return ok;
 }
 
 // ---- TODAY ----
 async function renderToday() {
-  el('today-date-label').textContent = today.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  el('today-date-label').textContent = today.toLocaleDateString('es-MX', {
+    weekday:'long', day:'numeric', month:'long', year:'numeric'
+  });
   await loadMonth(today.getFullYear(), today.getMonth());
-  renderSections('today', todayKey);
+  renderDay('today', todayKey);
 }
 
 // ---- HISTORY ----
@@ -322,17 +360,15 @@ async function renderHistory() {
     return;
   }
   rows.forEach(row => {
-    const sections = row.sections || [];
     const card = document.createElement('div');
     card.className = 'history-card';
-    const dateLabel = fmtDateLabel(row.date);
-    const preview = sections.map(s => s.name || 'Sección').join(' · ') || 'Sin secciones';
+    const activeClasses = CLASSES.filter(c => row.data[c.id] && row.data[c.id].length);
+    const pills = activeClasses.map(c => `<span class="cal-wod-dot ${c.color}">${c.label}</span>`).join('');
     card.innerHTML = `
       <div class="hcard-top">
-        <span class="hcard-date">${dateLabel}</span>
-        <span class="hcard-count">${sections.length} sección${sections.length !== 1 ? 'es' : ''}</span>
+        <span class="hcard-date">${fmtDateLabel(row.date)}</span>
       </div>
-      <div class="hcard-preview">${preview}</div>`;
+      <div class="hcard-classes">${pills || '<span style="color:var(--text3);font-size:12px">Sin clases</span>'}</div>`;
     card.addEventListener('click', () => {
       const d = new Date(row.date + 'T12:00:00');
       state.curYear = d.getFullYear(); state.curMonth = d.getMonth();
@@ -345,45 +381,67 @@ async function renderHistory() {
 
 // ---- PROJECTION ----
 function launchProjection(ctx, dateKey) {
-  const sections = getSections(dateKey).filter(s => s.content && s.content.trim());
-  if (!sections.length) { showToast('Escribe al menos un WOD primero'); return; }
-  state.projSections = sections;
-  state.projIdx      = 0;
-  state.projDateKey  = dateKey;
+  const dayData = state.wods[dateKey] || {};
+  // Build list of classes that have at least one section with content
+  const activeClasses = CLASSES.filter(c => {
+    const secs = dayData[c.id] || [];
+    return secs.some(s => s.content && s.content.trim());
+  });
+  if (!activeClasses.length) { showToast('No hay WODs para proyectar'); return; }
+
+  state.projClasses    = activeClasses;
+  state.projClassIdx   = 0;
+  state.projDateKey    = dateKey;
   el('proj-date').textContent = fmtDateLabel(dateKey);
-  loadProjSection(0);
+
+  loadProjClass(0);
   el('projection').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
 }
 
-function loadProjSection(idx) {
+function loadProjClass(classIdx) {
+  state.projClassIdx = classIdx;
+  const cls = state.projClasses[classIdx];
+  const dayData = state.wods[state.projDateKey] || {};
+  const sections = (dayData[cls.id] || []).filter(s => s.content && s.content.trim());
+  state.projSections   = sections;
+  state.projSectionIdx = 0;
+
+  // Update class badge
+  const badge = el('proj-class-badge');
+  badge.textContent  = cls.label;
+  badge.className    = `proj-class-badge ${cls.color}`;
+
+  // Update class nav
+  el('proj-class-label').textContent = `${classIdx + 1} / ${state.projClasses.length}`;
+  el('proj-class-prev').disabled = classIdx === 0;
+  el('proj-class-next').disabled = classIdx === state.projClasses.length - 1;
+
+  loadProjSection(0);
+}
+
+function loadProjSection(secIdx) {
   Timer.stop();
   Timer.reset();
-  const sections = state.projSections;
-  const sec = sections[idx];
+  state.projSectionIdx = secIdx;
+  const sec = state.projSections[secIdx];
   if (!sec) return;
-  state.projIdx = idx;
 
-  el('proj-section-name').textContent = sec.name || `Sección ${idx + 1}`;
+  el('proj-section-name').textContent = sec.name || `Sección ${secIdx + 1}`;
   el('proj-wod-text').textContent     = sec.content || '';
-  el('proj-nav-label').textContent    = `${idx + 1} / ${sections.length}`;
+  el('proj-section-label').textContent = `${secIdx + 1} / ${state.projSections.length}`;
+  el('proj-section-prev').disabled = secIdx === 0;
+  el('proj-section-next').disabled = secIdx === state.projSections.length - 1;
 
-  // Configure timer for this section
   const cfg = Timer.buildConfigFromSection(sec);
   Timer.configure(cfg);
 
   const mode = sec.timerMode || 'stopwatch';
   el('proj-timer-mode-label').textContent = MODE_LABELS[mode] || '';
 
-  const hasBar   = ['tabata','intervals'].includes(mode);
-  const hasRound = ['tabata','intervals','emom'].includes(mode);
-  el('proj-phase-bar').style.display  = hasBar   ? 'block' : 'none';
-  el('proj-round-info').style.display = hasRound ? 'block' : 'none';
-
-  // Nav buttons
-  el('proj-prev').disabled = idx === 0;
-  el('proj-next').disabled = idx === sections.length - 1;
+  el('proj-phase-bar').style.display  = ['tabata','intervals'].includes(mode) ? 'block' : 'none';
+  el('proj-round-info').style.display = ['tabata','intervals','emom'].includes(mode) ? 'block' : 'none';
 
   updateTimerUI(Timer.getState());
 }
@@ -399,22 +457,16 @@ function updateTimerUI(s) {
   const disp = el('proj-timer-display');
   disp.textContent = s.display;
   disp.className   = 'proj-timer-display' + (s.done ? ' done' : s.running ? (s.phase === 'rest' ? ' rest' : ' running') : '');
-
   el('proj-timer-sub').textContent = s.sub || '';
-
   if (s.phaseProgress !== null && s.phaseProgress !== undefined) {
     el('proj-phase-fill').style.width      = (s.phaseProgress * 100) + '%';
     el('proj-phase-fill').style.background = s.phase === 'work' ? '#3B82F6' : '#64748B';
   }
-
   if (s.totalRounds) {
     el('proj-round-cur').textContent   = s.round;
     el('proj-round-total').textContent = s.totalRounds;
   }
-
-  el('proj-play').innerHTML = s.running
-    ? '<i class="ti ti-player-pause"></i>'
-    : '<i class="ti ti-player-play"></i>';
+  el('proj-play').innerHTML = s.running ? '<i class="ti ti-player-pause"></i>' : '<i class="ti ti-player-play"></i>';
 }
 
 // ---- PWA ----
@@ -455,11 +507,8 @@ async function showApp() {
   el('loading-screen').style.display = 'none';
   el('app').classList.remove('hidden');
 
-  // Get role
   const role = await RoleAPI.getRole();
   state.role = role;
-
-  // Role badge
   const badge = el('role-badge');
   badge.textContent = role === 'admin' ? 'Admin' : 'Coach';
   badge.className = 'role-badge ' + role;
@@ -473,86 +522,60 @@ async function init() {
   initTheme();
   setupPWA();
 
-  // Nav
   document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   el('theme-toggle').addEventListener('click', toggleTheme);
 
-  // Calendar nav
   el('prev-month').addEventListener('click', () => { if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; } renderCalendar(); });
   el('next-month').addEventListener('click', () => { if (++state.curMonth > 11) { state.curMonth = 0;  state.curYear++; } renderCalendar(); });
 
-  // Add section buttons
-  el('add-section-cal').addEventListener('click', () => { if (state.selectedDate && state.role === 'admin') addSection('cal', state.selectedDate); });
-  el('add-section-today').addEventListener('click', () => { if (state.role === 'admin') addSection('today', todayKey); });
-
-  // Project buttons
-  el('project-btn-cal').addEventListener('click', () => { if (state.selectedDate) launchProjection('cal', state.selectedDate); });
+  el('project-btn-cal').addEventListener('click',   () => { if (state.selectedDate) launchProjection('cal', state.selectedDate); });
   el('project-btn-today').addEventListener('click', () => launchProjection('today', todayKey));
 
   // Projection controls
-  el('proj-play').addEventListener('click', () => {
-    const s = Timer.getState();
-    if (s.running) Timer.stop(); else Timer.start();
-  });
+  el('proj-play').addEventListener('click',  () => { const s = Timer.getState(); if (s.running) Timer.stop(); else Timer.start(); });
   el('proj-reset').addEventListener('click', () => Timer.reset());
-  el('proj-skip').addEventListener('click', () => Timer.skipRound());
-  el('proj-prev').addEventListener('click', () => { if (state.projIdx > 0) loadProjSection(state.projIdx - 1); });
-  el('proj-next').addEventListener('click', () => { if (state.projIdx < state.projSections.length - 1) loadProjSection(state.projIdx + 1); });
+  el('proj-skip').addEventListener('click',  () => Timer.skipRound());
+
+  // Section nav
+  el('proj-section-prev').addEventListener('click', () => { if (state.projSectionIdx > 0) loadProjSection(state.projSectionIdx - 1); });
+  el('proj-section-next').addEventListener('click', () => { if (state.projSectionIdx < state.projSections.length - 1) loadProjSection(state.projSectionIdx + 1); });
+
+  // Class nav
+  el('proj-class-prev').addEventListener('click', () => { if (state.projClassIdx > 0) loadProjClass(state.projClassIdx - 1); });
+  el('proj-class-next').addEventListener('click', () => { if (state.projClassIdx < state.projClasses.length - 1) loadProjClass(state.projClassIdx + 1); });
+
   el('close-proj-btn').addEventListener('click', closeProjection);
 
-  // Keyboard
   document.addEventListener('keydown', e => {
     const inProj = !el('projection').classList.contains('hidden');
     if (e.key === 'Escape') closeProjection();
     if (e.key === ' ' && inProj) { e.preventDefault(); el('proj-play').click(); }
-    if (e.key === 'ArrowRight' && inProj) el('proj-next').click();
-    if (e.key === 'ArrowLeft'  && inProj) el('proj-prev').click();
+    if (e.key === 'ArrowRight' && inProj) el('proj-section-next').click();
+    if (e.key === 'ArrowLeft'  && inProj) el('proj-section-prev').click();
+    if (e.key === 'ArrowUp'    && inProj) el('proj-class-prev').click();
+    if (e.key === 'ArrowDown'  && inProj) el('proj-class-next').click();
   });
 
-  // Timer callbacks
   Timer.onTick = updateTimerUI;
-  Timer.onDone = () => {
-    showToast('¡Tiempo!', 3000);
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-  };
+  Timer.onDone = () => { showToast('¡Tiempo!', 3000); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); };
 
-  // Login form
+  // Login
   el('login-btn').addEventListener('click', async () => {
-    const email    = el('login-email').value.trim();
+    const email = el('login-email').value.trim();
     const password = el('login-password').value;
-    const errEl    = el('login-error');
-    const btn      = el('login-btn');
+    const errEl = el('login-error'); const btn = el('login-btn');
     errEl.classList.add('hidden');
-    btn.textContent = 'Entrando...';
-    btn.disabled = true;
-    try {
-      await Auth.signIn(email, password);
-      await showApp();
-    } catch(e) {
-      errEl.textContent = e.message;
-      errEl.classList.remove('hidden');
-    } finally {
-      btn.innerHTML = '<i class="ti ti-login"></i> Entrar';
-      btn.disabled = false;
-    }
+    btn.textContent = 'Entrando...'; btn.disabled = true;
+    try { await Auth.signIn(email, password); await showApp(); }
+    catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+    finally { btn.innerHTML = '<i class="ti ti-login"></i> Entrar'; btn.disabled = false; }
   });
-
-  // Enter key on login
   el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') el('login-btn').click(); });
+  el('logout-btn').addEventListener('click', async () => { await Auth.signOut(); showLogin(); });
 
-  // Logout
-  el('logout-btn').addEventListener('click', async () => {
-    await Auth.signOut();
-    showLogin();
-  });
-
-  // Check existing session
   const session = Auth.loadSession();
-  if (session && Auth.isLoggedIn()) {
-    await showApp();
-  } else {
-    showLogin();
-  }
+  if (session && Auth.isLoggedIn()) await showApp();
+  else showLogin();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
