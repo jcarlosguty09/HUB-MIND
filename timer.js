@@ -83,7 +83,11 @@ const Timer = (() => {
     const mode = _config.mode || 'stopwatch';
     const base = { mode, running: _running, round: _round, phase: _phase, done: false, phaseProgress: null, totalRounds: null, sub: '' };
 
-    if (mode === 'stopwatch') return { ...base, display: fmt(_seconds) };
+    if (mode === 'stopwatch') {
+      const max = _config.swMax ? _config.swMax * 60 : null;
+      const done = max ? _seconds >= max : false;
+      return { ...base, display: fmt(_seconds), done };
+    }
 
     if (mode === 'countdown') {
       const rem = Math.max(0, (_config.total || 0) - _seconds);
@@ -117,6 +121,19 @@ const Timer = (() => {
   function tick() {
     _seconds++;
     const mode = _config.mode;
+
+    if (mode === 'stopwatch' && _config.swMax) {
+      const max = _config.swMax * 60;
+      const rem = max - _seconds;
+      if (rem === 3) pipPipPip();
+      if (rem <= 0) {
+        bong(); bong();
+        _stop();
+        if (onTick) onTick(getState());
+        if (onDone) onDone();
+        return;
+      }
+    }
 
     if (mode === 'tabata' || mode === 'intervals') {
       _phaseSecs++;
@@ -152,6 +169,7 @@ const Timer = (() => {
       const rem = (_config.total || 0) - _seconds;
       if (rem === 3) pipPipPip();
       if (rem <= 0) {
+        bong(); bong();  // Double bong when countdown finishes
         _stop();
         if (onTick) onTick(getState());
         if (onDone) onDone();
@@ -230,7 +248,9 @@ const Timer = (() => {
       const v = parseInt(val);
       return (!isNaN(v) && v > 0) ? v : fallback;
     }
-    if (mode === 'countdown') {
+    if (mode === 'stopwatch') {
+      if (t.swMax) cfg.swMax = n(t.swMax, 0);
+    } else if (mode === 'countdown') {
       cfg.total    = n(t.cdMin, 0) * 60 + n(t.cdSec, 0);
     } else if (mode === 'emom') {
       cfg.total    = n(t.emomMin, 12) * 60;
@@ -251,7 +271,7 @@ const Timer = (() => {
   // ---- FIELD TEMPLATES ----
   // Values injected dynamically by renderTimerFields() in app.js
   const FIELDS = {
-    stopwatch: `<p class="timer-hint">El cronómetro cuenta desde 00:00 hacia arriba.</p>`,
+    stopwatch: `<div class="timer-row"><div><label class="field-label">Duración máx (min, opcional)</label><input class="field-input" data-key="swMax" type="number" value="" min="1" max="180" placeholder="Sin límite"></div></div>`,
     countdown: `
       <div class="timer-row">
         <div><label class="field-label">Minutos</label><input class="field-input" data-key="cdMin" type="number" value="15" min="0" max="99"></div>
