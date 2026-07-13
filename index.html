@@ -35,19 +35,23 @@
       <div class="login-form">
         <div class="field-group">
           <label class="field-label">Email</label>
-          <input class="field-input" type="email" id="login-email" placeholder="coach@hubmind.com" autocomplete="email" />
+          <input class="field-input" type="email" id="login-email" placeholder="tu@email.com" autocomplete="email" />
         </div>
         <div class="field-group">
           <label class="field-label">Contraseña</label>
           <input class="field-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
         </div>
+        <label class="remember-label">
+          <input type="checkbox" id="remember-me" checked />
+          <span>Mantener sesión iniciada</span>
+        </label>
         <div class="login-error hidden" id="login-error"></div>
         <button class="launch-btn" id="login-btn"><i class="ti ti-login"></i> Entrar</button>
       </div>
     </div>
   </div>
 
-  <!-- APP -->
+  <!-- APP (admin/coach) -->
   <div id="app" class="app hidden">
     <header class="topbar">
       <div class="topbar-brand">
@@ -59,20 +63,17 @@
       <div class="topbar-actions">
         <span class="role-badge" id="role-badge"></span>
         <button class="icon-btn" id="theme-toggle"><i class="ti ti-sun"></i></button>
+        <button class="icon-btn" id="change-pass-btn" title="Cambiar contraseña"><i class="ti ti-key"></i></button>
         <button class="icon-btn" id="logout-btn"><i class="ti ti-logout"></i></button>
         <div class="sync-dot" id="sync-dot"></div>
       </div>
     </header>
-
     <nav class="nav-tabs">
       <button class="nav-tab active" data-view="calendar"><i class="ti ti-calendar"></i><span>Calendario</span></button>
       <button class="nav-tab" data-view="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
-
     <main class="main-content">
-
-      <!-- CALENDAR -->
       <section id="view-calendar" class="view active">
         <div class="cal-header">
           <button class="icon-btn" id="prev-month"><i class="ti ti-chevron-left"></i></button>
@@ -91,8 +92,6 @@
           <div id="day-content-cal"></div>
         </div>
       </section>
-
-      <!-- TODAY -->
       <section id="view-today" class="view">
         <div class="today-header">
           <div class="today-date" id="today-date-label"></div>
@@ -100,12 +99,41 @@
         </div>
         <div id="day-content-today"></div>
       </section>
-
-      <!-- HISTORY -->
       <section id="view-history" class="view">
         <div class="history-list" id="history-list"></div>
       </section>
+    </main>
+  </div>
 
+  <!-- APP ATLETA -->
+  <div id="app-atleta" class="app hidden">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div>
+          <div class="brand-name">HUB MIND</div>
+          <div class="brand-sub">Training Center</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="role-badge atleta">Atleta</span>
+        <button class="icon-btn" id="theme-toggle-atleta"><i class="ti ti-sun"></i></button>
+        <button class="icon-btn" id="change-pass-atleta" title="Cambiar contraseña"><i class="ti ti-key"></i></button>
+        <button class="icon-btn" id="logout-atleta"><i class="ti ti-logout"></i></button>
+      </div>
+    </header>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-aview="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
+      <button class="nav-tab" data-aview="tomorrow"><i class="ti ti-calendar-event"></i><span>Mañana</span></button>
+    </nav>
+    <main class="main-content">
+      <section id="aview-today" class="view active">
+        <div class="atleta-day-header" id="atleta-today-header"></div>
+        <div id="atleta-today-content"></div>
+      </section>
+      <section id="aview-tomorrow" class="view">
+        <div class="atleta-day-header" id="atleta-tomorrow-header"></div>
+        <div id="atleta-tomorrow-content"></div>
+      </section>
     </main>
   </div>
 
@@ -118,8 +146,6 @@
         <span class="proj-section-name" id="proj-section-name"></span>
         <span class="proj-date" id="proj-date"></span>
       </div>
-
-      <!-- Class navigation -->
       <div class="proj-nav-group">
         <span class="proj-nav-group-label">Clase</span>
         <div class="proj-nav">
@@ -128,8 +154,6 @@
           <button class="proj-nav-btn" id="proj-class-next"><i class="ti ti-chevron-right"></i></button>
         </div>
       </div>
-
-      <!-- Section navigation -->
       <div class="proj-nav-group">
         <span class="proj-nav-group-label">Sección</span>
         <div class="proj-nav">
@@ -138,10 +162,8 @@
           <button class="proj-nav-btn" id="proj-section-next"><i class="ti ti-chevron-right"></i></button>
         </div>
       </div>
-
       <button class="close-proj-btn" id="close-proj-btn"><i class="ti ti-x"></i> Salir</button>
     </div>
-
     <div class="proj-body">
       <div class="proj-wod-panel">
         <div class="proj-wod-label">WOD</div>
@@ -162,6 +184,26 @@
           <button class="proj-ctrl-btn play-btn" id="proj-play"><i class="ti ti-player-play"></i></button>
           <button class="proj-ctrl-btn skip-btn" id="proj-skip"><i class="ti ti-player-skip-forward"></i></button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="pass-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">Cambiar Contraseña</div>
+      <div class="field-group">
+        <label class="field-label">Nueva contraseña</label>
+        <input class="field-input" type="password" id="new-password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Confirmar contraseña</label>
+        <input class="field-input" type="password" id="confirm-password" placeholder="Repite la contraseña" />
+      </div>
+      <div class="login-error hidden" id="pass-error"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="pass-cancel">Cancelar</button>
+        <button class="save-btn" id="pass-save"><i class="ti ti-check"></i> Guardar</button>
       </div>
     </div>
   </div>
