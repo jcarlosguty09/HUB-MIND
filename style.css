@@ -745,9 +745,16 @@ body {
   padding: 32px 36px;
   border-right: 1px solid #1a1f2b;
   overflow-y: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
+/* Custom scrollbar for projection */
+.proj-wod-panel::-webkit-scrollbar { width: 6px; }
+.proj-wod-panel::-webkit-scrollbar-track { background: transparent; }
+.proj-wod-panel::-webkit-scrollbar-thumb { background: #252a35; border-radius: 3px; }
+.proj-wod-panel::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
 @media (max-width: 767px) {
-  .proj-wod-panel { padding: 20px 24px; border-right: none; border-bottom: 1px solid #1a1f2b; }
+  .proj-wod-panel { padding: 20px 24px; border-right: none; border-bottom: 1px solid #1a1f2b; overflow-y: auto; max-height: 50vh; }
 }
 
 .proj-wod-label {
