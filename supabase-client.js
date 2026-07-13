@@ -7,7 +7,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const Auth = {
   _session: null,
 
-  async signIn(email, password) {
+  async signIn(email, password, remember = true) {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
@@ -19,7 +19,9 @@ const Auth = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error_description || data.message || 'Error al iniciar sesión');
     this._session = data;
+    // Always save to localStorage — "remember me" controls whether we clear on logout
     localStorage.setItem('hm-session', JSON.stringify(data));
+    localStorage.setItem('hm-remember', remember ? '1' : '0');
     return data;
   },
 
@@ -33,6 +35,7 @@ const Auth = {
     }
     this._session = null;
     localStorage.removeItem('hm-session');
+    localStorage.removeItem('hm-remember');
   },
 
   loadSession() {
@@ -82,6 +85,57 @@ async function sbReq(method, path, body = null, prefer = 'return=representation'
   }
   return res.status === 204 ? null : res.json();
 }
+
+// ---- SCORES ----
+const ScoreAPI = {
+  async save(date, classId, userId, score) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_scores?on_conflict=date,class_id,user_id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ date, class_id: classId, user_id: userId, score, updated_at: new Date().toISOString() }),
+      });
+      return res.ok;
+    } catch(e) { console.error('ScoreAPI.save:', e); return false; }
+  },
+
+  async getForDate(date) {
+    try {
+      const userId = Auth.getUser()?.id;
+      const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&user_id=eq.${userId}`);
+      const map = {};
+      for (const r of rows) map[r.class_id] = r.score;
+      return map;
+    } catch(e) { return {}; }
+  },
+};
+
+// ---- PASSWORD CHANGE ----
+const PasswordAPI = {
+  async change(newPassword) {
+    const token = Auth.getToken();
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Error al cambiar contraseña');
+    }
+    return true;
+  },
+};
 
 // ---- ROLE ----
 const RoleAPI = {
