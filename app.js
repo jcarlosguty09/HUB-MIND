@@ -506,6 +506,7 @@ async function showApp() {
   el('login-screen').classList.add('hidden');
   el('loading-screen').style.display = 'none';
   el('app').classList.remove('hidden');
+  el('app-atleta').classList.add('hidden');
 
   const role = await RoleAPI.getRole();
   state.role = role;
@@ -515,6 +516,130 @@ async function showApp() {
 
   await renderCalendar();
   await renderToday();
+}
+
+async function showAtleta() {
+  el('login-screen').classList.add('hidden');
+  el('loading-screen').style.display = 'none';
+  el('app').classList.add('hidden');
+  el('app-atleta').classList.remove('hidden');
+  state.role = 'atleta';
+
+  const todayDate = new Date();
+  const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const todayK    = fmtKey(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+  const tomorrowK = fmtKey(tomorrowDate.getFullYear(), tomorrowDate.getMonth(), tomorrowDate.getDate());
+
+  el('atleta-today-header').textContent = todayDate.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+  el('atleta-tomorrow-header').textContent = tomorrowDate.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+
+  await loadMonth(todayDate.getFullYear(), todayDate.getMonth());
+  await loadMonth(tomorrowDate.getFullYear(), tomorrowDate.getMonth());
+
+  await renderAtletaDay('atleta-today-content', todayK);
+  await renderAtletaDay('atleta-tomorrow-content', tomorrowK);
+}
+
+async function renderAtletaDay(containerId, dateKey) {
+  const container = el(containerId);
+  container.innerHTML = '';
+  const dayData = state.wods[dateKey] || {};
+  const scores  = await ScoreAPI.getForDate(dateKey);
+  const userId  = Auth.getUser()?.id;
+
+  const activeClasses = CLASSES.filter(c => {
+    const secs = dayData[c.id] || [];
+    return secs.some(s => s.content && s.content.trim());
+  });
+
+  if (!activeClasses.length) {
+    container.innerHTML = `<div class="atleta-empty"><i class="ti ti-barbell"></i><p>No hay WOD programado para este día.</p></div>`;
+    return;
+  }
+
+  activeClasses.forEach(cls => {
+    const sections = (dayData[cls.id] || []).filter(s => s.content && s.content.trim());
+    const card = document.createElement('div');
+    card.className = 'atleta-class-card';
+
+    const header = document.createElement('div');
+    header.className = 'atleta-class-header';
+    const badge = document.createElement('span');
+    badge.className = `cal-wod-dot ${cls.color}`;
+    badge.textContent = cls.label;
+    const name = document.createElement('div');
+    name.className = 'atleta-class-name';
+    name.textContent = cls.label;
+    const toggle = document.createElement('i');
+    toggle.className = 'ti ti-chevron-down atleta-class-toggle open';
+    header.appendChild(badge);
+    header.appendChild(name);
+    header.appendChild(toggle);
+
+    const sectionsEl = document.createElement('div');
+    sectionsEl.className = 'atleta-sections';
+
+    sections.forEach(sec => {
+      const secEl = document.createElement('div');
+      secEl.className = 'atleta-section';
+      if (sec.name) {
+        const secName = document.createElement('div');
+        secName.className = 'atleta-section-name';
+        secName.textContent = sec.name;
+        secEl.appendChild(secName);
+      }
+      const wodText = document.createElement('div');
+      wodText.className = 'atleta-wod-text';
+      wodText.textContent = sec.content;
+      secEl.appendChild(wodText);
+      sectionsEl.appendChild(secEl);
+    });
+
+    // Score input
+    const scoreRow = document.createElement('div');
+    scoreRow.className = 'score-row';
+    const scoreInput = document.createElement('input');
+    scoreInput.className = 'score-input';
+    scoreInput.type = 'text';
+    scoreInput.placeholder = 'Tu score (ej: 5 rondas, 12:34, 85 kg...)';
+    scoreInput.value = scores[cls.id] || '';
+    const scoreBtn = document.createElement('button');
+    scoreBtn.className = 'score-save-btn';
+    scoreBtn.textContent = 'Guardar';
+    const scoreSaved = document.createElement('span');
+    scoreSaved.className = 'score-saved';
+    scoreSaved.textContent = '✓ Guardado';
+
+    scoreBtn.addEventListener('click', async () => {
+      const ok = await ScoreAPI.save(dateKey, cls.id, userId, scoreInput.value.trim());
+      if (ok) { scoreSaved.classList.add('show'); setTimeout(() => scoreSaved.classList.remove('show'), 2000); }
+      else showToast('Error al guardar score');
+    });
+    scoreInput.addEventListener('keydown', e => { if (e.key === 'Enter') scoreBtn.click(); });
+
+    scoreRow.appendChild(scoreInput);
+    scoreRow.appendChild(scoreBtn);
+    sectionsEl.appendChild(scoreRow);
+    sectionsEl.appendChild(scoreSaved);
+
+    // Toggle collapse
+    header.addEventListener('click', () => {
+      const isOpen = sectionsEl.style.display !== 'none';
+      sectionsEl.style.display = isOpen ? 'none' : 'block';
+      toggle.classList.toggle('open', !isOpen);
+    });
+
+    card.appendChild(header);
+    card.appendChild(sectionsEl);
+    container.appendChild(card);
+  });
+}
+
+function showPassModal() {
+  el('new-password').value = '';
+  el('confirm-password').value = '';
+  el('pass-error').classList.add('hidden');
+  el('pass-modal').classList.remove('hidden');
 }
 
 // ---- INIT ----
@@ -561,21 +686,70 @@ async function init() {
 
   // Login
   el('login-btn').addEventListener('click', async () => {
-    const email = el('login-email').value.trim();
+    const email    = el('login-email').value.trim();
     const password = el('login-password').value;
-    const errEl = el('login-error'); const btn = el('login-btn');
+    const remember = el('remember-me').checked;
+    const errEl    = el('login-error');
+    const btn      = el('login-btn');
     errEl.classList.add('hidden');
     btn.textContent = 'Entrando...'; btn.disabled = true;
-    try { await Auth.signIn(email, password); await showApp(); }
+    try {
+      await Auth.signIn(email, password, remember);
+      const role = await RoleAPI.getRole();
+      if (role === 'atleta') await showAtleta();
+      else await showApp();
+    }
     catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
     finally { btn.innerHTML = '<i class="ti ti-login"></i> Entrar'; btn.disabled = false; }
   });
   el('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') el('login-btn').click(); });
+
+  // Logout admin/coach
   el('logout-btn').addEventListener('click', async () => { await Auth.signOut(); showLogin(); });
+  // Logout atleta
+  el('logout-atleta').addEventListener('click', async () => { await Auth.signOut(); showLogin(); });
+
+  // Theme toggle atleta
+  el('theme-toggle-atleta').addEventListener('click', toggleTheme);
+
+  // Change password buttons
+  el('change-pass-btn').addEventListener('click', () => showPassModal());
+  el('change-pass-atleta').addEventListener('click', () => showPassModal());
+  el('pass-cancel').addEventListener('click', () => el('pass-modal').classList.add('hidden'));
+  el('pass-save').addEventListener('click', async () => {
+    const np = el('new-password').value;
+    const cp = el('confirm-password').value;
+    const errEl = el('pass-error');
+    errEl.classList.add('hidden');
+    if (np.length < 6) { errEl.textContent = 'Mínimo 6 caracteres'; errEl.classList.remove('hidden'); return; }
+    if (np !== cp)     { errEl.textContent = 'Las contraseñas no coinciden'; errEl.classList.remove('hidden'); return; }
+    try {
+      await PasswordAPI.change(np);
+      el('pass-modal').classList.add('hidden');
+      el('new-password').value = '';
+      el('confirm-password').value = '';
+      showToast('¡Contraseña actualizada!');
+    } catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+  });
+
+  // Atleta nav tabs
+  document.querySelectorAll('[data-aview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-aview]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('#app-atleta .view').forEach(s => s.classList.remove('active'));
+      el(`aview-${btn.dataset.aview}`).classList.add('active');
+    });
+  });
 
   const session = Auth.loadSession();
-  if (session && Auth.isLoggedIn()) await showApp();
-  else showLogin();
+  if (session && Auth.isLoggedIn()) {
+    const role = await RoleAPI.getRole();
+    if (role === 'atleta') await showAtleta();
+    else await showApp();
+  } else {
+    showLogin();
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
