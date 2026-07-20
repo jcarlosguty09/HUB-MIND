@@ -681,6 +681,13 @@ async function init() {
     if (e.key === 'ArrowDown'  && inProj) el('proj-class-next').click();
   });
 
+  // Auto-refresh token every 50 minutes to keep session alive
+  setInterval(async () => {
+    if (Auth.isLoggedIn() && Auth.isTokenExpired()) {
+      await Auth.refreshSession();
+    }
+  }, 50 * 60 * 1000);
+
   Timer.onTick = updateTimerUI;
   Timer.onDone = () => { showToast('¡Tiempo!', 3000); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); };
 
@@ -744,6 +751,11 @@ async function init() {
 
   const session = Auth.loadSession();
   if (session && Auth.isLoggedIn()) {
+    // Refresh token if expired
+    if (Auth.isTokenExpired()) {
+      const refreshed = await Auth.refreshSession();
+      if (!refreshed) { showLogin(); return; }
+    }
     const role = await RoleAPI.getRole();
     if (role === 'atleta') await showAtleta();
     else await showApp();
