@@ -182,11 +182,22 @@ const AthleteAPI = {
   async list() {
     if (this._cache) return this._cache;
     try {
-      const rows = await sbReq('GET', 'athlete_profiles?select=*&order=display_name.asc');
-      this._cache = rows || [];
+      // Get athlete profiles merged with full names from profiles table
+      const [athletes, profiles] = await Promise.all([
+        sbReq('GET', 'athlete_profiles?select=*'),
+        sbReq('GET', 'profiles?select=id,full_name,avatar_url'),
+      ]);
+      const profileMap = {};
+      (profiles || []).forEach(p => { profileMap[p.id] = p; });
+      this._cache = (athletes || []).map(a => ({
+        ...a,
+        display_name: profileMap[a.id]?.full_name || a.display_name,
+        avatar_url:   profileMap[a.id]?.avatar_url || null,
+      })).sort((a, b) => a.display_name.localeCompare(b.display_name));
       return this._cache;
     } catch(e) { console.warn('AthleteAPI.list:', e.message); return []; }
   },
+  clearCache() { this._cache = null; },
 };
 
 // ---- PASSWORD CHANGE ----
@@ -207,6 +218,119 @@ const PasswordAPI = {
       throw new Error(err.message || 'Error al cambiar contraseña');
     }
     return true;
+  },
+};
+
+// ---- PROFILES ----
+const ProfileAPI = {
+  _cache: {},
+
+  async get(userId) {
+    if (this._cache[userId]) return this._cache[userId];
+    try {
+      const rows = await sbReq('GET', `profiles?select=*&id=eq.${userId}&limit=1`);
+      const profile = rows?.[0] || null;
+      if (profile) this._cache[userId] = profile;
+      return profile;
+    } catch(e) { return null; }
+  },
+
+  async getMany(userIds) {
+    if (!userIds.length) return {};
+    try {
+      const ids = userIds.join(',');
+      const rows = await sbReq('GET', `profiles?select=*&id=in.(${ids})`);
+      const map = {};
+      for (const r of rows) { map[r.id] = r; this._cache[r.id] = r; }
+      return map;
+    } catch(e) { return {}; }
+  },
+
+  async save(userId, fullName, avatarUrl) {
+    try {
+      const token = Auth.getToken();
+      const body = { id: userId, full_name: fullName, updated_at: new Date().toISOString() };
+      if (avatarUrl !== undefined) body.avatar_url = avatarUrl;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { this._cache[userId] = { ...this._cache[userId], full_name: fullName, avatar_url: avatarUrl }; }
+      return res.ok;
+    } catch(e) { return false; }
+  },
+
+  async uploadAvatar(userId, file) {
+    try {
+      const token = Auth.getToken();
+      const ext  = file.name.split('.').pop();
+      const path = `${userId}/avatar.${ext}`;
+      const res  = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': file.type,
+          'x-upsert': 'true',
+        },
+        body: file,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+    } catch(e) { console.error('uploadAvatar:', e); return null; }
+  },
+
+  getInitials(name, email) {
+    if (name) return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    return (email || '?')[0].toUpperCase();
+  },
+
+  clearCache() { this._cache = {}; },
+};
+
+// ---- PODIUMS ----
+const PodiumAPI = {
+  async getForUser(userId) {
+    try {
+      // Get all scores for dates where this user has a score
+      const myScores = await sbReq('GET', `wod_scores?select=*&user_id=eq.${userId}`);
+      if (!myScores.length) return { gold: 0, silver: 0, bronze: 0 };
+
+      let gold = 0, silver = 0, bronze = 0;
+
+      // For each date+class combo, get all scores and rank
+      const combos = [...new Set(myScores.map(s => `${s.date}|${s.class_id}`))];
+      for (const combo of combos) {
+        const [date, classId] = combo.split('|');
+        const allScores = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&class_id=eq.${classId}`);
+        const myScore   = allScores.find(s => s.user_id === userId);
+        if (!myScore) continue;
+        const scoreType = myScore.score_type || 'high';
+        const sorted = [...allScores].sort((a, b) => {
+          const na = parseFloat(a.score), nb = parseFloat(b.score);
+          if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
+          return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
+        });
+        const pos = sorted.findIndex(s => s.user_id === userId);
+        if (pos === 0) gold++;
+        else if (pos === 1) silver++;
+        else if (pos === 2) bronze++;
+      }
+      return { gold, silver, bronze };
+    } catch(e) { return { gold: 0, silver: 0, bronze: 0 }; }
+  },
+
+  async getRecentScores(userId, limit = 10) {
+    try {
+      const rows = await sbReq('GET', `wod_scores?select=*&user_id=eq.${userId}&order=date.desc&limit=${limit}`);
+      return rows || [];
+    } catch(e) { return []; }
   },
 };
 
