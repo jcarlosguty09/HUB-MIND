@@ -1649,3 +1649,199 @@ body {
   text-align: center;
   padding: 16px;
 }
+
+/* ============================================
+   ATHLETE DASHBOARD + PROFILE
+   ============================================ */
+
+/* Topbar avatar */
+.atleta-topbar-avatar-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+.atleta-topbar-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Dashboard profile card */
+.dash-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.dash-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.dash-avatar-placeholder, .dash-avatar img {
+  width: 100%; height: 100%;
+}
+.dash-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+}
+.dash-profile-info { flex: 1; overflow: hidden; }
+.dash-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-email { font-size: 12px; color: var(--text3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-edit-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2); font-size: 16px;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.dash-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* Podium cards */
+.podium-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.podium-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 10px;
+  text-align: center;
+  transition: transform 0.15s;
+}
+.podium-card:hover { transform: translateY(-2px); }
+.podium-card.gold   { border-color: #F59E0B; background: #451a03; }
+.podium-card.silver { border-color: #94A3B8; background: #1a1f2b; }
+.podium-card.bronze { border-color: #B45309; background: #1c1008; }
+[data-theme="light"] .podium-card.gold   { background: #FEF3C7; }
+[data-theme="light"] .podium-card.silver { background: #F1F5F9; }
+[data-theme="light"] .podium-card.bronze { background: #FEF3C7; }
+.podium-medal { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+.podium-count {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.podium-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.dash-total-label { font-size: 12px; color: var(--text3); text-align: center; margin-bottom: 20px; }
+
+/* Recent scores */
+.dash-section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.dash-scores-list { display: flex; flex-direction: column; gap: 6px; }
+.dash-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.dash-score-date { color: var(--text3); min-width: 80px; }
+.dash-score-class { flex: 1; color: var(--text2); }
+.dash-score-val { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--blue); }
+
+/* Profile modal avatar edit */
+.profile-avatar-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.profile-avatar-preview {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px; font-weight: 700; color: white;
+}
+.profile-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid var(--blue-mid);
+  border-radius: 20px;
+  transition: all 0.15s;
+}
+.profile-avatar-label:hover { background: var(--blue-tint); }
+
+/* Leaderboard avatars */
+.lb-avatar-img {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.lb-avatar-placeholder {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+  flex-shrink: 0;
+}
+
+.atleta-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text3);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
