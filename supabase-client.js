@@ -116,7 +116,8 @@ async function sbReq(method, path, body = null, prefer = 'return=representation'
 
 // ---- SCORES ----
 const ScoreAPI = {
-  async save(date, classId, userId, score) {
+  // Save score (admin/coach can pass any userId; atleta uses their own)
+  async save(date, classId, userId, score, scoreType = 'high') {
     try {
       const token = Auth.getToken();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_scores?on_conflict=date,class_id,user_id`, {
@@ -127,20 +128,64 @@ const ScoreAPI = {
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates,return=minimal',
         },
-        body: JSON.stringify({ date, class_id: classId, user_id: userId, score, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ 
+          date, class_id: classId, user_id: userId, 
+          score, score_type: scoreType,
+          updated_at: new Date().toISOString() 
+        }),
       });
       return res.ok;
     } catch(e) { console.error('ScoreAPI.save:', e); return false; }
   },
 
+  // Get all scores for a date+class (for leaderboard)
+  async getLeaderboard(date, classId) {
+    try {
+      const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&class_id=eq.${classId}&order=score.desc`);
+      return rows || [];
+    } catch(e) { return []; }
+  },
+
+  // Get scores for a specific user on a date
   async getForDate(date) {
     try {
       const userId = Auth.getUser()?.id;
       const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&user_id=eq.${userId}`);
       const map = {};
-      for (const r of rows) map[r.class_id] = r.score;
+      for (const r of rows) map[r.class_id] = { score: r.score, scoreType: r.score_type };
       return map;
     } catch(e) { return {}; }
+  },
+
+  // Delete a score
+  async delete(date, classId, userId) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/wod_scores?date=eq.${date}&class_id=eq.${classId}&user_id=eq.${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      return res.ok;
+    } catch(e) { return false; }
+  },
+};
+
+// ---- ATHLETES ----
+const AthleteAPI = {
+  _cache: null,
+  async list() {
+    if (this._cache) return this._cache;
+    try {
+      const rows = await sbReq('GET', 'athlete_profiles?select=*&order=display_name.asc');
+      this._cache = rows || [];
+      return this._cache;
+    } catch(e) { console.warn('AthleteAPI.list:', e.message); return []; }
   },
 };
 
