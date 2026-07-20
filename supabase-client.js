@@ -46,6 +46,34 @@ const Auth = {
     return this._session;
   },
 
+  // Refresh the access token using the refresh token
+  async refreshSession() {
+    const refreshToken = this._session?.refresh_token;
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      this._session = data;
+      localStorage.setItem('hm-session', JSON.stringify(data));
+      return true;
+    } catch { return false; }
+  },
+
+  // Check if access token is expired (with 60s buffer)
+  isTokenExpired() {
+    const expiresAt = this._session?.expires_at;
+    if (!expiresAt) return true;
+    return Date.now() / 1000 > expiresAt - 60;
+  },
+
   getToken() {
     return this._session?.access_token || null;
   },
