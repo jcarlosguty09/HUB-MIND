@@ -1477,3 +1477,175 @@ body {
 /* Role badge atleta */
 .role-badge.atleta { background: #FEF3C7; color: #92400E; }
 [data-theme="dark"] .role-badge.atleta { background: #451a03; color: #FDE68A; }
+
+/* ============================================
+   LEADERBOARD
+   ============================================ */
+.leaderboard-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.leaderboard-header {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.leaderboard-header i { color: #F59E0B; }
+
+/* Add score panel */
+.lb-add-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.lb-add-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.lb-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+.lb-search-wrap { position: relative; flex: 1; }
+.lb-athlete-search { width: 100%; }
+.lb-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 50;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+}
+.lb-dropdown.hidden { display: none; }
+.lb-option {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lb-option span { font-size: 11px; color: var(--text3); }
+.lb-option:hover { background: var(--blue-tint); }
+.lb-no-result { color: var(--text3); cursor: default; font-size: 12px; }
+.lb-score-row { display: flex; gap: 8px; }
+.lb-score-input { flex: 1; }
+.lb-selected-athlete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.lb-selected-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.lb-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px;
+  display: flex;
+}
+.lb-clear-btn:hover { color: #ef4444; }
+
+/* Leaderboard table */
+.lb-table-wrap { margin-top: 4px; }
+.lb-type-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.lb-rows { display: flex; flex-direction: column; gap: 4px; }
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  transition: background 0.1s;
+}
+.lb-row-me {
+  background: var(--blue-tint);
+  border: 1px solid var(--blue-mid);
+}
+.lb-pos {
+  font-size: 14px;
+  min-width: 28px;
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.lb-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-you {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--blue);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.lb-score {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.lb-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  display: flex;
+  border-radius: 4px;
+  transition: all 0.1s;
+}
+.lb-delete-btn:hover { color: #ef4444; background: #fee2e2; }
+[data-theme="dark"] .lb-delete-btn:hover { background: #450a0a; }
+.lb-empty {
+  font-size: 13px;
+  color: var(--text3);
+  text-align: center;
+  padding: 16px;
+}
