@@ -285,6 +285,14 @@ function buildSectionCard(ctx, dateKey, classId, sec, idx) {
       if (ok && ctx === 'cal') renderCalendar();
     });
   }
+
+  // Add leaderboard to last section only (to avoid duplicates per class)
+  if (idx === getSections(dateKey, classId).length - 1) {
+    const lbWrap = document.createElement('div');
+    card.appendChild(lbWrap);
+    renderLeaderboard(lbWrap, dateKey, classId, state.role);
+  }
+
   return card;
 }
 
@@ -633,6 +641,170 @@ async function renderAtletaDay(containerId, dateKey) {
     card.appendChild(sectionsEl);
     container.appendChild(card);
   });
+}
+
+// ---- LEADERBOARD ----
+async function renderLeaderboard(container, dateKey, classId, userRole) {
+  const isAdminOrCoach = userRole === 'admin' || userRole === 'coach';
+  const currentUserId  = Auth.getUser()?.id;
+
+  // Leaderboard section wrapper
+  const lb = document.createElement('div');
+  lb.className = 'leaderboard-section';
+  lb.innerHTML = `<div class="leaderboard-header"><i class="ti ti-trophy"></i> Leaderboard</div>`;
+
+  // Score type selector + add score (admin/coach only)
+  if (isAdminOrCoach) {
+    const addPanel = document.createElement('div');
+    addPanel.className = 'lb-add-panel';
+    addPanel.innerHTML = `
+      <div class="lb-add-title">Agregar score</div>
+      <div class="lb-add-row">
+        <div class="lb-search-wrap">
+          <input class="field-input lb-athlete-search" placeholder="Buscar atleta..." autocomplete="off" />
+          <div class="lb-dropdown hidden"></div>
+        </div>
+        <select class="field-input lb-score-type" style="max-width:160px">
+          <option value="high">↑ Más alto gana</option>
+          <option value="low">↓ Más bajo gana</option>
+        </select>
+      </div>
+      <div class="lb-add-row lb-score-row hidden">
+        <input class="field-input lb-score-input" placeholder="Score (ej: 5 rondas, 12:34, 85 kg...)" />
+        <button class="score-save-btn lb-score-save">Guardar</button>
+      </div>
+      <div class="lb-selected-athlete" style="display:none"></div>`;
+    lb.appendChild(addPanel);
+
+    // Athlete search logic
+    let selectedAthlete = null;
+    const searchInput  = addPanel.querySelector('.lb-athlete-search');
+    const dropdown     = addPanel.querySelector('.lb-dropdown');
+    const scoreRow     = addPanel.querySelector('.lb-score-row');
+    const scoreInput   = addPanel.querySelector('.lb-score-input');
+    const scoreType    = addPanel.querySelector('.lb-score-type');
+    const saveBtn      = addPanel.querySelector('.lb-score-save');
+    const selectedEl   = addPanel.querySelector('.lb-selected-athlete');
+
+    const athletes = await AthleteAPI.list();
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      if (!q) { dropdown.classList.add('hidden'); return; }
+      const matches = athletes.filter(a =>
+        a.display_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)
+      ).slice(0, 8);
+      dropdown.innerHTML = matches.length
+        ? matches.map(a => `<div class="lb-option" data-id="${a.id}" data-name="${escHtml(a.display_name)}">${escHtml(a.display_name)}<span>${escHtml(a.email)}</span></div>`).join('')
+        : '<div class="lb-option lb-no-result">Sin resultados</div>';
+      dropdown.classList.remove('hidden');
+    });
+
+    dropdown.addEventListener('click', e => {
+      const opt = e.target.closest('.lb-option');
+      if (!opt || !opt.dataset.id) return;
+      selectedAthlete = { id: opt.dataset.id, name: opt.dataset.name };
+      searchInput.value = '';
+      dropdown.classList.add('hidden');
+      scoreRow.classList.remove('hidden');
+      selectedEl.style.display = 'block';
+      selectedEl.innerHTML = `<span class="lb-selected-name"><i class="ti ti-user"></i> ${escHtml(selectedAthlete.name)}</span><button class="lb-clear-btn"><i class="ti ti-x"></i></button>`;
+      selectedEl.querySelector('.lb-clear-btn').addEventListener('click', () => {
+        selectedAthlete = null;
+        scoreRow.classList.add('hidden');
+        selectedEl.style.display = 'none';
+        scoreInput.value = '';
+      });
+    });
+
+    document.addEventListener('click', e => {
+      if (!addPanel.contains(e.target)) dropdown.classList.add('hidden');
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      if (!selectedAthlete || !scoreInput.value.trim()) { showToast('Selecciona atleta y score'); return; }
+      saveBtn.textContent = 'Guardando...'; saveBtn.disabled = true;
+      const ok = await ScoreAPI.save(dateKey, classId, selectedAthlete.id, scoreInput.value.trim(), scoreType.value);
+      saveBtn.textContent = 'Guardar'; saveBtn.disabled = false;
+      if (ok) {
+        showToast(`Score de ${selectedAthlete.name} guardado`);
+        scoreInput.value = '';
+        selectedAthlete = null;
+        scoreRow.classList.add('hidden');
+        selectedEl.style.display = 'none';
+        // Refresh leaderboard
+        await refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAdminOrCoach);
+      } else showToast('Error al guardar');
+    });
+
+    scoreInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveBtn.click(); });
+  }
+
+  // Leaderboard table
+  await refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAdminOrCoach);
+  container.appendChild(lb);
+}
+
+async function refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAdminOrCoach) {
+  // Remove existing table
+  const existing = lb.querySelector('.lb-table-wrap');
+  if (existing) existing.remove();
+
+  const scores = await ScoreAPI.getLeaderboard(dateKey, classId);
+  const wrap = document.createElement('div');
+  wrap.className = 'lb-table-wrap';
+
+  if (!scores.length) {
+    wrap.innerHTML = '<div class="lb-empty">No hay scores aún.</div>';
+    lb.appendChild(wrap);
+    return;
+  }
+
+  // Determine sort type from first score
+  const scoreType = scores[0]?.score_type || 'high';
+
+  // Try numeric sort, fall back to string sort
+  const sorted = [...scores].sort((a, b) => {
+    const na = parseFloat(a.score), nb = parseFloat(b.score);
+    if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
+    return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
+  });
+
+  // Get athlete names
+  const athletes = await AthleteAPI.list();
+  const nameMap = {};
+  athletes.forEach(a => nameMap[a.id] = a.display_name);
+
+  const rows = sorted.map((s, i) => {
+    const isMe = s.user_id === currentUserId;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+    const name = nameMap[s.user_id] || s.user_id.slice(0,8);
+    const deleteBtn = isAdminOrCoach 
+      ? `<button class="lb-delete-btn" data-uid="${s.user_id}" data-date="${dateKey}" data-class="${classId}"><i class="ti ti-trash"></i></button>` 
+      : '';
+    return `<div class="lb-row${isMe ? ' lb-row-me' : ''}">
+      <span class="lb-pos">${medal}</span>
+      <span class="lb-name">${escHtml(name)}${isMe ? ' <span class="lb-you">Tú</span>' : ''}</span>
+      <span class="lb-score">${escHtml(s.score)}</span>
+      ${deleteBtn}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="lb-type-label">${scoreType === 'high' ? '↑ Más alto gana' : '↓ Más bajo gana'}</div><div class="lb-rows">${rows}</div>`;
+
+  // Delete handlers
+  if (isAdminOrCoach) {
+    wrap.querySelectorAll('.lb-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Eliminar este score?')) return;
+        const ok = await ScoreAPI.delete(btn.dataset.date, btn.dataset.class, btn.dataset.uid);
+        if (ok) await refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAdminOrCoach);
+        else showToast('Error al eliminar');
+      });
+    });
+  }
+
+  lb.appendChild(wrap);
 }
 
 function showPassModal() {
