@@ -533,12 +533,19 @@ async function showAtleta() {
   el('app-atleta').classList.remove('hidden');
   state.role = 'atleta';
 
-  const todayDate = new Date();
+  const userId = Auth.getUser()?.id;
+  const profile = await ProfileAPI.get(userId);
+  state.profile = profile;
+
+  // Update topbar with avatar and name
+  updateAtletaTopbar(profile);
+
+  const todayDate    = new Date();
   const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const todayK    = fmtKey(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
   const tomorrowK = fmtKey(tomorrowDate.getFullYear(), tomorrowDate.getMonth(), tomorrowDate.getDate());
 
-  el('atleta-today-header').textContent = todayDate.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+  el('atleta-today-header').textContent    = todayDate.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
   el('atleta-tomorrow-header').textContent = tomorrowDate.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
 
   await loadMonth(todayDate.getFullYear(), todayDate.getMonth());
@@ -546,6 +553,113 @@ async function showAtleta() {
 
   await renderAtletaDay('atleta-today-content', todayK);
   await renderAtletaDay('atleta-tomorrow-content', tomorrowK);
+}
+
+function updateAtletaTopbar(profile) {
+  const userId   = Auth.getUser()?.id;
+  const name     = profile?.full_name || Auth.getUser()?.email?.split('@')[0] || 'Atleta';
+  const avatar   = profile?.avatar_url;
+  const initials = ProfileAPI.getInitials(profile?.full_name, Auth.getUser()?.email);
+
+  // Update name in topbar
+  const nameEl = el('atleta-topbar-name');
+  if (nameEl) nameEl.textContent = name;
+
+  // Update avatar
+  const avatarEl = el('atleta-topbar-avatar');
+  if (avatarEl) {
+    if (avatar) {
+      avatarEl.innerHTML = `<img src="${avatar}" alt="${escHtml(name)}" />`;
+    } else {
+      avatarEl.innerHTML = `<span>${escHtml(initials)}</span>`;
+    }
+  }
+}
+
+async function renderAthleteDashboard() {
+  const userId = Auth.getUser()?.id;
+  const dashEl = el('aview-dashboard');
+  if (!dashEl) return;
+  dashEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+
+  const [podiums, recentScores, profile] = await Promise.all([
+    PodiumAPI.getForUser(userId),
+    PodiumAPI.getRecentScores(userId, 10),
+    ProfileAPI.get(userId),
+  ]);
+
+  const name     = profile?.full_name || Auth.getUser()?.email?.split('@')[0] || 'Atleta';
+  const avatar   = profile?.avatar_url;
+  const initials = ProfileAPI.getInitials(profile?.full_name, Auth.getUser()?.email);
+  const avatarHTML = avatar
+    ? `<img src="${avatar}" alt="${escHtml(name)}" class="dash-avatar-img" />`
+    : `<div class="dash-avatar-placeholder">${escHtml(initials)}</div>`;
+
+  const total = podiums.gold + podiums.silver + podiums.bronze;
+
+  dashEl.innerHTML = `
+    <div class="dash-profile-card">
+      <div class="dash-avatar">${avatarHTML}</div>
+      <div class="dash-profile-info">
+        <div class="dash-name">${escHtml(name)}</div>
+        <div class="dash-email">${escHtml(Auth.getUser()?.email || '')}</div>
+      </div>
+      <button class="dash-edit-btn" id="dash-edit-profile"><i class="ti ti-pencil"></i></button>
+    </div>
+
+    <div class="podium-cards">
+      <div class="podium-card gold">
+        <div class="podium-medal">🥇</div>
+        <div class="podium-count">${podiums.gold}</div>
+        <div class="podium-label">1er lugar</div>
+      </div>
+      <div class="podium-card silver">
+        <div class="podium-medal">🥈</div>
+        <div class="podium-count">${podiums.silver}</div>
+        <div class="podium-label">2do lugar</div>
+      </div>
+      <div class="podium-card bronze">
+        <div class="podium-medal">🥉</div>
+        <div class="podium-count">${podiums.bronze}</div>
+        <div class="podium-label">3er lugar</div>
+      </div>
+    </div>
+    <div class="dash-total-label">${total} podio${total !== 1 ? 's' : ''} en total</div>
+
+    <div class="dash-section-title">Scores recientes</div>
+    <div class="dash-scores-list" id="dash-scores-list"></div>
+  `;
+
+  // Edit profile button
+  el('dash-edit-profile').addEventListener('click', () => showProfileModal());
+
+  // Recent scores
+  const scoresList = el('dash-scores-list');
+  if (!recentScores.length) {
+    scoresList.innerHTML = '<div class="lb-empty">Sin scores todavía — ¡participa en una clase!</div>';
+  } else {
+    recentScores.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'dash-score-row';
+      const date = new Date(s.date + 'T12:00:00').toLocaleDateString('es-MX', { weekday:'short', day:'numeric', month:'short' });
+      const classLabel = CLASSES.find(c => c.id === s.class_id)?.label || s.class_id;
+      row.innerHTML = `
+        <span class="dash-score-date">${date}</span>
+        <span class="dash-score-class">${escHtml(classLabel)}</span>
+        <span class="dash-score-val">${escHtml(s.score)}</span>`;
+      scoresList.appendChild(row);
+    });
+  }
+}
+
+function showProfileModal() {
+  const userId  = Auth.getUser()?.id;
+  const profile = state.profile;
+  el('profile-name-input').value = profile?.full_name || '';
+  el('profile-avatar-preview').innerHTML = profile?.avatar_url
+    ? `<img src="${profile.avatar_url}" />`
+    : `<span>${escHtml(ProfileAPI.getInitials(profile?.full_name, Auth.getUser()?.email))}</span>`;
+  el('profile-modal').classList.remove('hidden');
 }
 
 async function renderAtletaDay(containerId, dateKey) {
@@ -775,15 +889,25 @@ async function refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAd
   const nameMap = {};
   athletes.forEach(a => nameMap[a.id] = a.display_name);
 
+  // Get profiles for avatars
+  const profileMap = await ProfileAPI.getMany(sorted.map(s => s.user_id));
+
   const rows = sorted.map((s, i) => {
-    const isMe = s.user_id === currentUserId;
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-    const name = nameMap[s.user_id] || s.user_id.slice(0,8);
+    const isMe    = s.user_id === currentUserId;
+    const medal   = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+    const profile  = profileMap[s.user_id];
+    const name     = profile?.full_name || nameMap[s.user_id] || s.user_id.slice(0,8);
+    const avatar   = profile?.avatar_url;
+    const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
+    const avatarHTML = avatar
+      ? `<img src="${avatar}" class="lb-avatar-img" alt="${escHtml(name)}" />`
+      : `<div class="lb-avatar-placeholder">${escHtml(initials)}</div>`;
     const deleteBtn = isAdminOrCoach 
       ? `<button class="lb-delete-btn" data-uid="${s.user_id}" data-date="${dateKey}" data-class="${classId}"><i class="ti ti-trash"></i></button>` 
       : '';
     return `<div class="lb-row${isMe ? ' lb-row-me' : ''}">
       <span class="lb-pos">${medal}</span>
+      ${avatarHTML}
       <span class="lb-name">${escHtml(name)}${isMe ? ' <span class="lb-you">Tú</span>' : ''}</span>
       <span class="lb-score">${escHtml(s.score)}</span>
       ${deleteBtn}
@@ -918,8 +1042,53 @@ async function init() {
       btn.classList.add('active');
       document.querySelectorAll('#app-atleta .view').forEach(s => s.classList.remove('active'));
       el(`aview-${btn.dataset.aview}`).classList.add('active');
+      if (btn.dataset.aview === 'dashboard') renderAthleteDashboard();
     });
   });
+
+  // Profile modal
+  el('profile-save-btn').addEventListener('click', async () => {
+    const userId   = Auth.getUser()?.id;
+    const name     = el('profile-name-input').value.trim();
+    const fileInput = el('profile-avatar-input');
+    const btn      = el('profile-save-btn');
+    const errEl    = el('profile-error');
+    errEl.classList.add('hidden');
+    btn.textContent = 'Guardando...'; btn.disabled = true;
+
+    let avatarUrl = state.profile?.avatar_url;
+    if (fileInput.files[0]) {
+      const url = await ProfileAPI.uploadAvatar(userId, fileInput.files[0]);
+      if (url) avatarUrl = url;
+      else { errEl.textContent = 'Error al subir foto'; errEl.classList.remove('hidden'); btn.innerHTML = '<i class="ti ti-check"></i> Guardar'; btn.disabled = false; return; }
+    }
+
+    const ok = await ProfileAPI.save(userId, name, avatarUrl);
+    btn.innerHTML = '<i class="ti ti-check"></i> Guardar'; btn.disabled = false;
+    if (ok) {
+      state.profile = { ...state.profile, full_name: name, avatar_url: avatarUrl };
+      AthleteAPI.clearCache();
+      updateAtletaTopbar(state.profile);
+      el('profile-modal').classList.add('hidden');
+      showToast('¡Perfil actualizado!');
+      renderAthleteDashboard();
+    } else {
+      errEl.textContent = 'Error al guardar'; errEl.classList.remove('hidden');
+    }
+  });
+
+  // Avatar preview
+  el('profile-avatar-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      el('profile-avatar-preview').innerHTML = `<img src="${ev.target.result}" />`;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  el('profile-cancel-btn').addEventListener('click', () => el('profile-modal').classList.add('hidden'));
 
   const session = Auth.loadSession();
   if (session && Auth.isLoggedIn()) {
