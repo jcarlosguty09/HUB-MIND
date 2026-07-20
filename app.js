@@ -408,7 +408,7 @@ function launchProjection(ctx, dateKey) {
   if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
 }
 
-function loadProjClass(classIdx) {
+async function loadProjClass(classIdx) {
   state.projClassIdx = classIdx;
   const cls = state.projClasses[classIdx];
   const dayData = state.wods[state.projDateKey] || {};
@@ -429,15 +429,15 @@ function loadProjClass(classIdx) {
   loadProjSection(0);
 }
 
-function loadProjSection(secIdx) {
+async function loadProjSection(secIdx) {
   Timer.stop();
   Timer.reset();
   state.projSectionIdx = secIdx;
   const sec = state.projSections[secIdx];
   if (!sec) return;
 
-  el('proj-section-name').textContent = sec.name || `Sección ${secIdx + 1}`;
-  el('proj-wod-text').textContent     = sec.content || '';
+  el('proj-section-name').textContent  = sec.name || `Sección ${secIdx + 1}`;
+  el('proj-wod-text').textContent      = sec.content || '';
   el('proj-section-label').textContent = `${secIdx + 1} / ${state.projSections.length}`;
   el('proj-section-prev').disabled = secIdx === 0;
   el('proj-section-next').disabled = secIdx === state.projSections.length - 1;
@@ -452,6 +452,54 @@ function loadProjSection(secIdx) {
   el('proj-round-info').style.display = ['tabata','intervals','emom'].includes(mode) ? 'block' : 'none';
 
   updateTimerUI(Timer.getState());
+
+  // Load top scores for this class
+  await renderProjLeaderboard();
+}
+
+async function renderProjLeaderboard() {
+  const lbEl = el('proj-leaderboard');
+  if (!lbEl) return;
+  lbEl.innerHTML = '';
+
+  const cls     = state.projClasses[state.projClassIdx];
+  const dateKey = state.projDateKey;
+  if (!cls || !dateKey) return;
+
+  const scores = await ScoreAPI.getLeaderboard(dateKey, cls.id);
+  if (!scores.length) { lbEl.innerHTML = '<div class="proj-lb-empty">Sin scores todavía</div>'; return; }
+
+  const scoreType = scores[0]?.score_type || 'high';
+  const sorted = [...scores].sort((a, b) => {
+    const na = parseFloat(a.score), nb = parseFloat(b.score);
+    if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
+    return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
+  }).slice(0, 5);
+
+  const profiles  = await ProfileAPI.getMany(sorted.map(s => s.user_id));
+  const athletes  = await AthleteAPI.list();
+  const nameMap   = {};
+  athletes.forEach(a => nameMap[a.id] = a.display_name);
+
+  const medals = ['🥇','🥈','🥉','4.','5.'];
+  sorted.forEach((s, i) => {
+    const profile = profiles[s.user_id];
+    const name    = profile?.full_name || nameMap[s.user_id] || '—';
+    const avatar  = profile?.avatar_url;
+    const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
+    const avatarHTML = avatar
+      ? `<img src="${avatar}" class="proj-lb-avatar-img" alt="${escHtml(name)}" />`
+      : `<div class="proj-lb-avatar-placeholder">${escHtml(initials)}</div>`;
+
+    const row = document.createElement('div');
+    row.className = 'proj-lb-row' + (i === 0 ? ' proj-lb-first' : '');
+    row.innerHTML = `
+      <span class="proj-lb-medal">${medals[i]}</span>
+      ${avatarHTML}
+      <span class="proj-lb-name">${escHtml(name)}</span>
+      <span class="proj-lb-score">${escHtml(s.score)}</span>`;
+    lbEl.appendChild(row);
+  });
 }
 
 function closeProjection() {
