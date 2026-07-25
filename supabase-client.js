@@ -200,6 +200,30 @@ const AthleteAPI = {
   clearCache() { this._cache = null; },
 };
 
+// ---- CREATE USER (admin/coach via Edge Function) ----
+const AdminAPI = {
+  async createUser(email, password, role, fullName) {
+    try {
+      // Use the existing create-users edge function logic via direct admin call
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, role, full_name: fullName }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch(e) { throw e; }
+  },
+};
+
 // ---- PASSWORD CHANGE ----
 const PasswordAPI = {
   async change(newPassword) {
