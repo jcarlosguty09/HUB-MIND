@@ -1938,3 +1938,15 @@ body {
   color: #4a5568;
   padding: 8px 0;
 }
+
+/* Create user result */
+.cu-result {
+  font-size: 13px;
+  color: #22c55e;
+  padding: 8px 12px;
+  background: #052e16;
+  border-radius: var(--radius-sm);
+  display: none;
+}
+.cu-result.show { display: block; }
+[data-theme="light"] .cu-result { background: #D1FAE5; color: #065F46; }
