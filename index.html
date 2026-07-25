@@ -72,6 +72,7 @@
     <nav class="nav-tabs">
       <button class="nav-tab active" data-view="calendar"><i class="ti ti-calendar"></i><span>Calendario</span></button>
       <button class="nav-tab" data-view="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
+      <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
     <main class="main-content">
@@ -127,7 +128,8 @@
     <nav class="nav-tabs">
       <button class="nav-tab active" data-aview="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-aview="tomorrow"><i class="ti ti-calendar-event"></i><span>Mañana</span></button>
-      <button class="nav-tab" data-aview="dashboard"><i class="ti ti-trophy"></i><span>Mi Perfil</span></button>
+      <button class="nav-tab" data-aview="leaderboard"><i class="ti ti-trophy"></i><span>Ranking</span></button>
+      <button class="nav-tab" data-aview="dashboard"><i class="ti ti-user"></i><span>Mi Perfil</span></button>
     </nav>
     <main class="main-content">
       <section id="aview-today" class="view active">
@@ -137,6 +139,9 @@
       <section id="aview-tomorrow" class="view">
         <div class="atleta-day-header" id="atleta-tomorrow-header"></div>
         <div id="atleta-tomorrow-content"></div>
+      </section>
+      <section id="aview-leaderboard" class="view">
+        <!-- Injected by renderGlobalLeaderboard('atleta') -->
       </section>
       <section id="aview-dashboard" class="view">
         <!-- Injected by renderAthleteDashboard() -->
@@ -158,6 +163,14 @@
       <div class="field-group">
         <label class="field-label">Nombre completo</label>
         <input class="field-input" type="text" id="profile-name-input" placeholder="Tu nombre real" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Género</label>
+        <select class="field-input" id="profile-gender-input">
+          <option value="">Prefiero no decir</option>
+          <option value="H">Hombre</option>
+          <option value="M">Mujer</option>
+        </select>
       </div>
       <div class="login-error hidden" id="profile-error"></div>
       <div class="modal-actions">
