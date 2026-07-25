@@ -38,6 +38,10 @@ const today    = new Date();
 const todayKey = fmtKey(today.getFullYear(), today.getMonth(), today.getDate());
 
 // ---- UTILS ----
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
 function fmtKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function fmtMonthKey(y, m) { return `${y}-${String(m+1).padStart(2,'0')}`; }
 function fmtDateLabel(k) {
