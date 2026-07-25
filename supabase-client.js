@@ -141,7 +141,15 @@ const ScoreAPI = {
   // Get all scores for a date+class (for leaderboard)
   async getLeaderboard(date, classId) {
     try {
-      const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&class_id=eq.${classId}&order=score.desc`);
+      const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&class_id=eq.${classId}`);
+      return rows || [];
+    } catch(e) { return []; }
+  },
+
+  // Get all scores for a specific date (all classes)
+  async getAllForDate(date) {
+    try {
+      const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}`);
       return rows || [];
     } catch(e) { return []; }
   },
@@ -270,11 +278,12 @@ const ProfileAPI = {
     } catch(e) { return {}; }
   },
 
-  async save(userId, fullName, avatarUrl) {
+  async save(userId, fullName, avatarUrl, gender) {
     try {
       const token = Auth.getToken();
       const body = { id: userId, full_name: fullName, updated_at: new Date().toISOString() };
       if (avatarUrl !== undefined) body.avatar_url = avatarUrl;
+      if (gender !== undefined) body.gender = gender;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
         method: 'POST',
         headers: {
