@@ -376,7 +376,7 @@ body {
 /* ---- WOD EDITOR ---- */
 .wod-editor {
   width: 100%;
-  min-height: 200px;
+  min-height: 80px;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -385,9 +385,11 @@ body {
   font-size: 14px;
   line-height: 1.65;
   color: var(--text);
-  resize: vertical;
+  resize: none;
   outline: none;
   transition: border-color 0.15s;
+  overflow: hidden;
+  field-sizing: content;
 }
 .wod-editor:focus { border-color: var(--blue); }
 .wod-editor::placeholder { color: var(--text3); font-size: 13px; }
