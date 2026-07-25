@@ -85,8 +85,9 @@ function showView(v) {
   document.querySelectorAll('.view').forEach(s => s.classList.remove('active'));
   el(`view-${v}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-  if (v === 'today')   renderDay('today', todayKey);
-  if (v === 'history') renderHistory();
+  if (v === 'today')            renderDay('today', todayKey);
+  if (v === 'history')          renderHistory();
+  if (v === 'leaderboard-admin') renderGlobalLeaderboard('view-leaderboard-admin');
 }
 
 // ---- SUPABASE LOAD ----
@@ -705,9 +706,9 @@ async function renderAthleteDashboard() {
 }
 
 function showProfileModal() {
-  const userId  = Auth.getUser()?.id;
   const profile = state.profile;
-  el('profile-name-input').value = profile?.full_name || '';
+  el('profile-name-input').value   = profile?.full_name || '';
+  el('profile-gender-input').value = profile?.gender || '';
   el('profile-avatar-preview').innerHTML = profile?.avatar_url
     ? `<img src="${profile.avatar_url}" />`
     : `<span>${escHtml(ProfileAPI.getInitials(profile?.full_name, Auth.getUser()?.email))}</span>`;
@@ -983,6 +984,123 @@ async function refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAd
   lb.appendChild(wrap);
 }
 
+// ---- GLOBAL LEADERBOARD ----
+async function renderGlobalLeaderboard(containerId) {
+  const container = el(containerId);
+  if (!container) return;
+  container.innerHTML = `
+    <div class="glb-header">
+      <div class="glb-filters">
+        <div class="glb-filter-group">
+          <label class="field-label">Fecha</label>
+          <input type="date" class="field-input glb-date-input" id="glb-date" value="${todayKey}" />
+        </div>
+        <div class="glb-filter-group">
+          <label class="field-label">Clase</label>
+          <select class="field-input glb-class-input" id="glb-class">
+            ${CLASSES.map(c => `<option value="${c.id}">${c.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="glb-gender-tabs">
+        <button class="glb-gender-btn active" data-gender="all">Todos</button>
+        <button class="glb-gender-btn" data-gender="H">Hombres</button>
+        <button class="glb-gender-btn" data-gender="M">Mujeres</button>
+      </div>
+    </div>
+    <div id="glb-table"></div>`;
+
+  let selectedGender = 'all';
+
+  async function load() {
+    const date    = el('glb-date').value;
+    const classId = el('glb-class').value;
+    await renderGLBTable('glb-table', date, classId, selectedGender);
+  }
+
+  el('glb-date').addEventListener('change', load);
+  el('glb-class').addEventListener('change', load);
+  container.querySelectorAll('.glb-gender-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.glb-gender-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedGender = btn.dataset.gender;
+      load();
+    });
+  });
+
+  await load();
+}
+
+async function renderGLBTable(tableId, date, classId, genderFilter) {
+  const tableEl = el(tableId);
+  if (!tableEl) return;
+  tableEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+
+  const scores = await ScoreAPI.getLeaderboard(date, classId);
+  if (!scores.length) {
+    tableEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin scores para este día y clase.</div>';
+    return;
+  }
+
+  const scoreType = scores[0]?.score_type || 'high';
+
+  // Get profiles for all users
+  const profiles = await ProfileAPI.getMany(scores.map(s => s.user_id));
+  const athletes = await AthleteAPI.list();
+  const nameMap  = {};
+  athletes.forEach(a => nameMap[a.id] = a.display_name);
+
+  // Filter by gender
+  let filtered = scores.filter(s => {
+    if (genderFilter === 'all') return true;
+    const p = profiles[s.user_id];
+    return p?.gender === genderFilter;
+  });
+
+  // Sort
+  filtered = filtered.sort((a, b) => {
+    const na = parseFloat(a.score), nb = parseFloat(b.score);
+    if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
+    return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
+  });
+
+  if (!filtered.length) {
+    tableEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin scores para este filtro.</div>';
+    return;
+  }
+
+  const currentUserId = Auth.getUser()?.id;
+  const medals = ['🥇','🥈','🥉'];
+
+  const rows = filtered.map((s, i) => {
+    const profile  = profiles[s.user_id];
+    const name     = profile?.full_name || nameMap[s.user_id] || '—';
+    const avatar   = profile?.avatar_url;
+    const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
+    const isMe     = s.user_id === currentUserId;
+    const medal    = i < 3 ? medals[i] : `${i+1}.`;
+    const avatarHTML = avatar
+      ? `<img src="${avatar}" class="glb-avatar-img" />`
+      : `<div class="glb-avatar-placeholder">${escHtml(initials)}</div>`;
+    const genderIcon = profile?.gender === 'H' ? '♂' : profile?.gender === 'M' ? '♀' : '';
+
+    return `<div class="glb-row${isMe ? ' glb-row-me' : ''}${i < 3 ? ' glb-row-podium' : ''}">
+      <span class="glb-pos">${medal}</span>
+      ${avatarHTML}
+      <div class="glb-name-wrap">
+        <span class="glb-name">${escHtml(name)}</span>
+        ${genderIcon ? `<span class="glb-gender-icon">${genderIcon}</span>` : ''}
+        ${isMe ? '<span class="lb-you">Tú</span>' : ''}
+      </div>
+      <span class="glb-score">${escHtml(s.score)}</span>
+    </div>`;
+  }).join('');
+
+  const label = scoreType === 'high' ? '↑ Más alto gana' : '↓ Más bajo gana';
+  tableEl.innerHTML = `<div class="glb-type-label">${label}</div><div class="glb-rows">${rows}</div>`;
+}
+
 function showPassModal() {
   el('new-password').value = '';
   el('confirm-password').value = '';
@@ -1142,7 +1260,8 @@ async function init() {
       btn.classList.add('active');
       document.querySelectorAll('#app-atleta .view').forEach(s => s.classList.remove('active'));
       el(`aview-${btn.dataset.aview}`).classList.add('active');
-      if (btn.dataset.aview === 'dashboard') renderAthleteDashboard();
+      if (btn.dataset.aview === 'dashboard')   renderAthleteDashboard();
+      if (btn.dataset.aview === 'leaderboard') renderGlobalLeaderboard('aview-leaderboard');
     });
   });
 
@@ -1163,10 +1282,11 @@ async function init() {
       else { errEl.textContent = 'Error al subir foto'; errEl.classList.remove('hidden'); btn.innerHTML = '<i class="ti ti-check"></i> Guardar'; btn.disabled = false; return; }
     }
 
-    const ok = await ProfileAPI.save(userId, name, avatarUrl);
+    const gender = el('profile-gender-input').value;
+    const ok = await ProfileAPI.save(userId, name, avatarUrl, gender);
     btn.innerHTML = '<i class="ti ti-check"></i> Guardar'; btn.disabled = false;
     if (ok) {
-      state.profile = { ...state.profile, full_name: name, avatar_url: avatarUrl };
+      state.profile = { ...state.profile, full_name: name, avatar_url: avatarUrl, gender };
       AthleteAPI.clearCache();
       updateAtletaTopbar(state.profile);
       el('profile-modal').classList.add('hidden');
