@@ -1952,3 +1952,119 @@ body {
 }
 .cu-result.show { display: block; }
 [data-theme="light"] .cu-result { background: #D1FAE5; color: #065F46; }
+
+/* ============================================
+   GLOBAL LEADERBOARD
+   ============================================ */
+.glb-header {
+  margin-bottom: 16px;
+}
+.glb-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.glb-filter-group { display: flex; flex-direction: column; gap: 4px; }
+
+.glb-gender-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.glb-gender-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.glb-gender-btn:hover { border-color: var(--blue); color: var(--blue); }
+.glb-gender-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+
+.glb-type-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.glb-rows { display: flex; flex-direction: column; gap: 6px; }
+
+.glb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.12s;
+}
+.glb-row-me {
+  background: var(--blue-tint);
+  border-color: var(--blue-mid);
+}
+.glb-row-podium:nth-child(1) { border-color: #F59E0B; }
+.glb-row-podium:nth-child(2) { border-color: #94A3B8; }
+.glb-row-podium:nth-child(3) { border-color: #B45309; }
+
+.glb-pos {
+  font-size: 16px;
+  min-width: 30px;
+  text-align: center;
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.glb-avatar-img {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.glb-avatar-placeholder {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+  flex-shrink: 0;
+}
+.glb-name-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  min-width: 0;
+}
+.glb-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.glb-gender-icon {
+  font-size: 13px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.glb-score {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
