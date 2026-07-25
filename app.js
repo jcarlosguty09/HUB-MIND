@@ -1063,6 +1063,54 @@ async function init() {
   // Theme toggle atleta
   el('theme-toggle-atleta').addEventListener('click', toggleTheme);
 
+  // Create user button
+  el('create-user-btn').addEventListener('click', () => {
+    el('cu-name').value = '';
+    el('cu-email').value = '';
+    el('cu-password').value = 'HubMindAtleta';
+    el('cu-role').value = 'atleta';
+    el('cu-error').classList.add('hidden');
+    el('cu-result').classList.add('hidden');
+    el('create-user-modal').classList.remove('hidden');
+  });
+  el('cu-cancel').addEventListener('click', () => el('create-user-modal').classList.add('hidden'));
+  el('cu-save').addEventListener('click', async () => {
+    const name     = el('cu-name').value.trim();
+    const email    = el('cu-email').value.trim();
+    const password = el('cu-password').value.trim();
+    const role     = el('cu-role').value;
+    const errEl    = el('cu-error');
+    const resEl    = el('cu-result');
+    const btn      = el('cu-save');
+
+    errEl.classList.add('hidden');
+    resEl.classList.add('hidden');
+
+    if (!email || !password) {
+      errEl.textContent = 'Email y contraseña son obligatorios';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.textContent = 'Creando...'; btn.disabled = true;
+    try {
+      const data = await AdminAPI.createUser(email, password, role, name);
+      resEl.textContent = `✓ Usuario creado: ${email}`;
+      resEl.className = 'cu-result show';
+      AthleteAPI.clearCache();
+      showToast(`✓ ${name || email} creado como ${role}`);
+      // Clear form for next user
+      el('cu-name').value = '';
+      el('cu-email').value = '';
+    } catch(e) {
+      errEl.textContent = e.message || 'Error al crear usuario';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.innerHTML = '<i class="ti ti-user-plus"></i> Crear';
+      btn.disabled = false;
+    }
+  });
+
   // Change password buttons
   el('change-pass-btn').addEventListener('click', () => showPassModal());
   el('change-pass-atleta').addEventListener('click', () => showPassModal());
