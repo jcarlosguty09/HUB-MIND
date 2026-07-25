@@ -63,6 +63,7 @@
       <div class="topbar-actions">
         <span class="role-badge" id="role-badge"></span>
         <button class="icon-btn" id="theme-toggle"><i class="ti ti-sun"></i></button>
+        <button class="icon-btn" id="create-user-btn" title="Crear usuario"><i class="ti ti-user-plus"></i></button>
         <button class="icon-btn" id="change-pass-btn" title="Cambiar contraseña"><i class="ti ti-key"></i></button>
         <button class="icon-btn" id="logout-btn"><i class="ti ti-logout"></i></button>
         <div class="sync-dot" id="sync-dot"></div>
@@ -217,6 +218,39 @@
           <button class="proj-ctrl-btn play-btn" id="proj-play"><i class="ti ti-player-play"></i></button>
           <button class="proj-ctrl-btn skip-btn" id="proj-skip"><i class="ti ti-player-skip-forward"></i></button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE USER MODAL (admin/coach only) -->
+  <div id="create-user-modal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-title"><i class="ti ti-user-plus" style="color:var(--blue)"></i> Crear usuario</div>
+      <div class="field-group">
+        <label class="field-label">Nombre completo</label>
+        <input class="field-input" type="text" id="cu-name" placeholder="Nombre Apellido" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Email</label>
+        <input class="field-input" type="email" id="cu-email" placeholder="correo@email.com" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Contraseña inicial</label>
+        <input class="field-input" type="text" id="cu-password" value="HubMindAtleta" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Rol</label>
+        <select class="field-input" id="cu-role">
+          <option value="atleta">Atleta</option>
+          <option value="coach">Coach</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="login-error hidden" id="cu-error"></div>
+      <div class="cu-result hidden" id="cu-result"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cu-cancel">Cancelar</button>
+        <button class="save-btn" id="cu-save"><i class="ti ti-user-plus"></i> Crear</button>
       </div>
     </div>
   </div>
