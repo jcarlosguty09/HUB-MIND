@@ -2170,3 +2170,36 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* ============================================
+   CALENDAR DRAG & DROP
+   ============================================ */
+.cal-day-draggable {
+  cursor: grab;
+}
+.cal-day-draggable:active {
+  cursor: grabbing;
+}
+.cal-day-dragging {
+  opacity: 0.4;
+  outline: 2px dashed var(--blue);
+  outline-offset: -2px;
+}
+.cal-day-dragover {
+  background: var(--blue-tint) !important;
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.cal-day-draggable::after {
+  content: '⠿';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  color: var(--text3);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cal-day-draggable:hover::after {
+  opacity: 1;
+}
