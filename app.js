@@ -89,6 +89,7 @@ function showView(v) {
   if (v === 'history')          renderHistory();
   if (v === 'leaderboard-admin') renderGlobalLeaderboard('view-leaderboard-admin');
   if (v === 'checkins') renderCheckins();
+  if (v === 'dashboard-admin') renderAdminDashboard();
 }
 
 // ---- SUPABASE LOAD ----
@@ -440,8 +441,17 @@ async function saveDay(dateKey) {
   setSyncState('syncing');
   const ok = await WodAPI.saveDay(dateKey, state.wods[dateKey] || {});
   setSyncState(ok ? 'ok' : 'error');
-  if (ok) showToast('¡Guardado!');
-  else showToast('Error al guardar');
+  if (ok) {
+    showToast('¡Guardado!');
+    // Send push notification to athletes
+    const activeClasses = CLASSES.filter(c => {
+      const secs = state.wods[dateKey]?.[c.id] || [];
+      return secs.some(s => s.content && s.content.trim());
+    });
+    if (activeClasses.length) {
+      sendWodNotification(dateKey, activeClasses.map(c => c.label).join(', '));
+    }
+  } else showToast('Error al guardar');
   return ok;
 }
 
@@ -1403,6 +1413,83 @@ function showPassModal() {
   el('pass-modal').classList.remove('hidden');
 }
 
+// ---- PUSH NOTIFICATIONS ----
+const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40M-RL9YYj9ld50YOHl1t5w7gHEG1U7eTkKpBN11Z7tIvxqOhR3OJ8AyRiUE';
+
+async function setupPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (state.role !== 'atleta') return; // Only for athletes
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return; // Already subscribed
+
+    // Ask permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    // Subscribe
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+
+    // Save subscription to Supabase
+    const token = Auth.getToken();
+    const userId = Auth.getUser()?.id;
+    await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        subscription: JSON.stringify(sub),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    console.log('[Push] Subscribed successfully');
+  } catch(e) {
+    console.log('[Push] Setup failed:', e.message);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+// Send push notification to all athletes (called when saving WOD)
+async function sendWodNotification(dateKey, classLabel) {
+  try {
+    const token = Auth.getToken();
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: `🏋️ WOD de HUB MIND`,
+        body: `El WOD de ${classLabel} para ${new Date(dateKey + 'T12:00:00').toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' })} ya está listo`,
+        url: '/',
+      }),
+    });
+    console.log('[Push] Notification sent');
+  } catch(e) {
+    console.log('[Push] Send failed:', e.message);
+  }
+}
+
 // ---- INIT ----
 async function init() {
   initTheme();
@@ -1448,6 +1535,9 @@ async function init() {
       await Auth.refreshSession();
     }
   }, 50 * 60 * 1000);
+
+  // Push notifications setup
+  setupPushNotifications();
 
   Timer.onTick = updateTimerUI;
   Timer.onDone = () => { showToast('¡Tiempo!', 3000); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); };
