@@ -159,7 +159,99 @@ function addCalDay(grid, d, y, m, other) {
     if (other) { state.curYear = y; state.curMonth = m; renderCalendar(); }
     selectDay(y, m, d);
   });
+
+  // Drag & drop (admin only)
+  if (state.role === 'admin') {
+    const hasWod = state.wods[key] && Object.values(state.wods[key]).some(secs => secs && secs.length);
+
+    if (hasWod) {
+      cell.draggable = true;
+      cell.classList.add('cal-day-draggable');
+
+      cell.addEventListener('dragstart', e => {
+        state.dragSourceKey = key;
+        cell.classList.add('cal-day-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', key);
+      });
+
+      cell.addEventListener('dragend', () => {
+        cell.classList.remove('cal-day-dragging');
+        document.querySelectorAll('.cal-day-dragover').forEach(el => el.classList.remove('cal-day-dragover'));
+      });
+    }
+
+    cell.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (state.dragSourceKey && state.dragSourceKey !== key) {
+        cell.classList.add('cal-day-dragover');
+      }
+    });
+
+    cell.addEventListener('dragleave', () => {
+      cell.classList.remove('cal-day-dragover');
+    });
+
+    cell.addEventListener('drop', async e => {
+      e.preventDefault();
+      cell.classList.remove('cal-day-dragover');
+      const sourceKey = state.dragSourceKey;
+      if (!sourceKey || sourceKey === key) return;
+
+      await moveWodDay(sourceKey, key);
+    });
+  }
+
   grid.appendChild(cell);
+}
+
+async function moveWodDay(fromKey, toKey) {
+  const fromData = state.wods[fromKey];
+  if (!fromData) return;
+
+  const toData = state.wods[toKey] || {};
+  const hasDestData = Object.values(toData).some(secs => secs && secs.length);
+
+  // Confirm if destination has data
+  if (hasDestData) {
+    if (!confirm(`El día ${toKey} ya tiene WODs. ¿Quieres mezclarlos con los de ${fromKey}?`)) return;
+    // Merge: combine sections for each class
+    for (const classId of Object.keys(fromData)) {
+      if (!toData[classId]) toData[classId] = [];
+      toData[classId] = [...toData[classId], ...fromData[classId]];
+    }
+  } else {
+    // Simple move
+    Object.assign(toData, fromData);
+  }
+
+  // Clear source day
+  const emptyData = {};
+
+  setSyncState('syncing');
+  const [okTo, okFrom] = await Promise.all([
+    WodAPI.saveDay(toKey, toData),
+    WodAPI.saveDay(fromKey, emptyData),
+  ]);
+
+  if (okTo && okFrom) {
+    state.wods[toKey] = toData;
+    state.wods[fromKey] = emptyData;
+    state.dragSourceKey = null;
+    showToast(`✓ WOD movido de ${fromKey} a ${toKey}`);
+    renderCalendar();
+    // Update day panel if open
+    if (state.selectedDate === fromKey) {
+      el('day-panel').style.display = 'none';
+      state.selectedDate = null;
+    } else if (state.selectedDate === toKey) {
+      renderDay('cal', toKey);
+    }
+  } else {
+    showToast('Error al mover el WOD');
+  }
+  setSyncState(okTo && okFrom ? 'ok' : 'error');
 }
 
 function selectDay(y, m, d) {
