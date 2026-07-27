@@ -184,6 +184,27 @@ const ScoreAPI = {
   },
 };
 
+// ---- CHECKINS ----
+const CheckinAPI = {
+  async getForDate(date) {
+    try {
+      const rows = await sbReq('GET', 
+        `checkins?select=*&timestamp=gte.${date}T00:00:00&timestamp=lt.${date}T23:59:59&order=timestamp.desc&limit=200`
+      );
+      return rows || [];
+    } catch(e) { console.warn('CheckinAPI.getForDate:', e.message); return []; }
+  },
+
+  async subscribeToNew(callback) {
+    // Poll every 10 seconds for new check-ins
+    return setInterval(async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await CheckinAPI.getForDate(today);
+      callback(rows);
+    }, 10000);
+  },
+};
+
 // ---- ATHLETES ----
 const AthleteAPI = {
   _cache: null,
