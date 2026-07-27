@@ -1087,6 +1087,87 @@ async function refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAd
   lb.appendChild(wrap);
 }
 
+// ---- ADMIN DASHBOARD ----
+async function renderAdminDashboard() {
+  const container = el('admin-dashboard-content');
+  if (!container) return;
+  container.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayLabel = new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+
+  const [athletes, todayCheckins] = await Promise.all([
+    AthleteAPI.list(),
+    CheckinAPI.getForDate(today),
+  ]);
+
+  await loadMonth(new Date().getFullYear(), new Date().getMonth());
+  const todayWods = state.wods[today] || {};
+  const todayHasWod = Object.values(todayWods).some(s => s && s.length);
+  const activeClasses = CLASSES.filter(c => todayWods[c.id]?.length > 0);
+  const todayCheckinCount = todayCheckins.length;
+  const identifiedCount = todayCheckins.filter(c => c.user_id).length;
+
+  const recentIds = [...new Set(todayCheckins.filter(c => c.user_id).slice(0, 8).map(c => c.user_id))];
+  const profiles = recentIds.length ? await ProfileAPI.getMany(recentIds) : {};
+  const nameMap = {};
+  athletes.forEach(a => nameMap[a.id] = a.display_name);
+
+  container.innerHTML = `
+    <div class="admin-dash">
+      <div class="admin-greeting">
+        <div class="admin-greeting-text">
+          <div class="admin-greeting-title">¡Buen día! 💪</div>
+          <div class="admin-greeting-sub">${todayLabel}</div>
+        </div>
+        <div class="admin-wod-status ${todayHasWod ? 'has-wod' : 'no-wod'}">
+          <i class="ti ti-${todayHasWod ? 'check' : 'alert-triangle'}"></i>
+          ${todayHasWod ? 'WOD listo' : 'Sin WOD hoy'}
+        </div>
+      </div>
+
+      ${activeClasses.length ? `
+      <div class="admin-section-title">Clases de hoy</div>
+      <div class="admin-classes-row">
+        ${activeClasses.map(c => `<span class="cal-wod-dot ${c.color}" style="font-size:12px;padding:4px 10px">${c.label}</span>`).join('')}
+      </div>` : ''}
+
+      <div class="admin-section-title">Resumen del día</div>
+      <div class="admin-stats-grid">
+        <div class="admin-stat-card blue"><i class="ti ti-users"></i><div class="admin-stat-num">${athletes.length}</div><div class="admin-stat-label">Atletas</div></div>
+        <div class="admin-stat-card green"><i class="ti ti-scan"></i><div class="admin-stat-num">${todayCheckinCount}</div><div class="admin-stat-label">Check-ins hoy</div></div>
+        <div class="admin-stat-card yellow"><i class="ti ti-user-check"></i><div class="admin-stat-num">${identifiedCount}</div><div class="admin-stat-label">Identificados</div></div>
+        <div class="admin-stat-card purple"><i class="ti ti-barbell"></i><div class="admin-stat-num">${activeClasses.length}</div><div class="admin-stat-label">Clases</div></div>
+      </div>
+
+      <div class="admin-section-title">Acciones rápidas</div>
+      <div class="admin-quick-actions">
+        <button class="admin-action-btn" onclick="showView('today')"><i class="ti ti-barbell"></i><span>WOD de hoy</span></button>
+        <button class="admin-action-btn" onclick="showView('checkins')"><i class="ti ti-scan"></i><span>Check-ins</span></button>
+        <button class="admin-action-btn" onclick="showView('calendar')"><i class="ti ti-calendar"></i><span>Calendario</span></button>
+        <button class="admin-action-btn" onclick="el('create-user-modal').classList.remove('hidden')"><i class="ti ti-user-plus"></i><span>Nuevo atleta</span></button>
+      </div>
+
+      <div class="admin-section-title">Últimos check-ins <span style="color:var(--text3);font-weight:400;font-size:12px">(hoy)</span></div>
+      ${todayCheckins.length ? `
+      <div class="admin-recent-checkins">
+        ${todayCheckins.slice(0, 8).map(c => {
+          const profile = c.user_id ? profiles[c.user_id] : null;
+          const name = profile?.full_name || nameMap[c.user_id] || 'ZK#' + c.zk_user_id;
+          const avatar = profile?.avatar_url;
+          const initials = ProfileAPI.getInitials(profile?.full_name || name, '');
+          const time = new Date(c.timestamp).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' });
+          const avatarHTML = avatar
+            ? '<img src="' + avatar + '" class="admin-ci-avatar-img" />'
+            : '<div class="admin-ci-avatar-placeholder">' + escHtml(initials) + '</div>';
+          return '<div class="admin-ci-row"><div class="admin-ci-avatar">' + avatarHTML + '</div><span class="admin-ci-name">' + escHtml(name) + '</span><span class="admin-ci-time">' + time + '</span></div>';
+        }).join('')}
+      </div>` : '<div class="lb-empty">Sin check-ins hoy todavía.</div>'}
+    </div>`;
+
+  setTimeout(() => { if (state.view === 'dashboard-admin') renderAdminDashboard(); }, 30000);
+}
+
 // ---- CHECK-INS ----
 let _checkinPollInterval = null;
 let _allCheckins = [];
