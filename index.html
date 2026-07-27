@@ -70,6 +70,7 @@
       </div>
     </header>
     <nav class="nav-tabs">
+      <button class="nav-tab" data-view="dashboard-admin"><i class="ti ti-layout-dashboard"></i><span>Panel</span></button>
       <button class="nav-tab active" data-view="calendar"><i class="ti ti-calendar"></i><span>Calendario</span></button>
       <button class="nav-tab" data-view="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-view="checkins"><i class="ti ti-scan"></i><span>Check-ins</span></button>
@@ -102,6 +103,13 @@
         </div>
         <div id="day-content-today"></div>
       </section>
+      <!-- ADMIN DASHBOARD -->
+      <section id="view-dashboard-admin" class="view">
+        <div id="admin-dashboard-content">
+          <div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>
+        </div>
+      </section>
+
       <!-- CHECKINS VIEW -->
       <section id="view-checkins" class="view">
         <div class="checkins-header">
