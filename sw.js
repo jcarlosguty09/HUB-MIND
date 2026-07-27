@@ -1,7 +1,7 @@
 // sw.js — HUB MIND Service Worker v13
 // Strategy: network-first for app files, cache-only for fonts/icons
 
-const CACHE = 'hubmind-v25';
+const CACHE = 'hubmind-v26';
 
 // These never change — safe to cache aggressively
 const STATIC_ASSETS = [
