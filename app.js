@@ -1529,12 +1529,33 @@ async function init() {
     if (e.key === 'ArrowDown'  && inProj) el('proj-class-next').click();
   });
 
-  // Auto-refresh token every 50 minutes to keep session alive
+  // Auto-refresh token every 20 minutes
   setInterval(async () => {
-    if (Auth.isLoggedIn() && Auth.isTokenExpired()) {
+    if (Auth.isLoggedIn()) {
       await Auth.refreshSession();
+      console.log('[Auth] Token refreshed');
     }
-  }, 50 * 60 * 1000);
+  }, 20 * 60 * 1000);
+
+  // Refresh when app comes back to foreground
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && Auth.isLoggedIn()) {
+      const refreshed = await Auth.refreshSession();
+      if (!refreshed) {
+        showLogin();
+      }
+    }
+  });
+
+  // Refresh on user interaction after inactivity
+  let lastActivity = Date.now();
+  document.addEventListener('touchstart', async () => {
+    const now = Date.now();
+    if (now - lastActivity > 30 * 60 * 1000) { // 30 min inactive
+      if (Auth.isLoggedIn()) await Auth.refreshSession();
+    }
+    lastActivity = now;
+  });
 
   // Push notifications setup
   setupPushNotifications();
