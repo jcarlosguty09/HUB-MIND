@@ -72,6 +72,7 @@
     <nav class="nav-tabs">
       <button class="nav-tab active" data-view="calendar"><i class="ti ti-calendar"></i><span>Calendario</span></button>
       <button class="nav-tab" data-view="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
+      <button class="nav-tab" data-view="checkins"><i class="ti ti-scan"></i><span>Check-ins</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
@@ -101,6 +102,24 @@
         </div>
         <div id="day-content-today"></div>
       </section>
+      <!-- CHECKINS VIEW -->
+      <section id="view-checkins" class="view">
+        <div class="checkins-header">
+          <div class="checkins-title-row">
+            <div>
+              <h2 class="checkins-title">Check-ins</h2>
+              <div class="checkins-subtitle" id="checkins-date-label"></div>
+            </div>
+            <div class="checkins-stats" id="checkins-stats"></div>
+          </div>
+          <div class="checkins-filters">
+            <input type="date" class="field-input" id="checkins-date" style="max-width:160px" />
+            <input type="text" class="field-input" id="checkins-search" placeholder="Buscar por nombre..." style="flex:1" />
+          </div>
+        </div>
+        <div id="checkins-list" class="checkins-list"></div>
+      </section>
+
       <!-- LEADERBOARD VIEW (admin/coach) -->
       <section id="view-leaderboard-admin" class="view">
       </section>
