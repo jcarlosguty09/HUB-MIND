@@ -88,6 +88,7 @@ function showView(v) {
   if (v === 'today')            renderDay('today', todayKey);
   if (v === 'history')          renderHistory();
   if (v === 'leaderboard-admin') renderGlobalLeaderboard('view-leaderboard-admin');
+  if (v === 'checkins') renderCheckins();
 }
 
 // ---- SUPABASE LOAD ----
@@ -982,6 +983,208 @@ async function refreshLeaderboardTable(lb, dateKey, classId, currentUserId, isAd
   }
 
   lb.appendChild(wrap);
+}
+
+// ---- CHECK-INS ----
+let _checkinPollInterval = null;
+let _allCheckins = [];
+
+async function renderCheckins() {
+  const today = new Date().toISOString().slice(0, 10);
+  el('checkins-date').value = today;
+  el('checkins-date-label').textContent = new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  // Load athletes and profiles for name lookup
+  const athletes = await AthleteAPI.list();
+  const nameMap = {};
+  athletes.forEach(a => nameMap[a.id] = { name: a.display_name, avatar: a.avatar_url });
+
+  async function load(date, search = '') {
+    el('checkins-list').innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+    const rows = await CheckinAPI.getForDate(date);
+    _allCheckins = rows;
+
+    // Get profiles for user_ids
+    const userIds = [...new Set(rows.filter(r => r.user_id).map(r => r.user_id))];
+    const profiles = userIds.length ? await ProfileAPI.getMany(userIds) : {};
+
+    // Filter by search
+    const filtered = rows.filter(r => {
+      if (!search) return true;
+      const profile = r.user_id ? profiles[r.user_id] : null;
+      const name = profile?.full_name || nameMap[r.user_id]?.name || r.zk_user_id;
+      return name.toLowerCase().includes(search.toLowerCase());
+    });
+
+    // Stats
+    const total = rows.length;
+    const mapped = rows.filter(r => r.user_id).length;
+    el('checkins-stats').innerHTML = `
+      <div class="checkin-stat"><span class="checkin-stat-num">${total}</span><span class="checkin-stat-label">Total</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${mapped}</span><span class="checkin-stat-label">Identificados</span></div>
+      <div class="checkin-stat checkin-stat-unknown"><span class="checkin-stat-num">${total - mapped}</span><span class="checkin-stat-label">Sin vincular</span></div>`;
+
+    const listEl = el('checkins-list');
+    listEl.innerHTML = '';
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin check-ins para este día.</div>';
+      return;
+    }
+
+    filtered.forEach(row => {
+      const profile = row.user_id ? profiles[row.user_id] : null;
+      const name    = profile?.full_name || nameMap[row.user_id]?.name || `ZK#${row.zk_user_id}`;
+      const avatar  = profile?.avatar_url || nameMap[row.user_id]?.avatar;
+      const initials = ProfileAPI.getInitials(profile?.full_name || name, '');
+      const time    = new Date(row.timestamp).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const isUnknown = !row.user_id;
+
+      const avatarHTML = avatar
+        ? `<img src="${avatar}" class="checkin-avatar-img" />`
+        : `<div class="checkin-avatar-placeholder${isUnknown ? ' unknown' : ''}">${escHtml(initials)}</div>`;
+
+      const typeIcon = { face:'ti-face-id', fingerprint:'ti-fingerprint', card:'ti-credit-card', password:'ti-lock' }[row.verify_type] || 'ti-scan';
+
+      const card = document.createElement('div');
+      card.className = `checkin-card${isUnknown ? ' checkin-unknown' : ''}`;
+      card.innerHTML = `
+        <div class="checkin-avatar">${avatarHTML}</div>
+        <div class="checkin-info">
+          <div class="checkin-name">${escHtml(name)}${isUnknown ? ' <span class="checkin-badge-unknown">Sin vincular</span>' : ''}</div>
+          <div class="checkin-meta">
+            <span><i class="ti ${typeIcon}"></i> ${row.verify_type || 'face'}</span>
+            <span>ZK#${row.zk_user_id}</span>
+          </div>
+        </div>
+        <div class="checkin-time">${time}</div>`;
+
+      // Click to link unknown user
+      if (isUnknown) {
+        card.style.cursor = 'pointer';
+        card.title = 'Clic para vincular con atleta';
+        card.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
+      }
+
+      listEl.appendChild(card);
+    });
+  }
+
+  // Initial load
+  await load(today);
+
+  // Date change
+  el('checkins-date').addEventListener('change', async (e) => {
+    const d = e.target.value;
+    el('checkins-date-label').textContent = new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    await load(d, el('checkins-search').value);
+  });
+
+  // Search
+  let searchTimeout;
+  el('checkins-search').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => load(el('checkins-date').value, e.target.value), 300);
+  });
+
+  // Auto-refresh every 15 seconds
+  if (_checkinPollInterval) clearInterval(_checkinPollInterval);
+  _checkinPollInterval = setInterval(async () => {
+    if (state.view === 'checkins') {
+      await load(el('checkins-date').value, el('checkins-search').value);
+    }
+  }, 15000);
+}
+
+async function showLinkModal(zkUserId, listEl, date, search, reloadFn) {
+  const athletes = await AthleteAPI.list();
+  
+  // Simple modal to link ZK user to HubMind user
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-title"><i class="ti ti-link" style="color:var(--blue)"></i> Vincular ZK#${escHtml(zkUserId)}</div>
+      <div class="field-group">
+        <label class="field-label">Selecciona el atleta</label>
+        <input class="field-input" id="link-search" placeholder="Buscar atleta..." />
+        <div class="lb-dropdown" id="link-dropdown" style="position:relative;margin-top:4px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;display:none"></div>
+      </div>
+      <div class="login-error hidden" id="link-error"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="link-cancel">Cancelar</button>
+        <button class="save-btn" id="link-save" disabled><i class="ti ti-link"></i> Vincular</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let selectedAthleteId = null;
+  const searchInput = modal.querySelector('#link-search');
+  const dropdown    = modal.querySelector('#link-dropdown');
+  const saveBtn     = modal.querySelector('#link-save');
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase();
+    if (!q) { dropdown.style.display = 'none'; return; }
+    const matches = athletes.filter(a => a.display_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)).slice(0, 8);
+    dropdown.innerHTML = matches.map(a => `<div class="lb-option" data-id="${a.id}" data-name="${escHtml(a.display_name)}" style="padding:10px 12px;cursor:pointer">${escHtml(a.display_name)}<br><span style="font-size:11px;color:var(--text3)">${escHtml(a.email)}</span></div>`).join('');
+    dropdown.style.display = 'block';
+    dropdown.querySelectorAll('.lb-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        selectedAthleteId = opt.dataset.id;
+        searchInput.value = opt.dataset.name;
+        dropdown.style.display = 'none';
+        saveBtn.disabled = false;
+      });
+    });
+  });
+
+  modal.querySelector('#link-cancel').addEventListener('click', () => modal.remove());
+  
+  saveBtn.addEventListener('click', async () => {
+    if (!selectedAthleteId) return;
+    saveBtn.textContent = 'Vinculando...'; saveBtn.disabled = true;
+    try {
+      const token = Auth.getToken();
+      const athlete = athletes.find(a => a.id === selectedAthleteId);
+      
+      // Save to zk_user_map
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/zk_user_map`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ zk_user_id: zkUserId, user_id: selectedAthleteId, full_name: athlete?.display_name }),
+      });
+
+      if (res.ok) {
+        // Update existing checkins with this zk_user_id
+        await fetch(`${SUPABASE_URL}/rest/v1/checkins?zk_user_id=eq.${zkUserId}&user_id=is.null`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ user_id: selectedAthleteId }),
+        });
+        modal.remove();
+        showToast(`✓ ZK#${zkUserId} vinculado a ${athlete?.display_name}`);
+        AthleteAPI.clearCache();
+        await reloadFn(date, search);
+      } else {
+        modal.querySelector('#link-error').textContent = 'Error al vincular';
+        modal.querySelector('#link-error').classList.remove('hidden');
+        saveBtn.innerHTML = '<i class="ti ti-link"></i> Vincular'; saveBtn.disabled = false;
+      }
+    } catch(e) {
+      saveBtn.innerHTML = '<i class="ti ti-link"></i> Vincular'; saveBtn.disabled = false;
+    }
+  });
 }
 
 // ---- GLOBAL LEADERBOARD ----
