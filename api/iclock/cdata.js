@@ -1,12 +1,5 @@
 // api/iclock/cdata.js
 // ZKTeco SpeedFace-V5L ADMS endpoint — handshake + realtime check-in ingestion
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 export default async function handler(req, res) {
   const q = req.query;
   let body = '';
@@ -31,4 +24,57 @@ export default async function handler(req, res) {
   }
 
   // 3. Check-in en tiempo real (rtlog) o histórico (ATTLOG)
-  if (req.method === 'POST' && (table === 'rtlog' || table
+  if (req.method === 'POST' && (table === 'rtlog' || table === 'ATTLOG')) {
+    try {
+      const rows = [];
+      const lines = body.trim().split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        const fields = {};
+        for (const part of line.split('\t')) {
+          const idx = part.indexOf('=');
+          if (idx > -1) fields[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+        }
+
+        const pin = fields.pin;
+        const t = fields.time;
+        if (!pin || pin === '0' || !t) continue;
+
+        const verifyMap = { '1': 'fingerprint', '4': 'card', '15': 'face' };
+
+        rows.push({
+          zk_user_id: pin,
+          timestamp: new Date(t.replace(' ', 'T') + '-06:00').toISOString(),
+          verify_type: verifyMap[fields.verifytype] || fields.verifytype || 'unknown',
+          device_sn: sn,
+          raw_data: fields,
+        });
+      }
+
+      if (rows.length > 0) {
+        const resp = await fetch(`${process.env.SUPABASE_URL}/rest/v1/checkins`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': process.env.SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify(rows),
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          console.error('[checkins insert error]', resp.status, errText);
+        } else {
+          console.log(`[checkins] inserted ${rows.length} row(s)`);
+        }
+      }
+    } catch (e) {
+      console.error('[rtlog parse error]', e.message);
+    }
+    return res.status(200).send('OK\n');
+  }
+
+  // 4. Otros heartbeats
+  return res.status(200).send('OK\n');
+}
