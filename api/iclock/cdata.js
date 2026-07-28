@@ -51,15 +51,29 @@ export default async function handler(req, res) {
         });
       }
 
-      if (rows.length > 0) {
+     if (rows.length > 0) {
+        const headers = {
+          'Content-Type': 'application/json',
+          'apikey': process.env.SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        };
+
+        // Resolver user_id desde zk_user_map para cada zk_user_id único
+        const pins = [...new Set(rows.map(r => r.zk_user_id))];
+        const mapResp = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/zk_user_map?zk_user_id=in.(${pins.join(',')})&select=zk_user_id,user_id`,
+          { headers }
+        );
+        const mappings = mapResp.ok ? await mapResp.json() : [];
+        const pinToUser = {};
+        for (const m of mappings) pinToUser[m.zk_user_id] = m.user_id;
+
+        // Asignar user_id (null si no está mapeado todavía)
+        for (const r of rows) r.user_id = pinToUser[r.zk_user_id] || null;
+
         const resp = await fetch(`${process.env.SUPABASE_URL}/rest/v1/checkins`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': process.env.SUPABASE_SERVICE_KEY,
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-            'Prefer': 'return=minimal',
-          },
+          headers: { ...headers, 'Prefer': 'return=minimal' },
           body: JSON.stringify(rows),
         });
         if (!resp.ok) {
