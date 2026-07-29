@@ -1173,7 +1173,8 @@ let _checkinPollInterval = null;
 let _allCheckins = [];
 
 async function renderCheckins() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
   el('checkins-date').value = today;
   el('checkins-date-label').textContent = new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
