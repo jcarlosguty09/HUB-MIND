@@ -73,7 +73,8 @@ export default async function handler(req, res) {
 
         const resp = await fetch(`${process.env.SUPABASE_URL}/rest/v1/checkins`, {
           method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
+          headers: { ...headers, 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
+
           body: JSON.stringify(rows),
         });
         if (!resp.ok) {
