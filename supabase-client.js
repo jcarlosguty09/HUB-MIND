@@ -409,16 +409,18 @@ const RoleAPI = {
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
-  async getMonth(yearMonth) {
+ async getMonth(yearMonth) {
     const start = `${yearMonth}-01`;
-    const d = new Date(yearMonth + '-01'); d.setMonth(d.getMonth() + 1);
-    const end = d.toISOString().slice(0, 10);
+    // Calcular primer día del mes siguiente sin desfase de timezone
+    const [y, m] = yearMonth.split('-').map(Number);
+    const nextY = m === 12 ? y + 1 : y;
+    const nextM = m === 12 ? 1 : m + 1;
+    const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
     try {
       const rows = await sbReq('GET', `wod_days?select=*&date=gte.${start}&date=lt.${end}&order=date.asc`);
       const map = {};
       for (const row of rows) {
         const raw = typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections || {});
-        // Support both old array format and new object format
         map[row.date] = Array.isArray(raw) ? {} : raw;
       }
       return map;
