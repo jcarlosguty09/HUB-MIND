@@ -405,7 +405,15 @@ const RoleAPI = {
     }
   },
 };
-
+// ---- MEMBERS (admin only) ----
+const MemberAPI = {
+  async list() {
+    try {
+      const rows = await sbReq('GET', 'members_admin?select=*&order=role.asc,full_name.asc');
+      return rows || [];
+    } catch(e) { console.warn('MemberAPI.list:', e.message); return []; }
+  },
+};
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
