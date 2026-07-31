@@ -2407,3 +2407,42 @@ body {
   font-size: 12px;
   color: #22C55E;
 }
+/* ---- MEMBER ZK ID EDIT ---- */
+.member-zk-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.member-zk-input {
+  width: 80px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+  outline: none;
+}
+.member-zk-input:focus {
+  border-color: var(--blue);
+}
+.member-zk-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.member-zk-save:hover { opacity: 0.9; }
+.member-zk-save:disabled { opacity: 0.5; cursor: default; }
+.member-zk-save .ti-loader-2 { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
