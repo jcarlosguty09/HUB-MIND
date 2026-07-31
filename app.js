@@ -677,10 +677,13 @@ async function showApp() {
   const badge = el('role-badge');
   badge.textContent = role === 'admin' ? 'Admin' : 'Coach';
   badge.className = 'role-badge ' + role;
+  // Mostrar tab de Miembros solo para admin
+  el('nav-tab-members').style.display = role === 'admin' ? '' : 'none';
 
   await renderCalendar();
   await renderToday();
 }
+
 
 async function showAtleta() {
   el('login-screen').classList.add('hidden');
