@@ -1896,6 +1896,36 @@ async function renderMembers() {
         <div class="member-perms">${perms}</div>`;
       listEl.appendChild(card);
     });
+    // Activar guardado de ZK IDs
+    listEl.querySelectorAll('.member-zk-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.user;
+        const input  = listEl.querySelector(`.member-zk-input[data-user="${userId}"]`);
+        const zkId   = input.value.trim();
+        const name   = input.dataset.name;
+
+        if (!zkId) { showToast('Escribe un ZK ID'); return; }
+
+        // Avisar si ya está en uso (pero permitir el cambio)
+        const inUseBy = await MemberAPI.zkIdInUse(zkId, userId);
+        if (inUseBy) {
+          if (!confirm(`El ZK ID ${zkId} ya está asignado a ${inUseBy}. ¿Reasignarlo a ${name || 'este miembro'}?`)) return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2"></i>';
+        const ok = await MemberAPI.setZkId(userId, zkId, name);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
+
+        if (ok) {
+          showToast(`✓ ZK#${zkId} asignado a ${name || 'miembro'}`);
+          AthleteAPI.clearCache();
+        } else {
+          showToast('Error al asignar ZK ID');
+        }
+      });
+    });
   }
 
   render();
