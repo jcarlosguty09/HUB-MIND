@@ -90,6 +90,7 @@ function showView(v) {
   if (v === 'leaderboard-admin') renderGlobalLeaderboard('view-leaderboard-admin');
   if (v === 'checkins') renderCheckins();
   if (v === 'dashboard-admin') renderAdminDashboard();
+  if (v === 'members') renderMembers();
 }
 
 // ---- SUPABASE LOAD ----
