@@ -1873,10 +1873,13 @@ async function renderMembers() {
         : `<div class="checkin-avatar-placeholder">${escHtml(initials)}</div>`;
       const perms = (ROLE_PERMISSIONS[m.role] || []).map(p =>
         `<span class="member-perm"><i class="ti ti-check"></i> ${escHtml(p)}</span>`).join('');
-      const zkBadge = m.zk_user_id
-        ? `<span class="member-zk">ZK#${escHtml(m.zk_user_id)}</span>`
-        : `<span class="member-zk member-zk-none">Sin ZK ID</span>`;
-
+    const zkBadge = `
+        <div class="member-zk-edit">
+          <input class="member-zk-input" type="text" inputmode="numeric"
+                 value="${escHtml(m.zk_user_id || '')}" placeholder="ZK ID"
+                 data-user="${m.id}" data-name="${escHtml(m.full_name || '')}" />
+          <button class="member-zk-save" data-user="${m.id}"><i class="ti ti-device-floppy"></i></button>
+        </div>`;
       const card = document.createElement('div');
       card.className = 'member-card';
       card.innerHTML = `
