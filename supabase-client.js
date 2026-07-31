@@ -413,6 +413,51 @@ const MemberAPI = {
       return rows || [];
     } catch(e) { console.warn('MemberAPI.list:', e.message); return []; }
   },
+
+  // Revisa si un ZK ID ya está asignado a OTRO usuario. Devuelve el nombre o null.
+  async zkIdInUse(zkUserId, exceptUserId) {
+    try {
+      const rows = await sbReq('GET', `zk_user_map?select=user_id,full_name&zk_user_id=eq.${encodeURIComponent(zkUserId)}`);
+      const other = (rows || []).find(r => r.user_id !== exceptUserId);
+      return other ? (other.full_name || 'otro miembro') : null;
+    } catch(e) { return null; }
+  },
+
+  // Asigna (o reasigna) el ZK ID a un miembro y actualiza sus check-ins.
+  async setZkId(userId, zkUserId, fullName) {
+    try {
+      const token = Auth.getToken();
+      // 1. Borrar cualquier mapeo previo de este usuario (por si tenía otro ZK ID)
+      await fetch(`${SUPABASE_URL}/rest/v1/zk_user_map?user_id=eq.${userId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${token}` },
+      });
+      // 2. Insertar el nuevo mapeo
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/zk_user_map`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ zk_user_id: zkUserId, user_id: userId, full_name: fullName }),
+      });
+      if (!res.ok) return false;
+      // 3. Actualizar los check-ins de ese ZK ID que estén sin vincular
+      await fetch(`${SUPABASE_URL}/rest/v1/checkins?zk_user_id=eq.${encodeURIComponent(zkUserId)}&user_id=is.null`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      return true;
+    } catch(e) { console.error('MemberAPI.setZkId:', e); return false; }
+  },
 };
 // ---- WOD API ----
 const WodAPI = {
