@@ -1816,6 +1816,88 @@ async function init() {
     showLogin();
   }
 }
+// ---- MEMBERS (admin only) ----
+const ROLE_PERMISSIONS = {
+  admin: [
+    'Crear y editar WODs', 'Crear usuarios', 'Ver y gestionar check-ins',
+    'Vincular ZK IDs', 'Editar/borrar cualquier score', 'Mover WODs entre días',
+    'Ver panel de administración', 'Gestionar miembros',
+  ],
+  coach: [
+    'Ver WODs', 'Agregar scores de atletas', 'Editar/borrar scores',
+    'Ver check-ins', 'Proyectar WODs',
+  ],
+  atleta: [
+    'Ver su WOD del día', 'Subir su propio score', 'Ver rankings',
+    'Editar su perfil',
+  ],
+};
 
+const ROLE_LABELS = { admin: 'Admin', coach: 'Coach', atleta: 'Atleta' };
+const ROLE_COLORS = { admin: 'purple', coach: 'blue', atleta: 'green' };
+
+async function renderMembers() {
+  const listEl = el('members-list');
+  listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+
+  const members = await MemberAPI.list();
+
+  function render(search = '') {
+    const filtered = members.filter(m => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (m.full_name || '').toLowerCase().includes(q)
+          || (m.email || '').toLowerCase().includes(q)
+          || (ROLE_LABELS[m.role] || m.role).toLowerCase().includes(q);
+    });
+
+    // Stats por rol
+    const counts = { admin: 0, coach: 0, atleta: 0 };
+    members.forEach(m => { counts[m.role] = (counts[m.role] || 0) + 1; });
+    el('members-stats').innerHTML = `
+      <div class="checkin-stat"><span class="checkin-stat-num">${counts.admin}</span><span class="checkin-stat-label">Admins</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${counts.coach}</span><span class="checkin-stat-label">Coaches</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${counts.atleta}</span><span class="checkin-stat-label">Atletas</span></div>`;
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin miembros que coincidan.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    filtered.forEach(m => {
+      const name     = m.full_name || m.email?.split('@')[0] || '—';
+      const initials = ProfileAPI.getInitials(m.full_name, m.email);
+      const avatarHTML = m.avatar_url
+        ? `<img src="${m.avatar_url}" class="checkin-avatar-img" />`
+        : `<div class="checkin-avatar-placeholder">${escHtml(initials)}</div>`;
+      const perms = (ROLE_PERMISSIONS[m.role] || []).map(p =>
+        `<span class="member-perm"><i class="ti ti-check"></i> ${escHtml(p)}</span>`).join('');
+      const zkBadge = m.zk_user_id
+        ? `<span class="member-zk">ZK#${escHtml(m.zk_user_id)}</span>`
+        : `<span class="member-zk member-zk-none">Sin ZK ID</span>`;
+
+      const card = document.createElement('div');
+      card.className = 'member-card';
+      card.innerHTML = `
+        <div class="member-head">
+          <div class="checkin-avatar">${avatarHTML}</div>
+          <div class="member-info">
+            <div class="member-name">${escHtml(name)}
+              <span class="member-role-badge ${ROLE_COLORS[m.role] || 'green'}">${ROLE_LABELS[m.role] || m.role}</span>
+            </div>
+            <div class="member-email">${escHtml(m.email || '')}</div>
+          </div>
+          ${zkBadge}
+        </div>
+        <div class="member-perms">${perms}</div>`;
+      listEl.appendChild(card);
+    });
+  }
+
+  render();
+
+  el('members-search').oninput = (e) => render(e.target.value);
+}
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
