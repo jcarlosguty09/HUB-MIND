@@ -1933,5 +1933,78 @@ async function renderMembers() {
 
   el('members-search').oninput = (e) => render(e.target.value);
 }
+// ---- CLASSES SCHEDULE VIEW ----
+const CLASS_TYPE_INFO = {
+  crossfit: { label: 'HUB X',        color: 'blue'   },
+  hyrox:    { label: 'HYROX',        color: 'yellow' },
+  strength: { label: 'Strength Lab', color: 'purple' },
+};
+
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function fmtTime(t) {
+  // '17:00:00' -> '5:00 PM'
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+async function renderClasses() {
+  const listEl = el('classes-list');
+  listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+
+  // Fecha/hora actual en CDMX
+  const now = new Date();
+  const cdmxStr = now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' });
+  const cdmx = new Date(cdmxStr);
+  const dayOfWeek = cdmx.getDay();
+  const nowMin = cdmx.getHours() * 60 + cdmx.getMinutes();
+
+  el('classes-date-label').textContent = cdmx.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+
+  const classes = await ScheduleAPI.getForDay(dayOfWeek);
+
+  if (!classes.length) {
+    listEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">No hay clases programadas para hoy.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  classes.forEach(c => {
+    const startMin = timeToMinutes(c.start_time);
+    const endMin   = timeToMinutes(c.end_time);
+    const info     = CLASS_TYPE_INFO[c.class_type] || { label: c.class_type, color: 'green' };
+
+    let status, statusLabel;
+    if (nowMin >= startMin && nowMin < endMin) { status = 'live';     statusLabel = 'En curso'; }
+    else if (nowMin >= endMin)                  { status = 'past';     statusLabel = 'Terminada'; }
+    else                                        { status = 'upcoming'; statusLabel = 'Próxima'; }
+
+    const card = document.createElement('div');
+    card.className = `class-card class-${status}`;
+    card.innerHTML = `
+      <div class="class-time-col">
+        <div class="class-time-start">${fmtTime(c.start_time)}</div>
+        <div class="class-time-end">${fmtTime(c.end_time)}</div>
+      </div>
+      <div class="class-info-col">
+        <span class="class-type-badge ${info.color}">${escHtml(info.label)}</span>
+      </div>
+      <div class="class-status-col">
+        ${status === 'live' ? '<span class="class-live-dot"></span>' : ''}
+        <span class="class-status-label class-status-${status}">${statusLabel}</span>
+      </div>`;
+    listEl.appendChild(card);
+  });
+
+  // Auto-refresh cada minuto para actualizar el estado en curso/pasada
+  if (state.view === 'classes') {
+    clearTimeout(window._classesTimer);
+    window._classesTimer = setTimeout(() => { if (state.view === 'classes') renderClasses(); }, 60000);
+  }
+}
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
