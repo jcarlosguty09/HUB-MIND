@@ -413,6 +413,27 @@ const RoleAPI = {
     }
   },
 };
+
+// ---- CLASS SCHEDULE ----
+const ScheduleAPI = {
+  _cache: null,
+  async getAll() {
+    if (this._cache) return this._cache;
+    try {
+      const rows = await sbReq('GET', 'class_schedule?select=*&order=day_of_week.asc,sort_order.asc');
+      this._cache = rows || [];
+      return this._cache;
+    } catch(e) { console.warn('ScheduleAPI.getAll:', e.message); return []; }
+  },
+
+  // Clases de un día de la semana (0=dom ... 6=sáb)
+  async getForDay(dayOfWeek) {
+    const all = await this.getAll();
+    return all.filter(c => c.day_of_week === dayOfWeek);
+  },
+
+  clearCache() { this._cache = null; },
+};
 // ---- MEMBERS (admin only) ----
 const MemberAPI = {
   async list() {
