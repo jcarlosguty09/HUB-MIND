@@ -1187,6 +1187,8 @@ async function renderCheckins() {
   const athletes = await AthleteAPI.list();
   const nameMap = {};
   athletes.forEach(a => nameMap[a.id] = { name: a.display_name, avatar: a.avatar_url });
+  // Clases por día de la semana (para el selector de asistencia)
+  const allSchedule = await ScheduleAPI.getAll();
 
   async function load(date, search = '') {
     el('checkins-list').innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
