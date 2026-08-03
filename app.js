@@ -1276,7 +1276,18 @@ async function renderCheckins() {
         card.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
       }
 
+      // Selector de clase
+      const classSelect = card.querySelector('.checkin-class-select');
+      if (classSelect) {
+        classSelect.addEventListener('change', async (e) => {
+          const ok = await CheckinAPI.assignClass(row.id, e.target.value || null);
+          if (ok) showToast('✓ Clase asignada');
+          else showToast('Error al asignar clase');
+        });
+      }
+
       listEl.appendChild(card);
+    });
     });
   }
 
