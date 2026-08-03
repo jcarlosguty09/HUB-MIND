@@ -186,10 +186,8 @@ const ScoreAPI = {
 
 // ---- CHECKINS ----
 const CheckinAPI = {
- async getForDate(date) {
+  async getForDate(date) {
     try {
-      // date = 'YYYY-MM-DD' en hora CDMX. CDMX es UTC-6, así que el día
-      // local va de las 06:00Z de ese día a las 06:00Z del día siguiente.
       const start = `${date}T06:00:00`;
       const d = new Date(`${date}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() + 1);
@@ -203,10 +201,27 @@ const CheckinAPI = {
     } catch(e) { console.warn('CheckinAPI.getForDate:', e.message); return []; }
   },
 
+  // Asignar (o quitar) la clase a la que asistió un check-in
+  async assignClass(checkinId, classScheduleId) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checkins?id=eq.${checkinId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ assigned_class_id: classScheduleId || null }),
+      });
+      return res.ok;
+    } catch(e) { console.error('CheckinAPI.assignClass:', e); return false; }
+  },
+
   async subscribeToNew(callback) {
-    // Poll every 10 seconds for new check-ins
     return setInterval(async () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
       const rows = await CheckinAPI.getForDate(today);
       callback(rows);
     }, 10000);
