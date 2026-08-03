@@ -2518,3 +2518,38 @@ body {
 @keyframes pulse-live {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      {
+
+     /* ---- CHECKIN CLASS ASSIGNMENT ---- */
+.checkin-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.checkin-class-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.checkin-class-row .ti {
+  font-size: 16px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.checkin-class-select {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+  cursor: pointer;
+}
+.checkin-class-select:focus {
+  border-color: var(--blue);
+}
