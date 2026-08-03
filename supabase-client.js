@@ -186,10 +186,18 @@ const ScoreAPI = {
 
 // ---- CHECKINS ----
 const CheckinAPI = {
-  async getForDate(date) {
+ async getForDate(date) {
     try {
-      const rows = await sbReq('GET', 
-        `checkins?select=*&timestamp=gte.${date}T00:00:00&timestamp=lt.${date}T23:59:59&order=timestamp.desc&limit=200`
+      // date = 'YYYY-MM-DD' en hora CDMX. CDMX es UTC-6, así que el día
+      // local va de las 06:00Z de ese día a las 06:00Z del día siguiente.
+      const start = `${date}T06:00:00`;
+      const d = new Date(`${date}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      const nextDate = d.toISOString().slice(0, 10);
+      const end = `${nextDate}T06:00:00`;
+
+      const rows = await sbReq('GET',
+        `checkins?select=*&timestamp=gte.${start}&timestamp=lt.${end}&order=timestamp.desc&limit=200`
       );
       return rows || [];
     } catch(e) { console.warn('CheckinAPI.getForDate:', e.message); return []; }
