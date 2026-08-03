@@ -86,6 +86,7 @@ function showView(v) {
   el(`view-${v}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   if (v === 'today')            renderDay('today', todayKey);
+  if (v === 'classes') renderClasses();
   if (v === 'history')          renderHistory();
   if (v === 'leaderboard-admin') renderGlobalLeaderboard('view-leaderboard-admin');
   if (v === 'checkins') renderCheckins();
