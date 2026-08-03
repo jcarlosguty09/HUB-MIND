@@ -1288,7 +1288,6 @@ async function renderCheckins() {
 
       listEl.appendChild(card);
     });
-    });
   }
 
   // Initial load
