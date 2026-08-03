@@ -1237,18 +1237,37 @@ async function renderCheckins() {
 
       const typeIcon = { face:'ti-face-id', fingerprint:'ti-fingerprint', card:'ti-credit-card', password:'ti-lock' }[row.verify_type] || 'ti-scan';
 
+     // Clases del día de ESTE check-in (según su fecha)
+      const rowDate = new Date(row.timestamp);
+      const rowDayCdmx = new Date(rowDate.toLocaleString('en-US', { timeZone: 'America/Mexico_City' })).getDay();
+      const dayClasses = allSchedule.filter(c => c.day_of_week === rowDayCdmx);
+      const classOptions = dayClasses.map(c => {
+        const info = CLASS_TYPE_INFO[c.class_type] || { label: c.class_type };
+        const sel = row.assigned_class_id === c.id ? ' selected' : '';
+        return `<option value="${c.id}"${sel}>${fmtTime(c.start_time)} · ${escHtml(info.label)}</option>`;
+      }).join('');
+
       const card = document.createElement('div');
       card.className = `checkin-card${isUnknown ? ' checkin-unknown' : ''}`;
       card.innerHTML = `
-        <div class="checkin-avatar">${avatarHTML}</div>
-        <div class="checkin-info">
-          <div class="checkin-name">${escHtml(name)}${isUnknown ? ' <span class="checkin-badge-unknown">Sin vincular</span>' : ''}</div>
-          <div class="checkin-meta">
-            <span><i class="ti ${typeIcon}"></i> ${row.verify_type || 'face'}</span>
-            <span>ZK#${row.zk_user_id}</span>
+        <div class="checkin-top">
+          <div class="checkin-avatar">${avatarHTML}</div>
+          <div class="checkin-info">
+            <div class="checkin-name">${escHtml(name)}${isUnknown ? ' <span class="checkin-badge-unknown">Sin vincular</span>' : ''}</div>
+            <div class="checkin-meta">
+              <span><i class="ti ${typeIcon}"></i> ${row.verify_type || 'face'}</span>
+              <span>ZK#${row.zk_user_id}</span>
+            </div>
           </div>
+          <div class="checkin-time">${time}</div>
         </div>
-        <div class="checkin-time">${time}</div>`;
+        <div class="checkin-class-row">
+          <i class="ti ti-clock-hour-4"></i>
+          <select class="checkin-class-select" data-checkin="${row.id}">
+            <option value="">Sin clase asignada</option>
+            ${classOptions}
+          </select>
+        </div>`;
 
       // Click to link unknown user
       if (isUnknown) {
