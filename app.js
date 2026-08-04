@@ -878,33 +878,58 @@ async function renderAtletaDay(containerId, dateKey) {
       sectionsEl.appendChild(secEl);
     });
 
-    // Score input
-    const scoreRow = document.createElement('div');
-    scoreRow.className = 'score-row';
-    const scoreInput = document.createElement('input');
-    scoreInput.className = 'score-input';
-    scoreInput.type = 'text';
-    scoreInput.placeholder = 'Tu score (ej: 5 rondas, 12:34, 85 kg...)';
-    scoreInput.value = scores[cls.id] || '';
-    const scoreBtn = document.createElement('button');
-    scoreBtn.className = 'score-save-btn';
-    scoreBtn.textContent = 'Guardar';
-    const scoreSaved = document.createElement('span');
-    scoreSaved.className = 'score-saved';
-    scoreSaved.textContent = '✓ Guardado';
+   // Score input con categoría RX/Scaled y opción "completé"
+    const existingScore = scores[cls.id] || {};
+    let selectedCategory = existingScore.category || 'rx';
+
+    const scoreBlock = document.createElement('div');
+    scoreBlock.className = 'score-block';
+    scoreBlock.innerHTML = `
+      <div class="score-cat-tabs">
+        <button class="score-cat-btn${selectedCategory === 'rx' ? ' active' : ''}" data-cat="rx">RX</button>
+        <button class="score-cat-btn${selectedCategory === 'scaled' ? ' active' : ''}" data-cat="scaled">Scaled</button>
+      </div>
+      <div class="score-row">
+        <input class="score-input" type="text" placeholder="Tu score (ej: 5 rondas, 12:34, 85 kg...)" value="${escHtml(existingScore.score || '')}" />
+        <button class="score-save-btn">Guardar</button>
+      </div>
+      <button class="score-completed-btn">
+        <i class="ti ti-circle-check"></i> Solo completé la clase (sin score)
+      </button>
+      <span class="score-saved">✓ Guardado</span>`;
+
+    const catBtns    = scoreBlock.querySelectorAll('.score-cat-btn');
+    const scoreInput = scoreBlock.querySelector('.score-input');
+    const scoreBtn   = scoreBlock.querySelector('.score-save-btn');
+    const completedBtn = scoreBlock.querySelector('.score-completed-btn');
+    const scoreSaved = scoreBlock.querySelector('.score-saved');
+
+    catBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedCategory = btn.dataset.cat;
+        catBtns.forEach(b => b.classList.toggle('active', b.dataset.cat === selectedCategory));
+      });
+    });
+
+    const flashSaved = () => { scoreSaved.classList.add('show'); setTimeout(() => scoreSaved.classList.remove('show'), 2000); };
 
     scoreBtn.addEventListener('click', async () => {
-      const ok = await ScoreAPI.save(dateKey, cls.id, userId, scoreInput.value.trim());
-      if (ok) { scoreSaved.classList.add('show'); setTimeout(() => scoreSaved.classList.remove('show'), 2000); }
+      const val = scoreInput.value.trim();
+      if (!val) { showToast('Escribe tu score o usa "Solo completé"'); return; }
+      const ok = await ScoreAPI.save(dateKey, cls.id, userId, val, existingScore.scoreType || 'high', selectedCategory, false);
+      if (ok) flashSaved();
       else showToast('Error al guardar score');
     });
+
+    completedBtn.addEventListener('click', async () => {
+      const ok = await ScoreAPI.save(dateKey, cls.id, userId, '', existingScore.scoreType || 'high', selectedCategory, true);
+      if (ok) { showToast('✓ Clase completada registrada'); flashSaved(); }
+      else showToast('Error al registrar');
+    });
+
     scoreInput.addEventListener('keydown', e => { if (e.key === 'Enter') scoreBtn.click(); });
 
-    scoreRow.appendChild(scoreInput);
-    scoreRow.appendChild(scoreBtn);
-    sectionsEl.appendChild(scoreRow);
-    sectionsEl.appendChild(scoreSaved);
-
+    sectionsEl.appendChild(scoreBlock);
     // Toggle collapse
     header.addEventListener('click', () => {
       const isOpen = sectionsEl.style.display !== 'none';
