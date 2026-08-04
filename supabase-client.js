@@ -117,7 +117,7 @@ async function sbReq(method, path, body = null, prefer = 'return=representation'
 // ---- SCORES ----
 const ScoreAPI = {
   // Save score (admin/coach can pass any userId; atleta uses their own)
-  async save(date, classId, userId, score, scoreType = 'high') {
+  async save(date, classId, userId, score, scoreType = 'high', category = 'rx', completed = false) {
     try {
       const token = Auth.getToken();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_scores?on_conflict=date,class_id,user_id`, {
@@ -128,16 +128,16 @@ const ScoreAPI = {
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates,return=minimal',
         },
-        body: JSON.stringify({ 
-          date, class_id: classId, user_id: userId, 
+        body: JSON.stringify({
+          date, class_id: classId, user_id: userId,
           score, score_type: scoreType,
-          updated_at: new Date().toISOString() 
+          category, completed,
+          updated_at: new Date().toISOString()
         }),
       });
       return res.ok;
     } catch(e) { console.error('ScoreAPI.save:', e); return false; }
   },
-
   // Get all scores for a date+class (for leaderboard)
   async getLeaderboard(date, classId) {
     try {
