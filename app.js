@@ -1485,77 +1485,128 @@ async function renderGLBTable(tableId, date, classId, genderFilter) {
   if (!tableEl) return;
   tableEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
-  const scores = await ScoreAPI.getLeaderboard(date, classId);
-  if (!scores.length) {
+  const allScores = await ScoreAPI.getLeaderboard(date, classId);
+  if (!allScores.length) {
     tableEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin scores para este día y clase.</div>';
     return;
   }
 
-  const scoreType = scores[0]?.score_type || 'high';
+  const scoreType = allScores[0]?.score_type || 'high';
+  const isAdminOrCoach = state.role === 'admin' || state.role === 'coach';
+  const currentUserId = Auth.getUser()?.id;
 
-  // Get profiles for all users
-  const profiles = await ProfileAPI.getMany(scores.map(s => s.user_id));
+  // Perfiles y nombres
+  const profiles = await ProfileAPI.getMany(allScores.map(s => s.user_id));
   const athletes = await AthleteAPI.list();
   const nameMap  = {};
   athletes.forEach(a => nameMap[a.id] = a.display_name);
 
-  // Filter by gender
-  let filtered = scores.filter(s => {
+  // Filtro de género
+  const genderFiltered = allScores.filter(s => {
     if (genderFilter === 'all') return true;
     const p = profiles[s.user_id];
     return p?.gender === genderFilter;
   });
 
-  // Sort
-  filtered = filtered.sort((a, b) => {
-    const na = parseFloat(a.score), nb = parseFloat(b.score);
-    if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
-    return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
-  });
+  // Toggle high/low (solo admin/coach)
+  const toggleHTML = isAdminOrCoach ? `
+    <div class="glb-sort-toggle">
+      <span class="glb-sort-label">Orden:</span>
+      <button class="glb-sort-btn${scoreType === 'high' ? ' active' : ''}" data-type="high">↑ Más alto gana</button>
+      <button class="glb-sort-btn${scoreType === 'low' ? ' active' : ''}" data-type="low">↓ Más bajo gana</button>
+    </div>` : `<div class="glb-type-label">${scoreType === 'high' ? '↑ Más alto gana' : '↓ Más bajo gana'}</div>`;
 
-  if (!filtered.length) {
-    tableEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin scores para este filtro.</div>';
-    return;
+  // Construir una sección de leaderboard (RX o Scaled)
+  function buildCategorySection(catLabel, catScores) {
+    if (!catScores.length) return '';
+
+    // Separar los que tienen score de los "solo completada"
+    const withScore = catScores.filter(s => !s.completed && s.score && s.score.trim());
+    const completedOnly = catScores.filter(s => s.completed || !s.score || !s.score.trim());
+
+    // Ordenar los que tienen score
+    withScore.sort((a, b) => {
+      const na = parseFloat(a.score), nb = parseFloat(b.score);
+      if (!isNaN(na) && !isNaN(nb)) return scoreType === 'high' ? nb - na : na - nb;
+      return scoreType === 'high' ? b.score.localeCompare(a.score) : a.score.localeCompare(b.score);
+    });
+
+    const medals = ['🥇','🥈','🥉'];
+    const rankedRows = withScore.map((s, i) => {
+      const profile  = profiles[s.user_id];
+      const name     = profile?.full_name || nameMap[s.user_id] || '—';
+      const avatar   = profile?.avatar_url;
+      const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
+      const isMe     = s.user_id === currentUserId;
+      const medal    = i < 3 ? medals[i] : `${i+1}.`;
+      const avatarHTML = avatar
+        ? `<img src="${avatar}" class="glb-avatar-img" />`
+        : `<div class="glb-avatar-placeholder">${escHtml(initials)}</div>`;
+      const genderIcon = profile?.gender === 'H' ? '♂' : profile?.gender === 'M' ? '♀' : '';
+      return `<div class="glb-row${isMe ? ' glb-row-me' : ''}${i < 3 ? ' glb-row-podium' : ''}">
+        <span class="glb-pos">${medal}</span>
+        ${avatarHTML}
+        <div class="glb-name-wrap">
+          <span class="glb-name">${escHtml(name)}</span>
+          ${genderIcon ? `<span class="glb-gender-icon">${genderIcon}</span>` : ''}
+          ${isMe ? '<span class="lb-you">Tú</span>' : ''}
+        </div>
+        <span class="glb-score">${escHtml(s.score)}</span>
+      </div>`;
+    }).join('');
+
+    // Los "completada" al final, sin posición
+    const completedRows = completedOnly.map(s => {
+      const profile  = profiles[s.user_id];
+      const name     = profile?.full_name || nameMap[s.user_id] || '—';
+      const avatar   = profile?.avatar_url;
+      const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
+      const isMe     = s.user_id === currentUserId;
+      const avatarHTML = avatar
+        ? `<img src="${avatar}" class="glb-avatar-img" />`
+        : `<div class="glb-avatar-placeholder">${escHtml(initials)}</div>`;
+      return `<div class="glb-row glb-row-completed${isMe ? ' glb-row-me' : ''}">
+        <span class="glb-pos"><i class="ti ti-circle-check"></i></span>
+        ${avatarHTML}
+        <div class="glb-name-wrap">
+          <span class="glb-name">${escHtml(name)}</span>
+          ${isMe ? '<span class="lb-you">Tú</span>' : ''}
+        </div>
+        <span class="glb-completed-tag">Completó</span>
+      </div>`;
+    }).join('');
+
+    if (!rankedRows && !completedRows) return '';
+
+    return `
+      <div class="glb-cat-section">
+        <div class="glb-cat-header">${catLabel}<span class="glb-cat-count">${catScores.length}</span></div>
+        <div class="glb-rows">${rankedRows}${completedRows}</div>
+      </div>`;
   }
 
-  const currentUserId = Auth.getUser()?.id;
-  const medals = ['🥇','🥈','🥉'];
+  const rxSection     = buildCategorySection('RX',     genderFiltered.filter(s => (s.category || 'rx') === 'rx'));
+  const scaledSection = buildCategorySection('Scaled', genderFiltered.filter(s => s.category === 'scaled'));
 
-  const rows = filtered.map((s, i) => {
-    const profile  = profiles[s.user_id];
-    const name     = profile?.full_name || nameMap[s.user_id] || '—';
-    const avatar   = profile?.avatar_url;
-    const initials = ProfileAPI.getInitials(profile?.full_name, nameMap[s.user_id]);
-    const isMe     = s.user_id === currentUserId;
-    const medal    = i < 3 ? medals[i] : `${i+1}.`;
-    const avatarHTML = avatar
-      ? `<img src="${avatar}" class="glb-avatar-img" />`
-      : `<div class="glb-avatar-placeholder">${escHtml(initials)}</div>`;
-    const genderIcon = profile?.gender === 'H' ? '♂' : profile?.gender === 'M' ? '♀' : '';
+  if (!rxSection && !scaledSection) {
+    tableEl.innerHTML = toggleHTML + '<div class="lb-empty" style="padding:32px;text-align:center">Sin scores para este filtro.</div>';
+  } else {
+    tableEl.innerHTML = toggleHTML + rxSection + scaledSection;
+  }
 
-    return `<div class="glb-row${isMe ? ' glb-row-me' : ''}${i < 3 ? ' glb-row-podium' : ''}">
-      <span class="glb-pos">${medal}</span>
-      ${avatarHTML}
-      <div class="glb-name-wrap">
-        <span class="glb-name">${escHtml(name)}</span>
-        ${genderIcon ? `<span class="glb-gender-icon">${genderIcon}</span>` : ''}
-        ${isMe ? '<span class="lb-you">Tú</span>' : ''}
-      </div>
-      <span class="glb-score">${escHtml(s.score)}</span>
-    </div>`;
-  }).join('');
-
-  const label = scoreType === 'high' ? '↑ Más alto gana' : '↓ Más bajo gana';
-  tableEl.innerHTML = `<div class="glb-type-label">${label}</div><div class="glb-rows">${rows}</div>`;
+  // Handler del toggle high/low
+  if (isAdminOrCoach) {
+    tableEl.querySelectorAll('.glb-sort-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const newType = btn.dataset.type;
+        if (newType === scoreType) return;
+        const ok = await ScoreAPI.setScoreType(date, classId, newType);
+        if (ok) { showToast(`Orden: ${newType === 'high' ? 'más alto gana' : 'más bajo gana'}`); await renderGLBTable(tableId, date, classId, genderFilter); }
+        else showToast('Error al cambiar orden');
+      });
+    });
+  }
 }
-
-function showPassModal() {
-  el('new-password').value = '';
-  el('confirm-password').value = '';
-  el('pass-error').classList.add('hidden');
-  el('pass-modal').classList.remove('hidden');
-}
-
 // ---- PUSH NOTIFICATIONS ----
 const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40M-RL9YYj9ld50YOHl1t5w7gHEG1U7eTkKpBN11Z7tIvxqOhR3OJ8AyRiUE';
 
