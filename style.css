@@ -2553,3 +2553,52 @@ body {
 .checkin-class-select:focus {
   border-color: var(--blue);
 }
+     /* ---- SCORE BLOCK (RX/Scaled + completada) ---- */
+.score-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.score-cat-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.score-cat-btn {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.score-cat-btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.score-completed-btn {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 0;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.score-completed-btn:hover {
+  border-color: #22C55E;
+  color: #22C55E;
+}
+.score-completed-btn .ti { font-size: 16px; }
