@@ -154,13 +154,18 @@ const ScoreAPI = {
     } catch(e) { return []; }
   },
 
-  // Get scores for a specific user on a date
+ // Get scores for a specific user on a date
   async getForDate(date) {
     try {
       const userId = Auth.getUser()?.id;
       const rows = await sbReq('GET', `wod_scores?select=*&date=eq.${date}&user_id=eq.${userId}`);
       const map = {};
-      for (const r of rows) map[r.class_id] = { score: r.score, scoreType: r.score_type };
+      for (const r of rows) map[r.class_id] = {
+        score: r.score,
+        scoreType: r.score_type,
+        category: r.category || 'rx',
+        completed: r.completed || false,
+      };
       return map;
     } catch(e) { return {}; }
   },
