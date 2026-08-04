@@ -145,7 +145,26 @@ const ScoreAPI = {
       return rows || [];
     } catch(e) { return []; }
   },
-
+// Cambiar el tipo de orden (high/low) para todos los scores de un día+clase
+  async setScoreType(date, classId, scoreType) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/wod_scores?date=eq.${date}&class_id=eq.${classId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ score_type: scoreType }),
+        }
+      );
+      return res.ok;
+    } catch(e) { console.error('ScoreAPI.setScoreType:', e); return false; }
+  },
   // Get all scores for a specific date (all classes)
   async getAllForDate(date) {
     try {
