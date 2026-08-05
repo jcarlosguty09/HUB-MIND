@@ -441,8 +441,16 @@ function buildSectionCard(ctx, dateKey, classId, sec, idx) {
     });
   }
 
-  // Add leaderboard to last section only (to avoid duplicates per class)
+ // Add "Mi score" + leaderboard to last section only (to avoid duplicates per class)
   if (idx === getSections(dateKey, classId).length - 1) {
+    // Mi score personal (admin/coach también pueden registrar el suyo)
+    const myScoreWrap = document.createElement('div');
+    card.appendChild(myScoreWrap);
+    ScoreAPI.getForDate(dateKey).then(scores => {
+      const existing = scores[classId] || {};
+      myScoreWrap.appendChild(buildMyScoreBlock(dateKey, classId, existing));
+    });
+
     const lbWrap = document.createElement('div');
     card.appendChild(lbWrap);
     renderLeaderboard(lbWrap, dateKey, classId, state.role);
