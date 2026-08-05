@@ -549,6 +549,7 @@ const MemberAPI = {
       return true;
     } catch(e) { console.error('MemberAPI.setZkId:', e); return false; }
   },
+  
 // Asignar tipo de membresía a un miembro
   async setMembership(userId, channel, subtype, expires) {
     try {
