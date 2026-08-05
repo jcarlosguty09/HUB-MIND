@@ -126,12 +126,15 @@
       <!-- CHECKINS VIEW -->
       <section id="view-checkins" class="view">
         <div class="checkins-header">
-          <div class="checkins-title-row">
+     <div class="checkins-title-row">
             <div>
               <h2 class="checkins-title">Check-ins</h2>
               <div class="checkins-subtitle" id="checkins-date-label"></div>
             </div>
-            <div class="checkins-stats" id="checkins-stats"></div>
+            <div class="checkins-header-right">
+              <div class="checkins-stats" id="checkins-stats"></div>
+              <button class="checkin-manual-btn" id="checkin-manual-btn" title="Check-in manual"><i class="ti ti-plus"></i></button>
+            </div>
           </div>
           <div class="checkins-filters">
             <input type="date" class="field-input" id="checkins-date" style="max-width:160px" />
@@ -140,7 +143,29 @@
         </div>
         <div id="checkins-list" class="checkins-list"></div>
       </section>
-
+<!-- MANUAL CHECK-IN MODAL -->
+      <div id="manual-checkin-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:360px">
+          <div class="modal-title"><i class="ti ti-user-plus" style="color:var(--blue)"></i> Check-in manual</div>
+          <div class="field-group">
+            <label class="field-label">Nombre *</label>
+            <input class="field-input" type="text" id="manual-name" placeholder="Nombre de la persona" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Teléfono (opcional)</label>
+            <input class="field-input" type="tel" id="manual-phone" placeholder="Para crearle usuario después" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Email (opcional)</label>
+            <input class="field-input" type="email" id="manual-email" placeholder="correo@ejemplo.com" />
+          </div>
+          <div class="login-error hidden" id="manual-error"></div>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="manual-cancel">Cancelar</button>
+            <button class="save-btn" id="manual-save"><i class="ti ti-check"></i> Registrar</button>
+          </div>
+        </div>
+      </div>
       <!-- MEMBERS VIEW (admin only) -->
       <section id="view-members" class="view">
         <div class="checkins-header">
