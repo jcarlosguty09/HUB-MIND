@@ -242,7 +242,30 @@ const CheckinAPI = {
       return res.ok;
     } catch(e) { console.error('CheckinAPI.assignClass:', e); return false; }
   },
-
+// Check-in manual para gente nueva/sin perfil
+  async createManual(name, phone, email) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checkins`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          is_manual: true,
+          manual_name: name,
+          manual_phone: phone || null,
+          manual_email: email || null,
+          verify_type: 'manual',
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      return res.ok;
+    } catch(e) { console.error('CheckinAPI.createManual:', e); return false; }
+  },
   async subscribeToNew(callback) {
     return setInterval(async () => {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
