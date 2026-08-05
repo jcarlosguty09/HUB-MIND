@@ -1312,7 +1312,7 @@ async function renderCheckins() {
 
     filtered.forEach(row => {
       const profile = row.user_id ? profiles[row.user_id] : null;
-      const name    = profile?.full_name || nameMap[row.user_id]?.name || `ZK#${row.zk_user_id}`;
+      const name    = row.is_manual ? (row.manual_name || 'Visita') : (profile?.full_name || nameMap[row.user_id]?.name || `ZK#${row.zk_user_id}`);
       const avatar  = profile?.avatar_url || nameMap[row.user_id]?.avatar;
       const initials = ProfileAPI.getInitials(profile?.full_name || name, '');
       const time    = new Date(row.timestamp).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
@@ -1341,9 +1341,9 @@ async function renderCheckins() {
           <div class="checkin-avatar">${avatarHTML}</div>
           <div class="checkin-info">
             <div class="checkin-name">${escHtml(name)}${isUnknown ? ' <span class="checkin-badge-unknown">Sin vincular</span>' : ''}</div>
-            <div class="checkin-meta">
-              <span><i class="ti ${typeIcon}"></i> ${row.verify_type || 'face'}</span>
-              <span>ZK#${row.zk_user_id}</span>
+         <div class="checkin-meta">
+              <span><i class="ti ${row.is_manual ? 'ti-user-plus' : typeIcon}"></i> ${row.is_manual ? 'Manual' : (row.verify_type || 'face')}</span>
+              ${row.is_manual ? (row.manual_phone ? `<span>${escHtml(row.manual_phone)}</span>` : '') : `<span>ZK#${row.zk_user_id}</span>`}
             </div>
           </div>
           <div class="checkin-time">${time}</div>
