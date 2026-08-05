@@ -2769,3 +2769,31 @@ body {
 .mem-expiry-tag.expired { background: color-mix(in srgb, #EF4444 15%, transparent); color: #EF4444; }
 .mem-expiry-tag.soon    { background: color-mix(in srgb, #EAB308 18%, transparent); color: #B45309; }
 .mem-expiry-tag.ok      { background: color-mix(in srgb, #22C55E 15%, transparent); color: #16A34A; }
+/* ---- MEMBERSHIP STATUS (dashboard atleta) ---- */
+.dash-membership-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.dash-mem-channel {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.dash-mem-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+.dash-mem-status .ti { font-size: 15px; }
+.dash-mem-status.expired { background: color-mix(in srgb, #EF4444 12%, transparent); color: #EF4444; }
+.dash-mem-status.soon    { background: color-mix(in srgb, #EAB308 15%, transparent); color: #B45309; }
+.dash-mem-status.ok      { background: color-mix(in srgb, #22C55E 12%, transparent); color: #16A34A; }
