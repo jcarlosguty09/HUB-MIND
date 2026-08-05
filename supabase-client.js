@@ -550,6 +550,27 @@ const MemberAPI = {
     } catch(e) { console.error('MemberAPI.setZkId:', e); return false; }
   },
 };
+// Asignar tipo de membresía a un miembro
+  async setMembership(userId, channel, subtype, expires) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          membership_channel: channel || null,
+          membership_subtype: subtype || null,
+          membership_expires: expires || null,
+        }),
+      });
+      return res.ok;
+    } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
+  },
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
