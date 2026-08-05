@@ -323,7 +323,61 @@ function renderDay(ctx, dateKey) {
     container.appendChild(addBtn);
   }
 }
+// Bloque de score personal reutilizable (para atleta Y admin/coach en su propia clase)
+function buildMyScoreBlock(dateKey, classId, existingScore = {}) {
+  const userId = Auth.getUser()?.id;
+  let selectedCategory = existingScore.category || 'rx';
 
+  const block = document.createElement('div');
+  block.className = 'score-block my-score-block';
+  block.innerHTML = `
+    <div class="my-score-title"><i class="ti ti-user-star"></i> Mi score</div>
+    <div class="score-cat-tabs">
+      <button class="score-cat-btn${selectedCategory === 'rx' ? ' active' : ''}" data-cat="rx">RX</button>
+      <button class="score-cat-btn${selectedCategory === 'scaled' ? ' active' : ''}" data-cat="scaled">Scaled</button>
+    </div>
+    <div class="score-row">
+      <input class="score-input" type="text" placeholder="Tu score (ej: 5 rondas, 12:34, 85 kg...)" value="${escHtml(existingScore.score || '')}" />
+      <button class="score-save-btn">Guardar</button>
+    </div>
+    <button class="score-completed-btn">
+      <i class="ti ti-circle-check"></i> Solo completé la clase (sin score)
+    </button>
+    <span class="score-saved">✓ Guardado</span>`;
+
+  const catBtns      = block.querySelectorAll('.score-cat-btn');
+  const scoreInput   = block.querySelector('.score-input');
+  const scoreBtn     = block.querySelector('.score-save-btn');
+  const completedBtn = block.querySelector('.score-completed-btn');
+  const scoreSaved   = block.querySelector('.score-saved');
+
+  catBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCategory = btn.dataset.cat;
+      catBtns.forEach(b => b.classList.toggle('active', b.dataset.cat === selectedCategory));
+    });
+  });
+
+  const flashSaved = () => { scoreSaved.classList.add('show'); setTimeout(() => scoreSaved.classList.remove('show'), 2000); };
+
+  scoreBtn.addEventListener('click', async () => {
+    const val = scoreInput.value.trim();
+    if (!val) { showToast('Escribe tu score o usa "Solo completé"'); return; }
+    const ok = await ScoreAPI.save(dateKey, classId, userId, val, existingScore.scoreType || 'high', selectedCategory, false);
+    if (ok) flashSaved();
+    else showToast('Error al guardar score');
+  });
+
+  completedBtn.addEventListener('click', async () => {
+    const ok = await ScoreAPI.save(dateKey, classId, userId, '', existingScore.scoreType || 'high', selectedCategory, true);
+    if (ok) { showToast('✓ Clase completada registrada'); flashSaved(); }
+    else showToast('Error al registrar');
+  });
+
+  scoreInput.addEventListener('keydown', e => { if (e.key === 'Enter') scoreBtn.click(); });
+
+  return block;
+}
 // ---- SECTION CARD ----
 function buildSectionCard(ctx, dateKey, classId, sec, idx) {
   const card = document.createElement('div');
