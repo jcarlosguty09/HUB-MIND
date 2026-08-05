@@ -821,6 +821,33 @@ async function renderAthleteDashboard() {
   const total = podiums.gold + podiums.silver + podiums.bronze;
 
   dashEl.innerHTML = `
+ // Estado de membresía
+  let membershipHTML = '';
+  const ch = profile?.membership_channel;
+  if (ch) {
+    const channelLabels = { membresia: 'Membresía', wellhub: 'WellHub', totalpass: 'Total Pass', fitpass: 'FitPass' };
+    const chLabel = channelLabels[ch] || ch;
+    const subLabel = (ch === 'membresia' && profile?.membership_subtype) ? ` · ${escHtml(profile.membership_subtype)}` : '';
+
+    let statusTag = '';
+    if (profile?.membership_expires) {
+      const exp = new Date(profile.membership_expires + 'T00:00:00');
+      const now = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) + 'T00:00:00');
+      const days = Math.round((exp - now) / 86400000);
+      const fmtExp = exp.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (days < 0)       statusTag = `<div class="dash-mem-status expired"><i class="ti ti-alert-circle"></i> Vencida hace ${-days} día${-days === 1 ? '' : 's'} · ${fmtExp}</div>`;
+      else if (days <= 7) statusTag = `<div class="dash-mem-status soon"><i class="ti ti-clock"></i> Vence en ${days} día${days === 1 ? '' : 's'} · ${fmtExp}</div>`;
+      else                statusTag = `<div class="dash-mem-status ok"><i class="ti ti-circle-check"></i> Vigente hasta ${fmtExp}</div>`;
+    }
+
+    membershipHTML = `
+      <div class="dash-membership-card">
+        <div class="dash-mem-channel">${chLabel}${subLabel}</div>
+        ${statusTag}
+      </div>`;
+  }
+
+  dashEl.innerHTML = `
     <div class="dash-profile-card">
       <div class="dash-avatar">${avatarHTML}</div>
       <div class="dash-profile-info">
@@ -829,6 +856,7 @@ async function renderAthleteDashboard() {
       </div>
       <button class="dash-edit-btn" id="dash-edit-profile"><i class="ti ti-pencil"></i></button>
     </div>
+    ${membershipHTML}
 
     <div class="podium-cards">
       <div class="podium-card gold">
