@@ -571,6 +571,7 @@ const MemberAPI = {
       return res.ok;
     } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
   },
+};
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
