@@ -818,10 +818,9 @@ async function renderAthleteDashboard() {
     ? `<img src="${avatar}" alt="${escHtml(name)}" class="dash-avatar-img" />`
     : `<div class="dash-avatar-placeholder">${escHtml(initials)}</div>`;
 
-  const total = podiums.gold + podiums.silver + podiums.bronze;
+const total = podiums.gold + podiums.silver + podiums.bronze;
 
-  dashEl.innerHTML = `
- // Estado de membresía
+  // Estado de membresía
   let membershipHTML = '';
   const ch = profile?.membership_channel;
   if (ch) {
