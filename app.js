@@ -2084,6 +2084,31 @@ async function renderMembers() {
                  data-user="${m.id}" data-name="${escHtml(m.full_name || '')}" />
           <button class="member-zk-save" data-user="${m.id}"><i class="ti ti-device-floppy"></i></button>
         </div>`;
+      const CHANNELS = [
+        { v: '', label: 'Sin asignar' },
+        { v: 'membresia', label: 'Membresía' },
+        { v: 'wellhub', label: 'WellHub' },
+        { v: 'totalpass', label: 'Total Pass' },
+        { v: 'fitpass', label: 'FitPass' },
+      ];
+      const SUBTYPES = ['Ilimitada','Parejas','Kids','Estudiante','Trimestral','3 días x semana','Central 3D (L-V)'];
+
+      const channelOpts = CHANNELS.map(c =>
+        `<option value="${c.v}"${(m.membership_channel || '') === c.v ? ' selected' : ''}>${c.label}</option>`).join('');
+      const subtypeOpts = ['<option value="">Subtipo...</option>'].concat(
+        SUBTYPES.map(s => `<option value="${s}"${m.membership_subtype === s ? ' selected' : ''}>${s}</option>`)).join('');
+
+      // Estado de vencimiento
+      let expiryTag = '';
+      if (m.membership_expires) {
+        const exp = new Date(m.membership_expires + 'T00:00:00');
+        const today = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) + 'T00:00:00');
+        const days = Math.round((exp - today) / 86400000);
+        if (days < 0)       expiryTag = `<span class="mem-expiry-tag expired">Vencida hace ${-days}d</span>`;
+        else if (days <= 7) expiryTag = `<span class="mem-expiry-tag soon">Vence en ${days}d</span>`;
+        else                expiryTag = `<span class="mem-expiry-tag ok">Vigente</span>`;
+      }
+
       const card = document.createElement('div');
       card.className = 'member-card';
       card.innerHTML = `
@@ -2096,6 +2121,13 @@ async function renderMembers() {
             <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
           ${zkBadge}
+        </div>
+        <div class="member-membership">
+          <select class="mem-channel" data-user="${m.id}">${channelOpts}</select>
+          <select class="mem-subtype" data-user="${m.id}"${(m.membership_channel !== 'membresia') ? ' style="display:none"' : ''}>${subtypeOpts}</select>
+          <input class="mem-expires" type="date" data-user="${m.id}" value="${m.membership_expires || ''}" />
+          <button class="mem-save" data-user="${m.id}"><i class="ti ti-device-floppy"></i></button>
+          ${expiryTag}
         </div>
         <div class="member-perms">${perms}</div>`;
       listEl.appendChild(card);
