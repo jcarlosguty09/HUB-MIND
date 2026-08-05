@@ -2678,3 +2678,23 @@ body {
   border-radius: 10px;
   white-space: nowrap;
 }
+/* ---- MI SCORE (admin/coach en su propia clase) ---- */
+.my-score-block {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 4px;
+}
+.my-score-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.my-score-title .ti { color: var(--blue); font-size: 15px; }
