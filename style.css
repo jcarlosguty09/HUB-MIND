@@ -2108,8 +2108,8 @@ body {
 /* Check-in card */
 .checkin-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 0;
   padding: 12px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
