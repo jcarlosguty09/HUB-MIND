@@ -2720,3 +2720,52 @@ body {
   transition: background 0.15s;
 }
 .checkin-manual-btn:hover { background: var(--blue-dark); }
+/* ---- MEMBER MEMBERSHIP EDITOR ---- */
+.member-membership {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.mem-channel, .mem-subtype, .mem-expires {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.mem-channel:focus, .mem-subtype:focus, .mem-expires:focus { border-color: var(--blue); }
+.mem-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mem-save:disabled { opacity: 0.5; }
+.mem-save .ti-loader-2 { animation: spin 0.8s linear infinite; }
+.mem-expiry-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.mem-expiry-tag.expired { background: color-mix(in srgb, #EF4444 15%, transparent); color: #EF4444; }
+.mem-expiry-tag.soon    { background: color-mix(in srgb, #EAB308 18%, transparent); color: #B45309; }
+.mem-expiry-tag.ok      { background: color-mix(in srgb, #22C55E 15%, transparent); color: #16A34A; }
