@@ -2132,6 +2132,33 @@ async function renderMembers() {
         <div class="member-perms">${perms}</div>`;
       listEl.appendChild(card);
     });
+    // Mostrar/ocultar subtipo según canal
+    listEl.querySelectorAll('.mem-channel').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const userId = sel.dataset.user;
+        const subtypeSel = listEl.querySelector(`.mem-subtype[data-user="${userId}"]`);
+        if (subtypeSel) subtypeSel.style.display = sel.value === 'membresia' ? '' : 'none';
+      });
+    });
+
+    // Guardar membresía
+    listEl.querySelectorAll('.mem-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const userId  = btn.dataset.user;
+        const channel = listEl.querySelector(`.mem-channel[data-user="${userId}"]`).value;
+        const subtype = channel === 'membresia' ? listEl.querySelector(`.mem-subtype[data-user="${userId}"]`).value : '';
+        const expires = listEl.querySelector(`.mem-expires[data-user="${userId}"]`).value;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2"></i>';
+        const ok = await MemberAPI.setMembership(userId, channel, subtype, expires);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
+
+        if (ok) { showToast('✓ Membresía actualizada'); renderMembers(); }
+        else showToast('Error al guardar membresía');
+      });
+    });
     // Activar guardado de ZK IDs
     listEl.querySelectorAll('.member-zk-save').forEach(btn => {
       btn.addEventListener('click', async () => {
