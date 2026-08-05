@@ -2698,3 +2698,25 @@ body {
   gap: 6px;
 }
 .my-score-title .ti { color: var(--blue); font-size: 15px; }
+/* ---- MANUAL CHECK-IN BUTTON ---- */
+.checkins-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkin-manual-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.checkin-manual-btn:hover { background: var(--blue-dark); }
