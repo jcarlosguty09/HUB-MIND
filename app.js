@@ -1376,7 +1376,41 @@ async function renderCheckins() {
       listEl.appendChild(card);
     });
   }
+// Botón de check-in manual
+  const manualBtn = el('checkin-manual-btn');
+  if (manualBtn) {
+    manualBtn.onclick = () => {
+      el('manual-name').value = '';
+      el('manual-phone').value = '';
+      el('manual-email').value = '';
+      el('manual-error').classList.add('hidden');
+      el('manual-checkin-modal').classList.remove('hidden');
+      el('manual-name').focus();
+    };
+  }
+  el('manual-cancel').onclick = () => el('manual-checkin-modal').classList.add('hidden');
+  el('manual-save').onclick = async () => {
+    const name  = el('manual-name').value.trim();
+    const phone = el('manual-phone').value.trim();
+    const email = el('manual-email').value.trim();
+    const errEl = el('manual-error');
+    const btn   = el('manual-save');
+    if (!name) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    btn.textContent = 'Registrando...'; btn.disabled = true;
+    const ok = await CheckinAPI.createManual(name, phone, email);
+    btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
+    if (ok) {
+      el('manual-checkin-modal').classList.add('hidden');
+      showToast(`✓ Check-in de ${name} registrado`);
+      await load(el('checkins-date').value, el('checkins-search').value);
+    } else {
+      errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
+    }
+  };
 
+  // Initial load
+  await load(today);
   // Initial load
   await load(today);
 
