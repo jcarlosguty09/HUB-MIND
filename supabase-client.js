@@ -590,7 +590,6 @@ const ReportAPI = {
       return rows || [];
     } catch(e) { console.warn('ReportAPI.checkinsInRange:', e.message); return []; }
   },
-};
 // Perfiles con su canal de membresía (para reportes)
   async profilesWithMembership() {
     try {
