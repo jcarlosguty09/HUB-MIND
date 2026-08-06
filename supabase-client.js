@@ -591,6 +591,13 @@ const ReportAPI = {
     } catch(e) { console.warn('ReportAPI.checkinsInRange:', e.message); return []; }
   },
 };
+// Perfiles con su canal de membresía (para reportes)
+  async profilesWithMembership() {
+    try {
+      const rows = await sbReq('GET', 'profiles?select=id,full_name,membership_channel,membership_subtype,membership_expires');
+      return rows || [];
+    } catch(e) { console.warn('ReportAPI.profilesWithMembership:', e.message); return []; }
+  },
 
 // ---- WOD API ----
 const WodAPI = {
