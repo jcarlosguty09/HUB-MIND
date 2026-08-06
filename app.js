@@ -2316,7 +2316,50 @@ async function renderReports() {
   async function load() {
     const startDate = el('reports-start').value;
     const endDate   = el('reports-end').value;
-    if (!startDate || !endDate) return;
+ if (!startDate || !endDate) return;
+
+    contentEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
+    const [checkins, profiles] = await Promise.all([
+      ReportAPI.checkinsInRange(startDate, endDate),
+      ReportAPI.profilesWithMembership(),
+    ]);
+    const profileMap = {};
+    profiles.forEach(p => { profileMap[p.id] = p; });
+
+    // Agrupar por día (en hora CDMX)
+    const byDay = {};
+    checkins.forEach(c => {
+      const day = new Date(c.timestamp).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+      byDay[day] = (byDay[day] || 0) + 1;
+    });
+
+    // Construir array de todos los días del rango (incluyendo los de 0)
+    const days = [];
+    const cur = new Date(startDate + 'T12:00:00');
+    const last = new Date(endDate + 'T12:00:00');
+    while (cur <= last) {
+      const key = cdmxDateStr(cur);
+      days.push({ date: key, count: byDay[key] || 0 });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // Métricas resumen
+    const total = checkins.length;
+    const uniqueAthletes = new Set(checkins.filter(c => c.user_id).map(c => c.user_id)).size;
+    const avgPerDay = days.length ? (total / days.length).toFixed(1) : 0;
+    const maxCount = Math.max(...days.map(d => d.count), 1);
+    const bestDay = days.reduce((a, b) => b.count > a.count ? b : a, days[0] || { count: 0 });
+
+    // Barras del gráfico
+    const bars = days.map(d => {
+      const h = Math.round((d.count / maxCount) * 100);
+      const dt = new Date(d.date + 'T12:00:00');
+      const label = dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+      return `<div class="chart-bar-wrap" title="${label}: ${d.count} check-ins">
+        <div class="chart-bar" style="height:${h}%"><span class="chart-bar-val">${d.count || ''}</span></div>
+        <div class="chart-bar-label">${dt.getDate()}</div>
+      </div>`;
+    }).join('');
 
     // Volumen por canal
     const CHANNEL_INFO = {
