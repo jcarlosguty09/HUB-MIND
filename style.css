@@ -2931,3 +2931,43 @@ body {
   border-radius: 4px;
   transition: width 0.3s;
 }
+/* ---- MEMBERSHIP EXPIRY REPORT ---- */
+.report-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
+.report-badge.expired { background: color-mix(in srgb, #EF4444 15%, transparent); color: #EF4444; }
+.report-badge.soon    { background: color-mix(in srgb, #EAB308 18%, transparent); color: #B45309; }
+
+.expiry-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  margin-bottom: 24px;
+}
+.expiry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.expiry-row:last-child { border-bottom: none; }
+.expiry-info { flex: 1; min-width: 0; }
+.expiry-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expiry-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
