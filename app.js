@@ -2243,10 +2243,11 @@ function fmtTime(t) {
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
-async function renderClasses() {
-  const listEl = el('classes-list');
+async function renderClasses(listId = 'classes-list', labelId = 'classes-date-label') {
+  const listEl = el(listId);
+  if (!listEl) return;
   listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
-
+  
   // Fecha/hora actual en CDMX
   const now = new Date();
   const cdmxStr = now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' });
@@ -2254,7 +2255,8 @@ async function renderClasses() {
   const dayOfWeek = cdmx.getDay();
   const nowMin = cdmx.getHours() * 60 + cdmx.getMinutes();
 
-  el('classes-date-label').textContent = cdmx.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+ const labelEl = el(labelId);
+  if (labelEl) labelEl.textContent = cdmx.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
 
   const classes = await ScheduleAPI.getForDay(dayOfWeek);
 
@@ -2292,10 +2294,10 @@ async function renderClasses() {
   });
 
   // Auto-refresh cada minuto para actualizar el estado en curso/pasada
-  if (state.view === 'classes') {
-    clearTimeout(window._classesTimer);
-    window._classesTimer = setTimeout(() => { if (state.view === 'classes') renderClasses(); }, 60000);
-  }
+  clearTimeout(window._classesTimer);
+  window._classesTimer = setTimeout(() => {
+    if (el(listId) && el(listId).offsetParent !== null) renderClasses(listId, labelId);
+  }, 60000);
 }
 // ---- REPORTS (admin only) ----
 function cdmxDateStr(d = new Date()) {
