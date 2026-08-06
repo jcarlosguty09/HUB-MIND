@@ -2319,9 +2319,10 @@ async function load() {
     if (!startDate || !endDate) return;
 
     contentEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
-    const [checkins, profiles] = await Promise.all([
+    const [checkins, profiles, lastCheckins] = await Promise.all([
       ReportAPI.checkinsInRange(startDate, endDate),
       ReportAPI.profilesWithMembership(),
+      ReportAPI.lastCheckinPerUser(),
     ]);
     const profileMap = {};
     profiles.forEach(p => { profileMap[p.id] = p; });
