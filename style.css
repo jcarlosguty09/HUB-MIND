@@ -2894,3 +2894,40 @@ body {
   margin-top: 4px;
   white-space: nowrap;
 }
+/* ---- CHANNEL VOLUME ---- */
+.channel-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.channel-row { display: flex; flex-direction: column; gap: 6px; }
+.channel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.channel-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.channel-name { flex: 1; font-weight: 600; color: var(--text); }
+.channel-count {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--text);
+}
+.channel-pct { font-weight: 500; color: var(--text3); font-size: 12px; }
+.channel-bar-track {
+  height: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.channel-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
