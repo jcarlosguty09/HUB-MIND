@@ -243,6 +243,7 @@
     <nav class="nav-tabs">
       <button class="nav-tab active" data-aview="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-aview="tomorrow"><i class="ti ti-calendar-event"></i><span>Mañana</span></button>
+      <button class="nav-tab" data-aview="classes"><i class="ti ti-clock"></i><span>Clases</span></button>
       <button class="nav-tab" data-aview="leaderboard"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-aview="dashboard"><i class="ti ti-user"></i><span>Mi Perfil</span></button>
     </nav>
@@ -254,6 +255,13 @@
       <section id="aview-tomorrow" class="view">
         <div class="atleta-day-header" id="atleta-tomorrow-header"></div>
         <div id="atleta-tomorrow-content"></div>
+      </section>
+      <section id="aview-classes" class="view">
+        <div class="classes-header">
+          <h2 class="checkins-title">Clases de hoy</h2>
+          <div class="checkins-subtitle" id="aclasses-date-label"></div>
+        </div>
+        <div id="aclasses-list" class="classes-list"></div>
       </section>
       <section id="aview-leaderboard" class="view">
         <!-- Injected by renderGlobalLeaderboard('atleta') -->
