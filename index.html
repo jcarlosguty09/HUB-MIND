@@ -77,6 +77,7 @@
       <button class="nav-tab" data-view="classes"><i class="ti ti-clock-hour-4"></i><span>Clases</span></button>
       <button class="nav-tab" data-view="checkins"><i class="ti ti-scan"></i><span>Check-ins</span></button>
       <button class="nav-tab" data-view="members" id="nav-tab-members" style="display:none"><i class="ti ti-users"></i><span>Miembros</span></button>
+      <button class="nav-tab" data-view="reports" id="nav-tab-reports" style="display:none"><i class="ti ti-chart-bar"></i><span>Reportes</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
@@ -183,6 +184,34 @@
         <div id="members-list" class="checkins-list"></div>
       </section>
 
+      <!-- REPORTS VIEW (admin only) -->
+      <section id="view-reports" class="view">
+        <div class="checkins-header">
+          <div class="checkins-title-row">
+            <div>
+              <h2 class="checkins-title">Reportes</h2>
+              <div class="checkins-subtitle">Métricas del negocio</div>
+            </div>
+          </div>
+          <div class="reports-range">
+            <div class="reports-range-group">
+              <label class="field-label">Desde</label>
+              <input type="date" class="field-input" id="reports-start" />
+            </div>
+            <div class="reports-range-group">
+              <label class="field-label">Hasta</label>
+              <input type="date" class="field-input" id="reports-end" />
+            </div>
+          </div>
+          <div class="reports-presets">
+            <button class="reports-preset-btn" data-days="7">7 días</button>
+            <button class="reports-preset-btn active" data-days="30">30 días</button>
+            <button class="reports-preset-btn" data-days="90">90 días</button>
+          </div>
+        </div>
+        <div id="reports-content"></div>
+      </section>
+      
       <!-- LEADERBOARD VIEW (admin/coach) -->
       <section id="view-leaderboard-admin" class="view">
       </section>
