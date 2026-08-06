@@ -2390,6 +2390,40 @@ async function load() {
       </div>`;
     }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
 
+  }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
+
+    // Membresías vencidas / por vencer
+    const todayCdmx = new Date(cdmxDateStr() + 'T00:00:00');
+    const withExpiry = profiles.filter(p => p.membership_expires);
+    const expiryList = withExpiry.map(p => {
+      const exp = new Date(p.membership_expires + 'T00:00:00');
+      const daysLeft = Math.round((exp - todayCdmx) / 86400000);
+      return { ...p, daysLeft, exp };
+    }).filter(p => p.daysLeft <= 14) // vencidas o por vencer en 14 días
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+
+    const expiredCount = expiryList.filter(p => p.daysLeft < 0).length;
+    const soonCount    = expiryList.filter(p => p.daysLeft >= 0).length;
+
+    const expiryRows = expiryList.length ? expiryList.map(p => {
+      const name = p.full_name || '—';
+      const chLabel = CHANNEL_INFO[p.membership_channel]?.label || '';
+      const sub = p.membership_subtype ? ` · ${escHtml(p.membership_subtype)}` : '';
+      const fmtExp = p.exp.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+      let tag, cls;
+      if (p.daysLeft < 0)       { tag = `Vencida hace ${-p.daysLeft}d`; cls = 'expired'; }
+      else if (p.daysLeft === 0){ tag = 'Vence hoy';                    cls = 'soon'; }
+      else                      { tag = `Vence en ${p.daysLeft}d`;      cls = 'soon'; }
+      return `<div class="expiry-row">
+        <div class="expiry-info">
+          <div class="expiry-name">${escHtml(name)}</div>
+          <div class="expiry-meta">${escHtml(chLabel)}${sub} · ${fmtExp}</div>
+        </div>
+        <span class="mem-expiry-tag ${cls}">${tag}</span>
+      </div>`;
+    }).join('') : '<div class="lb-empty">Ninguna membresía vencida o por vencer. 👌</div>';
+
+    contentEl.innerHTML = `
     contentEl.innerHTML = `
       <div class="reports-stats-grid">
         <div class="admin-stat-card blue"><i class="ti ti-scan"></i><div class="admin-stat-num">${total}</div><div class="admin-stat-label">Check-ins totales</div></div>
