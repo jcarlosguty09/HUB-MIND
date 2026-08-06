@@ -2422,7 +2422,6 @@ async function load() {
     }).join('') : '<div class="lb-empty">Ninguna membresía vencida o por vencer. 👌</div>';
 
     contentEl.innerHTML = `
-    contentEl.innerHTML = `
       <div class="reports-stats-grid">
         <div class="admin-stat-card blue"><i class="ti ti-scan"></i><div class="admin-stat-num">${total}</div><div class="admin-stat-label">Check-ins totales</div></div>
         <div class="admin-stat-card green"><i class="ti ti-users"></i><div class="admin-stat-num">${uniqueAthletes}</div><div class="admin-stat-label">Atletas únicos</div></div>
