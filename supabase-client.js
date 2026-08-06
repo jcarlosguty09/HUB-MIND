@@ -572,6 +572,26 @@ const MemberAPI = {
     } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
   },
 };
+
+// ---- REPORTS (admin only) ----
+const ReportAPI = {
+  // Check-ins en un rango de fechas (para gráficos de asistencia)
+  async checkinsInRange(startDate, endDate) {
+    try {
+      // Convertir a rango UTC considerando CDMX (UTC-6)
+      const start = `${startDate}T06:00:00`;
+      const d = new Date(`${endDate}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      const end = `${d.toISOString().slice(0, 10)}T06:00:00`;
+
+      const rows = await sbReq('GET',
+        `checkins?select=id,timestamp,user_id,assigned_class_id,is_manual&timestamp=gte.${start}&timestamp=lt.${end}&order=timestamp.asc&limit=5000`
+      );
+      return rows || [];
+    } catch(e) { console.warn('ReportAPI.checkinsInRange:', e.message); return []; }
+  },
+};
+
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
