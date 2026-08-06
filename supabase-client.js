@@ -597,7 +597,7 @@ const ReportAPI = {
       return rows || [];
     } catch(e) { console.warn('ReportAPI.profilesWithMembership:', e.message); return []; }
   },
-
+};
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
