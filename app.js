@@ -2420,7 +2420,42 @@ async function load() {
         </div>
         <span class="mem-expiry-tag ${cls}">${tag}</span>
       </div>`;
-    }).join('') : '<div class="lb-empty">Ninguna membresía vencida o por vencer. 👌</div>';
+}).join('') : '<div class="lb-empty">Ninguna membresía vencida o por vencer. 👌</div>';
+
+    // Atletas inactivos (sin check-in en 14+ días)
+    const athletesList = await AthleteAPI.list();
+    const nowMs = Date.now();
+    const inactiveList = athletesList.map(a => {
+      const lastTs = lastCheckins[a.id];
+      const daysSince = lastTs ? Math.floor((nowMs - new Date(lastTs).getTime()) / 86400000) : null;
+      return { ...a, lastTs, daysSince };
+    }).filter(a => a.daysSince === null || a.daysSince >= 14)
+      .sort((a, b) => {
+        if (a.daysSince === null) return 1;
+        if (b.daysSince === null) return -1;
+        return b.daysSince - a.daysSince;
+      });
+
+    const neverCame = inactiveList.filter(a => a.daysSince === null).length;
+    const inactiveRows = inactiveList.length ? inactiveList.slice(0, 30).map(a => {
+      const name = a.display_name || '—';
+      let tag, cls;
+      if (a.daysSince === null) { tag = 'Nunca ha venido'; cls = 'expired'; }
+      else if (a.daysSince >= 30) { tag = `${a.daysSince} días`; cls = 'expired'; }
+      else { tag = `${a.daysSince} días`; cls = 'soon'; }
+      const lastLabel = a.lastTs
+        ? new Date(a.lastTs).toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' })
+        : 'Sin registro';
+      return `<div class="expiry-row">
+        <div class="expiry-info">
+          <div class="expiry-name">${escHtml(name)}</div>
+          <div class="expiry-meta">Última visita: ${lastLabel}</div>
+        </div>
+        <span class="mem-expiry-tag ${cls}">${tag}</span>
+      </div>`;
+    }).join('') : '<div class="lb-empty">Todos los atletas han venido recientemente. 🔥</div>';
+
+    contentEl.innerHTML = `
 
     contentEl.innerHTML = `
       <div class="reports-stats-grid">
