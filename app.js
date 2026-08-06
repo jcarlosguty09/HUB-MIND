@@ -2390,8 +2390,6 @@ async function load() {
       </div>`;
     }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
 
-  }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
-
     // Membresías vencidas / por vencer
     const todayCdmx = new Date(cdmxDateStr() + 'T00:00:00');
     const withExpiry = profiles.filter(p => p.membership_expires);
