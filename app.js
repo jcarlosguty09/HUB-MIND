@@ -2437,8 +2437,14 @@ async function load() {
         <div class="chart-bars">${bars}</div>
       </div>
 
-      <div class="report-section-title">Volumen por canal</div>
-      <div class="channel-list">${channelRows}</div>`;
+   <div class="report-section-title">Volumen por canal</div>
+      <div class="channel-list">${channelRows}</div>
+
+      <div class="report-section-title">Membresías
+        ${expiredCount ? `<span class="report-badge expired">${expiredCount} vencida${expiredCount === 1 ? '' : 's'}</span>` : ''}
+        ${soonCount ? `<span class="report-badge soon">${soonCount} por vencer</span>` : ''}
+      </div>
+      <div class="expiry-list">${expiryRows}</div>`;
   }
   // Listeners de rango y presets
   el('reports-start').onchange = load;
