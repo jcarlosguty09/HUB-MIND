@@ -597,6 +597,22 @@ const ReportAPI = {
       return rows || [];
     } catch(e) { console.warn('ReportAPI.profilesWithMembership:', e.message); return []; }
   },
+  // Último check-in de cada atleta (para detectar inactivos)
+  async lastCheckinPerUser() {
+    try {
+      // Traemos los check-ins de los últimos 120 días, ordenados
+      const since = new Date();
+      since.setDate(since.getDate() - 120);
+      const rows = await sbReq('GET',
+        `checkins?select=user_id,timestamp&user_id=not.is.null&timestamp=gte.${since.toISOString()}&order=timestamp.desc&limit=10000`
+      );
+      const last = {};
+      (rows || []).forEach(r => {
+        if (!last[r.user_id]) last[r.user_id] = r.timestamp; // el primero es el más reciente
+      });
+      return last;
+    } catch(e) { console.warn('ReportAPI.lastCheckinPerUser:', e.message); return {}; }
+  },
 };
 // ---- WOD API ----
 const WodAPI = {
