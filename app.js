@@ -743,6 +743,7 @@ async function showApp() {
   badge.className = 'role-badge ' + role;
   // Mostrar tab de Miembros solo para admin
   el('nav-tab-members').style.display = role === 'admin' ? '' : 'none';
+  el('nav-tab-reports').style.display = role === 'admin' ? '' : 'none';
 
   await renderCalendar();
   await renderToday();
