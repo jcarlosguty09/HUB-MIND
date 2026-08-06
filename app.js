@@ -2390,13 +2390,6 @@ async function renderReports() {
       </div>`;
     }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
     
-    contentEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
-    const [checkins, profiles] = await Promise.all([
-      ReportAPI.checkinsInRange(startDate, endDate),
-      ReportAPI.profilesWithMembership(),
-    ]);
-    const profileMap = {};
-    profiles.forEach(p => { profileMap[p.id] = p; });
     // Agrupar por día (en hora CDMX)
     const byDay = {};
     checkins.forEach(c => {
