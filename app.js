@@ -1987,6 +1987,7 @@ async function init() {
       el(`aview-${btn.dataset.aview}`).classList.add('active');
       if (btn.dataset.aview === 'dashboard')   renderAthleteDashboard();
       if (btn.dataset.aview === 'leaderboard') renderGlobalLeaderboard('aview-leaderboard');
+      if (btn.dataset.aview === 'classes')     renderClasses('aclasses-list', 'aclasses-date-label');
     });
   });
 
