@@ -2477,7 +2477,13 @@ async function load() {
         ${expiredCount ? `<span class="report-badge expired">${expiredCount} vencida${expiredCount === 1 ? '' : 's'}</span>` : ''}
         ${soonCount ? `<span class="report-badge soon">${soonCount} por vencer</span>` : ''}
       </div>
-      <div class="expiry-list">${expiryRows}</div>`;
+  <div class="expiry-list">${expiryRows}</div>
+
+      <div class="report-section-title">Atletas inactivos
+        <span class="report-badge expired">${inactiveList.length}</span>
+        ${neverCame ? `<span class="report-badge soon">${neverCame} nunca</span>` : ''}
+      </div>
+      <div class="expiry-list">${inactiveRows}</div>`;
   }
   // Listeners de rango y presets
   el('reports-start').onchange = load;
