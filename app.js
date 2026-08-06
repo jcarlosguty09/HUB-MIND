@@ -2318,9 +2318,42 @@ async function renderReports() {
     const endDate   = el('reports-end').value;
     if (!startDate || !endDate) return;
 
+    // Volumen por canal
+    const CHANNEL_INFO = {
+      membresia: { label: 'Membresía',  color: '#3B82F6' },
+      wellhub:   { label: 'WellHub',    color: '#22C55E' },
+      totalpass: { label: 'Total Pass', color: '#8B5CF6' },
+      fitpass:   { label: 'FitPass',    color: '#EAB308' },
+      _none:     { label: 'Sin asignar', color: '#94A3B8' },
+    };
+    const byChannel = {};
+    checkins.forEach(c => {
+      if (!c.user_id) return;
+      const ch = profileMap[c.user_id]?.membership_channel || '_none';
+      byChannel[ch] = (byChannel[ch] || 0) + 1;
+    });
+    const chTotal = Object.values(byChannel).reduce((a, b) => a + b, 0) || 1;
+    const chSorted = Object.entries(byChannel).sort((a, b) => b[1] - a[1]);
+    const channelRows = chSorted.length ? chSorted.map(([ch, count]) => {
+      const info = CHANNEL_INFO[ch] || { label: ch, color: '#94A3B8' };
+      const pct = Math.round((count / chTotal) * 100);
+      return `<div class="channel-row">
+        <div class="channel-head">
+          <span class="channel-dot" style="background:${info.color}"></span>
+          <span class="channel-name">${escHtml(info.label)}</span>
+          <span class="channel-count">${count} <span class="channel-pct">(${pct}%)</span></span>
+        </div>
+        <div class="channel-bar-track"><div class="channel-bar-fill" style="width:${pct}%;background:${info.color}"></div></div>
+      </div>`;
+    }).join('') : '<div class="lb-empty">Sin datos de canal en este rango.</div>';
+    
     contentEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
-    const checkins = await ReportAPI.checkinsInRange(startDate, endDate);
-
+    const [checkins, profiles] = await Promise.all([
+      ReportAPI.checkinsInRange(startDate, endDate),
+      ReportAPI.profilesWithMembership(),
+    ]);
+    const profileMap = {};
+    profiles.forEach(p => { profileMap[p.id] = p; });
     // Agrupar por día (en hora CDMX)
     const byDay = {};
     checkins.forEach(c => {
@@ -2364,12 +2397,14 @@ async function renderReports() {
         <div class="admin-stat-card purple"><i class="ti ti-trophy"></i><div class="admin-stat-num">${bestDay.count}</div><div class="admin-stat-label">Mejor día</div></div>
       </div>
 
-      <div class="report-section-title">Asistencia diaria</div>
+    <div class="report-section-title">Asistencia diaria</div>
       <div class="chart-wrap">
         <div class="chart-bars">${bars}</div>
-      </div>`;
-  }
+      </div>
 
+      <div class="report-section-title">Volumen por canal</div>
+      <div class="channel-list">${channelRows}</div>`;
+  }
   // Listeners de rango y presets
   el('reports-start').onchange = load;
   el('reports-end').onchange = load;
