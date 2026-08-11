@@ -628,7 +628,7 @@ const MemberAPI = {
       return res.ok;
     } catch(e) { console.warn('MemberAPI.setActive:', e.message); return false; }
   },
-
+};
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
