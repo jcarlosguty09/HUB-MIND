@@ -670,6 +670,7 @@ const ReportAPI = {
     } catch(e) { console.warn('ReportAPI.lastCheckinPerUser:', e.message); return {}; }
   },
 };
+
 // ---- WOD API ----
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
