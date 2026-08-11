@@ -2139,14 +2139,15 @@ async function renderMembers() {
         else                expiryTag = `<span class="mem-expiry-tag ok">Vigente</span>`;
       }
 
-      const card = document.createElement('div');
-      card.className = 'member-card';
+     const card = document.createElement('div');
+      card.className = 'member-card' + (m.is_active === false ? ' member-inactive' : '');
       card.innerHTML = `
         <div class="member-head">
           <div class="checkin-avatar">${avatarHTML}</div>
           <div class="member-info">
-            <div class="member-name">${escHtml(name)}
+           <div class="member-name">${escHtml(name)}
               <span class="member-role-badge ${ROLE_COLORS[m.role] || 'green'}">${ROLE_LABELS[m.role] || m.role}</span>
+              ${m.is_active === false ? '<span class="member-inactive-badge">Inactivo</span>' : ''}
             </div>
           <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
@@ -2199,6 +2200,14 @@ async function renderMembers() {
         const name   = input.dataset.name;
 
         if (!zkId) { showToast('Escribe un ZK ID'); return; }
+
+        // Botón de editar miembro
+    listEl.querySelectorAll('.member-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const m = members.find(x => x.id === btn.dataset.user);
+        if (m) showEditMemberModal(m, renderMembers);
+      });
+    });
 
         // Avisar si ya está en uso (pero permitir el cambio)
         const inUseBy = await MemberAPI.zkIdInUse(zkId, userId);
