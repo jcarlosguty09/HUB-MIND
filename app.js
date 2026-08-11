@@ -2148,8 +2148,9 @@ async function renderMembers() {
             <div class="member-name">${escHtml(name)}
               <span class="member-role-badge ${ROLE_COLORS[m.role] || 'green'}">${ROLE_LABELS[m.role] || m.role}</span>
             </div>
-            <div class="member-email">${escHtml(m.email || '')}</div>
+          <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
+          <button class="member-edit-btn" data-user="${m.id}" title="Editar"><i class="ti ti-dots-vertical"></i></button>
           ${zkBadge}
         </div>
         <div class="member-membership">
