@@ -573,6 +573,63 @@ const MemberAPI = {
   },
 };
 
+// Editar datos básicos del perfil (admin)
+  async updateProfile(userId, { full_name, gender }) {
+    try {
+      const body = {};
+      if (full_name !== undefined) body.full_name = full_name;
+      if (gender !== undefined) body.gender = gender;
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(body),
+      });
+      return res.ok;
+    } catch(e) { console.warn('MemberAPI.updateProfile:', e.message); return false; }
+  },
+
+  // Cambiar rol (admin)
+  async setRole(userId, role) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_roles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ role }),
+      });
+      return res.ok;
+    } catch(e) { console.warn('MemberAPI.setRole:', e.message); return false; }
+  },
+
+  // Activar / desactivar usuario (admin)
+  async setActive(userId, isActive) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ is_active: isActive }),
+      });
+      return res.ok;
+    } catch(e) { console.warn('MemberAPI.setActive:', e.message); return false; }
+  },
+
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
