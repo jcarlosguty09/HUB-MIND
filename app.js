@@ -2121,7 +2121,7 @@ async function renderMembers() {
         { v: 'totalpass', label: 'Total Pass' },
         { v: 'fitpass', label: 'FitPass' },
       ];
-      const SUBTYPES = ['Ilimitada','Parejas','Kids','Estudiante','Trimestral','3 días x semana','Central 3D (L-V)'];
+      const SUBTYPES = ['Ilimitada','Parejas','Kids','Estudiante','Trimestral','3 días x semana','Central 3D (L-V)','Cortesía','Drop In'];
 
       const channelOpts = CHANNELS.map(c =>
         `<option value="${c.v}"${(m.membership_channel || '') === c.v ? ' selected' : ''}>${c.label}</option>`).join('');
