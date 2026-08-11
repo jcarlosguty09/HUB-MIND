@@ -571,7 +571,6 @@ const MemberAPI = {
       return res.ok;
     } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
   },
-};
 
 // Editar datos básicos del perfil (admin)
   async updateProfile(userId, { full_name, gender }) {
