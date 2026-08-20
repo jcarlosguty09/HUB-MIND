@@ -266,6 +266,43 @@ const CheckinAPI = {
       return res.ok;
     } catch(e) { console.error('CheckinAPI.createManual:', e); return false; }
   },
+    // ¿Ya tiene check-in hoy este usuario?
+  async hasCheckinToday(userId) {
+    try {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+      const start = `${today}T06:00:00`;
+      const d = new Date(`${today}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      const end = `${d.toISOString().slice(0,10)}T06:00:00`;
+      const rows = await sbReq('GET',
+        `checkins?select=id&user_id=eq.${userId}&timestamp=gte.${start}&timestamp=lt.${end}&limit=1`);
+      return (rows || []).length > 0;
+    } catch(e) { console.warn('CheckinAPI.hasCheckinToday:', e.message); return false; }
+  },
+
+  // Check-in manual para un atleta YA registrado
+  async createForUser(userId, fullName) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checkins`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          is_manual: true,
+          manual_name: fullName || null,
+          verify_type: 'manual',
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      return res.ok;
+    } catch(e) { console.error('CheckinAPI.createForUser:', e); return false; }
+  },
   async subscribeToNew(callback) {
     return setInterval(async () => {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
