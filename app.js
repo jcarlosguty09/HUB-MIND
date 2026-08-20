@@ -2231,9 +2231,17 @@ async function renderMembers() {
     });
   }
 
-  render();
+render();
 
   el('members-search').oninput = (e) => render(e.target.value);
+
+  // Botón de editar (delegación — funciona aunque se redibuje la lista)
+  listEl.onclick = (e) => {
+    const btn = e.target.closest('.member-edit-btn');
+    if (!btn) return;
+    const m = members.find(x => x.id === btn.dataset.user);
+    if (m) showEditMemberModal(m, renderMembers);
+  };
 }
 // ---- CLASSES SCHEDULE VIEW ----
 const CLASS_TYPE_INFO = {
