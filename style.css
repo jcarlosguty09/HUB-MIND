@@ -2971,3 +2971,69 @@ body {
   color: var(--text3);
   margin-top: 2px;
 }
+/* ---- EDITAR MIEMBRO (admin) ---- */
+.member-edit-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.member-edit-btn:hover { background: var(--surface2); color: var(--text); }
+
+/* Miembro inactivo */
+.member-card.member-inactive { opacity: 0.55; }
+.member-inactive-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, #94A3B8 20%, transparent);
+  color: #64748B;
+  margin-left: 4px;
+}
+
+/* Bloque de estado en el modal */
+.em-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 4px 0 16px;
+}
+.em-status-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+.em-status-value { font-size: 14px; font-weight: 700; }
+.em-status-value.active   { color: #22C55E; }
+.em-status-value.inactive { color: #94A3B8; }
+
+.em-toggle-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.em-toggle-btn.deactivate { color: #EF4444; border-color: color-mix(in srgb, #EF4444 35%, transparent); }
+.em-toggle-btn.deactivate:hover { background: color-mix(in srgb, #EF4444 10%, transparent); }
+.em-toggle-btn.activate { color: #22C55E; border-color: color-mix(in srgb, #22C55E 35%, transparent); }
+.em-toggle-btn.activate:hover { background: color-mix(in srgb, #22C55E 10%, transparent); }
