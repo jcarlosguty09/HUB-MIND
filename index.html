@@ -144,43 +144,47 @@
         </div>
         <div id="checkins-list" class="checkins-list"></div>
       </section>
-<!-- MANUAL CHECK-IN MODAL -->
+      <!-- MANUAL CHECK-IN MODAL -->
       <div id="manual-checkin-modal" class="modal-overlay hidden">
         <div class="modal-box" style="max-width:360px">
           <div class="modal-title"><i class="ti ti-user-plus" style="color:var(--blue)"></i> Check-in manual</div>
-                  <div class="manual-type-tabs">
-          <button class="manual-type-btn active" data-type="atleta">Atleta registrado</button>
-          <button class="manual-type-btn" data-type="visita">Visita nueva</button>
-        </div>
 
-        <div id="manual-atleta-block">
-          <div class="field-group">
-            <label class="field-label">Buscar atleta</label>
-            <input class="field-input" id="manual-search" placeholder="Escribe el nombre..." autocomplete="off" />
-            <div class="lb-dropdown hidden" id="manual-dropdown" style="position:relative;margin-top:4px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+          <div class="manual-type-tabs">
+            <button class="manual-type-btn active" data-type="atleta">Atleta registrado</button>
+            <button class="manual-type-btn" data-type="visita">Visita nueva</button>
           </div>
-          <div class="manual-selected hidden" id="manual-selected"></div>
-        </div>
-          <div class="field-group">
-            <label class="field-label">Nombre *</label>
-            <input class="field-input" type="text" id="manual-name" placeholder="Nombre de la persona" />
+
+          <div id="manual-atleta-block">
+            <div class="field-group">
+              <label class="field-label">Buscar atleta</label>
+              <input class="field-input" id="manual-search" placeholder="Escribe el nombre..." autocomplete="off" />
+              <div class="lb-dropdown hidden" id="manual-dropdown" style="position:relative;margin-top:4px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+            </div>
+            <div class="manual-selected hidden" id="manual-selected"></div>
           </div>
-          <div class="field-group">
-            <label class="field-label">Teléfono (opcional)</label>
-            <input class="field-input" type="tel" id="manual-phone" placeholder="Para crearle usuario después" />
+
+          <div id="manual-visita-block" class="hidden">
+            <div class="field-group">
+              <label class="field-label">Nombre *</label>
+              <input class="field-input" type="text" id="manual-name" placeholder="Nombre de la persona" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Teléfono (opcional)</label>
+              <input class="field-input" type="tel" id="manual-phone" placeholder="Para crearle usuario después" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Email (opcional)</label>
+              <input class="field-input" type="email" id="manual-email" placeholder="correo@ejemplo.com" />
+            </div>
           </div>
-          <div class="field-group">
-            <label class="field-label">Email (opcional)</label>
-            <input class="field-input" type="email" id="manual-email" placeholder="correo@ejemplo.com" />
-          </div>
+
           <div class="login-error hidden" id="manual-error"></div>
           <div class="modal-actions">
             <button class="btn-secondary" id="manual-cancel">Cancelar</button>
             <button class="save-btn" id="manual-save"><i class="ti ti-check"></i> Registrar</button>
           </div>
         </div>
-      </div>
-      <!-- MEMBERS VIEW (admin only) -->
+      </div>      <!-- MEMBERS VIEW (admin only) -->
       <section id="view-members" class="view">
         <div class="checkins-header">
           <div class="checkins-title-row">
