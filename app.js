@@ -1405,20 +1405,126 @@ async function renderCheckins() {
       listEl.appendChild(card);
     });
   }
-// Botón de check-in manual
+  // ---- Check-in manual (atleta registrado o visita) ----
+  let manualType = 'atleta';
+  let manualAthlete = null;
+
+  function resetManualModal() {
+    manualType = 'atleta';
+    manualAthlete = null;
+    el('manual-search').value = '';
+    el('manual-dropdown').classList.add('hidden');
+    el('manual-selected').classList.add('hidden');
+    el('manual-selected').innerHTML = '';
+    el('manual-name').value = '';
+    el('manual-phone').value = '';
+    el('manual-email').value = '';
+    el('manual-error').classList.add('hidden');
+    document.querySelectorAll('.manual-type-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.type === 'atleta'));
+    el('manual-atleta-block').classList.remove('hidden');
+    el('manual-visita-block').classList.add('hidden');
+  }
+
   const manualBtn = el('checkin-manual-btn');
   if (manualBtn) {
     manualBtn.onclick = () => {
-      el('manual-name').value = '';
-      el('manual-phone').value = '';
-      el('manual-email').value = '';
-      el('manual-error').classList.add('hidden');
+      resetManualModal();
       el('manual-checkin-modal').classList.remove('hidden');
-      el('manual-name').focus();
+      el('manual-search').focus();
     };
   }
+
+  // Toggle Atleta / Visita
+  document.querySelectorAll('.manual-type-btn').forEach(btn => {
+    btn.onclick = () => {
+      manualType = btn.dataset.type;
+      document.querySelectorAll('.manual-type-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.type === manualType));
+      el('manual-atleta-block').classList.toggle('hidden', manualType !== 'atleta');
+      el('manual-visita-block').classList.toggle('hidden', manualType !== 'visita');
+      el('manual-error').classList.add('hidden');
+    };
+  });
+
+  // Búsqueda de atleta
+  el('manual-search').oninput = () => {
+    const q = el('manual-search').value.toLowerCase().trim();
+    const dd = el('manual-dropdown');
+    if (!q) { dd.classList.add('hidden'); return; }
+    const matches = athletes.filter(a =>
+      (a.display_name || '').toLowerCase().includes(q) ||
+      (a.email || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+    dd.innerHTML = matches.length
+      ? matches.map(a => `<div class="lb-option" data-id="${a.id}" data-name="${escHtml(a.display_name)}" style="padding:10px 12px;cursor:pointer">${escHtml(a.display_name)}<br><span style="font-size:11px;color:var(--text3)">${escHtml(a.email || '')}</span></div>`).join('')
+      : '<div class="lb-option lb-no-result" style="padding:10px 12px">Sin resultados</div>';
+    dd.classList.remove('hidden');
+  };
+
+  el('manual-dropdown').onclick = (e) => {
+    const opt = e.target.closest('.lb-option');
+    if (!opt || !opt.dataset.id) return;
+    manualAthlete = { id: opt.dataset.id, name: opt.dataset.name };
+    el('manual-search').value = '';
+    el('manual-dropdown').classList.add('hidden');
+    const sel = el('manual-selected');
+    sel.classList.remove('hidden');
+    sel.innerHTML = `<span class="manual-selected-name"><i class="ti ti-user-check"></i> ${escHtml(manualAthlete.name)}</span><button class="manual-clear-btn"><i class="ti ti-x"></i></button>`;
+    sel.querySelector('.manual-clear-btn').onclick = () => {
+      manualAthlete = null;
+      sel.classList.add('hidden');
+      sel.innerHTML = '';
+    };
+  };
+
   el('manual-cancel').onclick = () => el('manual-checkin-modal').classList.add('hidden');
+
   el('manual-save').onclick = async () => {
+    const errEl = el('manual-error');
+    const btn   = el('manual-save');
+    errEl.classList.add('hidden');
+
+    if (manualType === 'atleta') {
+      if (!manualAthlete) { errEl.textContent = 'Selecciona un atleta'; errEl.classList.remove('hidden'); return; }
+
+      btn.textContent = 'Verificando...'; btn.disabled = true;
+      const yaVino = await CheckinAPI.hasCheckinToday(manualAthlete.id);
+      if (yaVino) {
+        btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
+        errEl.textContent = `${manualAthlete.name} ya tiene check-in hoy`;
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      btn.textContent = 'Registrando...';
+      const ok = await CheckinAPI.createForUser(manualAthlete.id, manualAthlete.name);
+      btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
+      if (ok) {
+        el('manual-checkin-modal').classList.add('hidden');
+        showToast(`✓ Check-in de ${manualAthlete.name} registrado`);
+        await load(el('checkins-date').value, el('checkins-search').value);
+      } else {
+        errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
+      }
+    } else {
+      const name  = el('manual-name').value.trim();
+      const phone = el('manual-phone').value.trim();
+      const email = el('manual-email').value.trim();
+      if (!name) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.remove('hidden'); return; }
+
+      btn.textContent = 'Registrando...'; btn.disabled = true;
+      const ok = await CheckinAPI.createManual(name, phone, email);
+      btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
+      if (ok) {
+        el('manual-checkin-modal').classList.add('hidden');
+        showToast(`✓ Check-in de ${name} registrado`);
+        await load(el('checkins-date').value, el('checkins-search').value);
+      } else {
+        errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
+      }
+    }
+  };
     const name  = el('manual-name').value.trim();
     const phone = el('manual-phone').value.trim();
     const email = el('manual-email').value.trim();
