@@ -2514,5 +2514,127 @@ async function load() {
 
   await load();
 }
+// ---- MODAL DE EDICIÓN DE MIEMBRO (admin) ----
+function showEditMemberModal(m, onSaved) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  const isActive = m.is_active !== false;
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-title"><i class="ti ti-user-edit" style="color:var(--blue)"></i> Editar miembro</div>
+
+      <div class="field-group">
+        <label class="field-label">Nombre completo</label>
+        <input class="field-input" id="em-name" value="${escHtml(m.full_name || '')}" placeholder="Nombre" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Email</label>
+        <input class="field-input" value="${escHtml(m.email || '')}" disabled style="opacity:.6;cursor:not-allowed" />
+        <span style="font-size:11px;color:var(--text3)">El email no se puede cambiar desde aquí</span>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Género</label>
+        <select class="field-input" id="em-gender">
+          <option value=""${!m.gender ? ' selected' : ''}>Sin especificar</option>
+          <option value="H"${m.gender === 'H' ? ' selected' : ''}>Hombre</option>
+          <option value="M"${m.gender === 'M' ? ' selected' : ''}>Mujer</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Rol</label>
+        <select class="field-input" id="em-role">
+          <option value="atleta"${m.role === 'atleta' ? ' selected' : ''}>Atleta</option>
+          <option value="coach"${m.role === 'coach' ? ' selected' : ''}>Coach</option>
+          <option value="admin"${m.role === 'admin' ? ' selected' : ''}>Admin</option>
+        </select>
+      </div>
+
+      <div class="em-status-row">
+        <div>
+          <div class="em-status-label">Estado de la cuenta</div>
+          <div class="em-status-value ${isActive ? 'active' : 'inactive'}">
+            ${isActive ? '● Activa' : '○ Inactiva'}
+          </div>
+        </div>
+        <button class="em-toggle-btn ${isActive ? 'deactivate' : 'activate'}" id="em-toggle">
+          ${isActive ? 'Desactivar' : 'Reactivar'}
+        </button>
+      </div>
+
+      <div class="login-error hidden" id="em-error"></div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="em-cancel">Cancelar</button>
+        <button class="save-btn" id="em-save"><i class="ti ti-check"></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const errEl = modal.querySelector('#em-error');
+  const showErr = (msg) => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+
+  modal.querySelector('#em-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  // Activar / desactivar
+  modal.querySelector('#em-toggle').addEventListener('click', async () => {
+    const btn = modal.querySelector('#em-toggle');
+    const newState = !(m.is_active !== false);
+    const verb = newState ? 'reactivar' : 'desactivar';
+    if (!confirm(`¿Seguro que quieres ${verb} a ${m.full_name || 'este miembro'}?`)) return;
+
+    btn.disabled = true; btn.textContent = '...';
+    const ok = await MemberAPI.setActive(m.id, newState);
+    btn.disabled = false;
+
+    if (ok) {
+      showToast(`✓ Cuenta ${newState ? 'reactivada' : 'desactivada'}`);
+      modal.remove();
+      if (onSaved) onSaved();
+    } else {
+      btn.textContent = newState ? 'Reactivar' : 'Desactivar';
+      showErr('Error al cambiar el estado');
+    }
+  });
+
+  // Guardar cambios
+  modal.querySelector('#em-save').addEventListener('click', async () => {
+    const btn    = modal.querySelector('#em-save');
+    const name   = modal.querySelector('#em-name').value.trim();
+    const gender = modal.querySelector('#em-gender').value;
+    const role   = modal.querySelector('#em-role').value;
+
+    if (!name) { showErr('El nombre no puede estar vacío'); return; }
+    errEl.classList.add('hidden');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+
+    const tasks = [];
+    if (name !== (m.full_name || '') || gender !== (m.gender || '')) {
+      tasks.push(MemberAPI.updateProfile(m.id, { full_name: name, gender: gender || null }));
+    }
+    if (role !== m.role) {
+      tasks.push(MemberAPI.setRole(m.id, role));
+    }
+
+    if (!tasks.length) { modal.remove(); return; }
+
+    const results = await Promise.all(tasks);
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+
+    if (results.every(Boolean)) {
+      showToast('✓ Miembro actualizado');
+      ProfileAPI.clearCache();
+      AthleteAPI.clearCache();
+      modal.remove();
+      if (onSaved) onSaved();
+    } else {
+      showErr('Error al guardar algunos cambios');
+    }
+  });
+}
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
