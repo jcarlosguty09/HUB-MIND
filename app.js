@@ -1520,25 +1520,6 @@ async function renderCheckins() {
         el('manual-checkin-modal').classList.add('hidden');
         showToast(`✓ Check-in de ${name} registrado`);
         await load(el('checkins-date').value, el('checkins-search').value);
-      } else {
-        errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
-      }
-    }
-  };
-    const name  = el('manual-name').value.trim();
-    const phone = el('manual-phone').value.trim();
-    const email = el('manual-email').value.trim();
-    const errEl = el('manual-error');
-    const btn   = el('manual-save');
-    if (!name) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.remove('hidden'); return; }
-    errEl.classList.add('hidden');
-    btn.textContent = 'Registrando...'; btn.disabled = true;
-    const ok = await CheckinAPI.createManual(name, phone, email);
-    btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
-    if (ok) {
-      el('manual-checkin-modal').classList.add('hidden');
-      showToast(`✓ Check-in de ${name} registrado`);
-      await load(el('checkins-date').value, el('checkins-search').value);
     } else {
       errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
     }
