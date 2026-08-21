@@ -1517,11 +1517,12 @@ async function renderCheckins() {
       const ok = await CheckinAPI.createManual(name, phone, email);
       btn.innerHTML = '<i class="ti ti-check"></i> Registrar'; btn.disabled = false;
       if (ok) {
-        el('manual-checkin-modal').classList.add('hidden');
+              el('manual-checkin-modal').classList.add('hidden');
         showToast(`✓ Check-in de ${name} registrado`);
         await load(el('checkins-date').value, el('checkins-search').value);
-    } else {
-      errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
+      } else {
+        errEl.textContent = 'Error al registrar'; errEl.classList.remove('hidden');
+      }
     }
   };
 
