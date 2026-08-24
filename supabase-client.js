@@ -609,12 +609,14 @@ const MemberAPI = {
     } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
   },
 
-// Editar datos básicos del perfil (admin)
-  async updateProfile(userId, { full_name, gender }) {
+  // Editar datos básicos del perfil (admin)
+  async updateProfile(userId, { full_name, gender, birth_date, phone }) {
     try {
       const body = {};
-      if (full_name !== undefined) body.full_name = full_name;
-      if (gender !== undefined) body.gender = gender;
+      if (full_name  !== undefined) body.full_name  = full_name;
+      if (gender     !== undefined) body.gender     = gender;
+      if (birth_date !== undefined) body.birth_date = birth_date || null;
+      if (phone      !== undefined) body.phone      = phone || null;
       const token = Auth.getToken();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
         method: 'PATCH',
