@@ -2640,6 +2640,18 @@ function showEditMemberModal(m, onSaved) {
         </select>
       </div>
 
+            <div class="em-row-2">
+        <div class="field-group">
+          <label class="field-label">Fecha de nacimiento</label>
+          <input class="field-input" type="date" id="em-birth" value="${m.birth_date || ''}" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Teléfono</label>
+          <input class="field-input" type="tel" id="em-phone" value="${escHtml(m.phone || '')}" placeholder="55 1234 5678" />
+        </div>
+      </div>
+      ${m.birth_date ? `<div class="em-bday-hint"><i class="ti ti-cake"></i> ${fmtBirthday(m.birth_date)}</div>` : ''}
+
       <div class="field-group">
         <label class="field-label">Rol</label>
         <select class="field-input" id="em-role">
@@ -2699,10 +2711,11 @@ function showEditMemberModal(m, onSaved) {
 
   // Guardar cambios
   modal.querySelector('#em-save').addEventListener('click', async () => {
-    const btn    = modal.querySelector('#em-save');
-    const name   = modal.querySelector('#em-name').value.trim();
+     const name   = modal.querySelector('#em-name').value.trim();
     const gender = modal.querySelector('#em-gender').value;
     const role   = modal.querySelector('#em-role').value;
+    const birth  = modal.querySelector('#em-birth').value;
+    const phone  = modal.querySelector('#em-phone').value.trim();
 
     if (!name) { showErr('El nombre no puede estar vacío'); return; }
     errEl.classList.add('hidden');
