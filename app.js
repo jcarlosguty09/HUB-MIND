@@ -2721,9 +2721,15 @@ function showEditMemberModal(m, onSaved) {
     errEl.classList.add('hidden');
     btn.disabled = true; btn.textContent = 'Guardando...';
 
-    const tasks = [];
-    if (name !== (m.full_name || '') || gender !== (m.gender || '')) {
-      tasks.push(MemberAPI.updateProfile(m.id, { full_name: name, gender: gender || null }));
+       const tasks = [];
+    if (name  !== (m.full_name  || '') || gender !== (m.gender || '') ||
+        birth !== (m.birth_date || '') || phone  !== (m.phone  || '')) {
+      tasks.push(MemberAPI.updateProfile(m.id, {
+        full_name: name,
+        gender: gender || null,
+        birth_date: birth || null,
+        phone: phone || null,
+      }));
     }
     if (role !== m.role) {
       tasks.push(MemberAPI.setRole(m.id, role));
