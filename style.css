@@ -3094,3 +3094,28 @@ body {
   line-height: 1;
 }
 .manual-clear-btn:hover { background: var(--surface2); color: var(--text); }
+
+/* ---- CAMPOS DE CUMPLEAÑOS Y TELÉFONO (modal editar miembro) ---- */
+.em-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 420px) {
+  .em-row-2 { grid-template-columns: 1fr; gap: 0; }
+}
+
+.em-bday-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #B45309;
+  background: color-mix(in srgb, #EAB308 14%, transparent);
+  border: 1px solid color-mix(in srgb, #EAB308 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: -4px 0 16px;
+}
+.em-bday-hint .ti { font-size: 16px; }
