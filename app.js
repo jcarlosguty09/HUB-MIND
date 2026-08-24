@@ -2751,24 +2751,28 @@ function showEditMemberModal(m, onSaved) {
     }
   });
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+
   // Texto amigable de cumpleaños: edad y cuántos días faltan
 function fmtBirthday(dateStr) {
   if (!dateStr) return '';
-  const b = new Date(dateStr + 'T12:00:00');
+  const b   = new Date(dateStr + 'T12:00:00');
   const hoy = new Date(cdmxDateStr() + 'T12:00:00');
-  let edad = hoy.getFullYear() - b.getFullYear();
-  const prox = new Date(hoy.getFullYear(), b.getMonth(), b.getDate(), 12);
-  if (prox < hoy) prox.setFullYear(prox.getFullYear() + 1);
-  else if (prox > hoy) edad -= 0;
-  if (new Date(hoy.getFullYear(), b.getMonth(), b.getDate(), 12) > hoy) edad -= 1;
 
-  const dias = Math.round((prox - hoy) / 86400000);
+  // Próximo cumpleaños
+  let prox = new Date(hoy.getFullYear(), b.getMonth(), b.getDate(), 12);
+  if (prox < hoy) {
+    prox = new Date(hoy.getFullYear() + 1, b.getMonth(), b.getDate(), 12);
+  }
+
+  // Edad que cumplirá en esa fecha
+  const edadProx = prox.getFullYear() - b.getFullYear();
+  const dias  = Math.round((prox - hoy) / 86400000);
   const fecha = b.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
 
-  if (dias === 0) return `¡Hoy cumple ${edad + 1} años! 🎉`;
-  if (dias === 1) return `Mañana cumple ${edad + 1} años · ${fecha}`;
-  if (dias <= 30) return `Cumple en ${dias} días (${edad + 1}) · ${fecha}`;
-  return `${fecha} · ${edad} años`;
+  if (dias === 0)  return `¡Hoy cumple ${edadProx} años! 🎉`;
+  if (dias === 1)  return `Mañana cumple ${edadProx} años · ${fecha}`;
+  if (dias <= 30)  return `Cumple en ${dias} días (${edadProx}) · ${fecha}`;
+  return `${fecha} · ${edadProx - 1} años`;
 }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
