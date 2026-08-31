@@ -735,7 +735,7 @@ const WodAPI = {
     try {
       const token = Auth.getToken();
       const body = { date, sections: JSON.stringify(dayData), updated_at: new Date().toISOString() };
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_days?on_conflict=date`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_days?on_conflict=organization_id,date`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_ANON,
