@@ -120,7 +120,7 @@ const ScoreAPI = {
   async save(date, classId, userId, score, scoreType = 'high', category = 'rx', completed = false) {
     try {
       const token = Auth.getToken();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_scores?on_conflict=date,class_id,user_id`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_scores?on_conflict=organization_id,date,class_id,user_id`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_ANON,
@@ -135,7 +135,15 @@ const ScoreAPI = {
           updated_at: new Date().toISOString()
         }),
       });
-      return res.ok;
+      
+      if (!res.ok) {
+  const err = await res.text();
+  console.error('ScoreAPI.save ERROR:', res.status, err);
+  return false;
+}
+
+return true;
+  
     } catch(e) { console.error('ScoreAPI.save:', e); return false; }
   },
   // Get all scores for a date+class (for leaderboard)
