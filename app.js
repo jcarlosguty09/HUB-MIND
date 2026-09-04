@@ -2772,7 +2772,7 @@ modal.querySelector('#em-save').addEventListener('click', async () => {
     showErr('Error al guardar algunos cambios');
   }
 });
-
+}
   // Texto amigable de cumpleaños: edad y cuántos días faltan
 function fmtBirthday(dateStr) {
   if (!dateStr) return '';
