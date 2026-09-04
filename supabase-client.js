@@ -717,9 +717,37 @@ async setMembership(userId, channel, subtype, expires) {
 
   // Activar / desactivar usuario (admin)
   async setActive(userId, isActive) {
-    try {
-      const token = Auth.getToken();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+  try {
+    const token = Auth.getToken();
+
+    const orgRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/current_organization_id`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      }
+    );
+
+    if (!orgRes.ok) {
+      console.error(
+        'MemberAPI.setActive organization ERROR:',
+        await orgRes.text()
+      );
+      return false;
+    }
+
+    const organizationId = await orgRes.json();
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/organization_members` +
+      `?organization_id=eq.${organizationId}` +
+      `&user_id=eq.${userId}`,
+      {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_ANON,
@@ -727,11 +755,28 @@ async setMembership(userId, channel, subtype, expires) {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ is_active: isActive }),
-      });
-      return res.ok;
-    } catch(e) { console.warn('MemberAPI.setActive:', e.message); return false; }
-  },
+        body: JSON.stringify({
+          is_active: isActive,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error(
+        'MemberAPI.setActive ERROR:',
+        res.status,
+        await res.text()
+      );
+      return false;
+    }
+
+    return true;
+
+  } catch(e) {
+    console.error('MemberAPI.setActive:', e);
+    return false;
+  }
+},
 };
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
