@@ -698,10 +698,43 @@ async setMembership(userId, channel, subtype, expires) {
   },
 
   // Cambiar rol (admin)
-  async setRole(userId, role) {
-    try {
-      const token = Auth.getToken();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/user_roles?id=eq.${userId}`, {
+ // Cambiar rol dentro de la organización actual (admin)
+async setRole(userId, role) {
+  try {
+    const token = Auth.getToken();
+
+    // El frontend todavía usa "atleta".
+    // La arquitectura nueva usa el nombre genérico "member".
+    const orgRole = role === 'atleta' ? 'member' : role;
+
+    const orgRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/current_organization_id`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      }
+    );
+
+    if (!orgRes.ok) {
+      console.error(
+        'MemberAPI.setRole organization ERROR:',
+        await orgRes.text()
+      );
+      return false;
+    }
+
+    const organizationId = await orgRes.json();
+
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/organization_members` +
+      `?organization_id=eq.${organizationId}` +
+      `&user_id=eq.${userId}`,
+      {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_ANON,
@@ -709,11 +742,28 @@ async setMembership(userId, channel, subtype, expires) {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ role }),
-      });
-      return res.ok;
-    } catch(e) { console.warn('MemberAPI.setRole:', e.message); return false; }
-  },
+        body: JSON.stringify({
+          role: orgRole
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error(
+        'MemberAPI.setRole ERROR:',
+        res.status,
+        await res.text()
+      );
+      return false;
+    }
+
+    return true;
+
+  } catch(e) {
+    console.error('MemberAPI.setRole:', e);
+    return false;
+  }
+},
 
   // Activar / desactivar usuario (admin)
  async setActive(userId, isActive) {
