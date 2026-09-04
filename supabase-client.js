@@ -598,6 +598,13 @@ const MemberAPI = {
 // Asignar tipo de membresía a un miembro dentro de la organización actual
 async setMembership(userId, channel, subtype, expires) {
   try {
+    console.log('NEW setMembership running', {
+      userId,
+      channel,
+      subtype,
+      expires
+    });
+
     const token = Auth.getToken();
 
     // Obtener la organización actual del usuario autenticado
