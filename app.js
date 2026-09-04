@@ -2709,48 +2709,69 @@ function showEditMemberModal(m, onSaved) {
     }
   });
 
-  // Guardar cambios
-  modal.querySelector('#em-save').addEventListener('click', async () => {
-     const name   = modal.querySelector('#em-name').value.trim();
-    const gender = modal.querySelector('#em-gender').value;
-    const role   = modal.querySelector('#em-role').value;
-    const birth  = modal.querySelector('#em-birth').value;
-    const phone  = modal.querySelector('#em-phone').value.trim();
+ // Guardar cambios
+modal.querySelector('#em-save').addEventListener('click', async () => {
+  const btn = modal.querySelector('#em-save');
 
-    if (!name) { showErr('El nombre no puede estar vacío'); return; }
-    errEl.classList.add('hidden');
-    btn.disabled = true; btn.textContent = 'Guardando...';
+  const name   = modal.querySelector('#em-name').value.trim();
+  const gender = modal.querySelector('#em-gender').value;
+  const role   = modal.querySelector('#em-role').value;
+  const birth  = modal.querySelector('#em-birth').value;
+  const phone  = modal.querySelector('#em-phone').value.trim();
 
-       const tasks = [];
-    if (name  !== (m.full_name  || '') || gender !== (m.gender || '') ||
-        birth !== (m.birth_date || '') || phone  !== (m.phone  || '')) {
-      tasks.push(MemberAPI.updateProfile(m.id, {
+  if (!name) {
+    showErr('El nombre no puede estar vacío');
+    return;
+  }
+
+  errEl.classList.add('hidden');
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  const tasks = [];
+
+  if (
+    name   !== (m.full_name || '') ||
+    gender !== (m.gender || '') ||
+    birth  !== (m.birth_date || '') ||
+    phone  !== (m.phone || '')
+  ) {
+    tasks.push(
+      MemberAPI.updateProfile(m.id, {
         full_name: name,
         gender: gender || null,
         birth_date: birth || null,
         phone: phone || null,
-      }));
-    }
-    if (role !== m.role) {
-      tasks.push(MemberAPI.setRole(m.id, role));
-    }
+      })
+    );
+  }
 
-    if (!tasks.length) { modal.remove(); return; }
+  if (role !== m.role) {
+    tasks.push(MemberAPI.setRole(m.id, role));
+  }
 
-    const results = await Promise.all(tasks);
-    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+  if (!tasks.length) {
+    modal.remove();
+    return;
+  }
 
-    if (results.every(Boolean)) {
-      showToast('✓ Miembro actualizado');
-      ProfileAPI.clearCache();
-      AthleteAPI.clearCache();
-      modal.remove();
-      if (onSaved) onSaved();
-    } else {
-      showErr('Error al guardar algunos cambios');
-    }
-  });
-}
+  const results = await Promise.all(tasks);
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+
+  if (results.every(Boolean)) {
+    showToast('✓ Miembro actualizado');
+    ProfileAPI.clearCache();
+    AthleteAPI.clearCache();
+    modal.remove();
+
+    if (onSaved) onSaved();
+  } else {
+    showErr('Error al guardar algunos cambios');
+  }
+});
 
   // Texto amigable de cumpleaños: edad y cuántos días faltan
 function fmtBirthday(dateStr) {
