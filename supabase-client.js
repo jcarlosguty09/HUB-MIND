@@ -716,8 +716,13 @@ async setMembership(userId, channel, subtype, expires) {
   },
 
   // Activar / desactivar usuario (admin)
-  async setActive(userId, isActive) {
+ async setActive(userId, isActive) {
   try {
+    console.log('NEW setActive running', {
+      userId,
+      isActive
+    });
+
     const token = Auth.getToken();
 
     const orgRes = await fetch(
@@ -742,6 +747,8 @@ async setMembership(userId, channel, subtype, expires) {
     }
 
     const organizationId = await orgRes.json();
+
+    console.log('setActive organization:', organizationId);
 
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/organization_members` +
@@ -770,6 +777,11 @@ async setMembership(userId, channel, subtype, expires) {
       return false;
     }
 
+    console.log('MemberAPI.setActive SUCCESS', {
+      userId,
+      isActive
+    });
+
     return true;
 
   } catch(e) {
@@ -777,7 +789,6 @@ async setMembership(userId, channel, subtype, expires) {
     return false;
   }
 },
-};
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
