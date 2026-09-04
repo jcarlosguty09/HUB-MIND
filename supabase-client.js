@@ -788,7 +788,7 @@ async setMembership(userId, channel, subtype, expires) {
     console.error('MemberAPI.setActive:', e);
     return false;
   }
-   
+ }
 };
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
