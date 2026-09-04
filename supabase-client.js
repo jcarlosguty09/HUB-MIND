@@ -697,7 +697,7 @@ async setMembership(userId, channel, subtype, expires) {
     } catch(e) { console.warn('MemberAPI.updateProfile:', e.message); return false; }
   },
 
-  // Cambiar rol (admin)
+ 
  // Cambiar rol dentro de la organización actual (admin)
 async setRole(userId, role) {
   try {
