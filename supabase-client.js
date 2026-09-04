@@ -789,6 +789,7 @@ async setMembership(userId, channel, subtype, expires) {
     return false;
   }
 },
+};
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
