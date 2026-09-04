@@ -595,11 +595,46 @@ const MemberAPI = {
     } catch(e) { console.error('MemberAPI.setZkId:', e); return false; }
   },
   
-// Asignar tipo de membresía a un miembro
-  async setMembership(userId, channel, subtype, expires) {
-    try {
-      const token = Auth.getToken();
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+// Asignar tipo de membresía a un miembro dentro de la organización actual
+async setMembership(userId, channel, subtype, expires) {
+  try {
+    const token = Auth.getToken();
+
+    // Obtener la organización actual del usuario autenticado
+    const orgRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/current_organization_id`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      }
+    );
+
+    if (!orgRes.ok) {
+      console.error(
+        'MemberAPI.setMembership organization ERROR:',
+        await orgRes.text()
+      );
+      return false;
+    }
+
+    const organizationId = await orgRes.json();
+
+    if (!organizationId) {
+      console.error('MemberAPI.setMembership: no organization found');
+      return false;
+    }
+
+    // Actualizar la membresía de este usuario SOLO en este gimnasio
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/organization_members` +
+      `?organization_id=eq.${organizationId}` +
+      `&user_id=eq.${userId}`,
+      {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_ANON,
@@ -612,10 +647,25 @@ const MemberAPI = {
           membership_subtype: subtype || null,
           membership_expires: expires || null,
         }),
-      });
-      return res.ok;
-    } catch(e) { console.error('MemberAPI.setMembership:', e); return false; }
-  },
+      }
+    );
+
+    if (!res.ok) {
+      console.error(
+        'MemberAPI.setMembership ERROR:',
+        res.status,
+        await res.text()
+      );
+      return false;
+    }
+
+    return true;
+
+  } catch (e) {
+    console.error('MemberAPI.setMembership:', e);
+    return false;
+  }
+},
 
   // Editar datos básicos del perfil (admin)
   async updateProfile(userId, { full_name, gender, birth_date, phone }) {
