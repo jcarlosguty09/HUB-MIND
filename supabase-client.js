@@ -509,11 +509,21 @@ const RoleAPI = {
     try {
       const userId = Auth.getUser()?.id;
       if (!userId) return 'coach';
-      // select=role with RLS — token must be valid
-      const rows = await sbReq('GET', `user_roles?select=role&id=eq.${userId}&limit=1`);
-      const role = rows?.[0]?.role;
+
+      const rows = await sbReq(
+        'GET',
+        `organization_members?select=role&user_id=eq.${userId}&is_active=eq.true&limit=1`
+      );
+
+      const orgRole = rows?.[0]?.role;
+
+      // Compatibilidad temporal con el frontend viejo
+      const role = orgRole === 'member' ? 'atleta' : orgRole;
+
       console.log('[Role] userId:', userId, 'role:', role);
+
       return role || 'coach';
+
     } catch(e) {
       console.warn('[Role] getRole error:', e.message);
       return 'coach';
