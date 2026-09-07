@@ -1911,6 +1911,10 @@ async function init() {
   el('crm-lead-cancel').addEventListener('click', closeCRMLeadModal);
   el('crm-lead-save').addEventListener('click', saveCRMLead);
   el('crm-lead-modal').addEventListener('click', e => { if (e.target === el('crm-lead-modal')) closeCRMLeadModal(); });
+  el('crm-detail-close').addEventListener('click', closeCRMLeadDetail);
+  el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
+  el('crm-activity-save').addEventListener('click', saveCRMActivity);
+  el('crm-detail-save').addEventListener('click', saveCRMLeadDetail);
 
   el('prev-month').addEventListener('click', () => { if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; } renderCalendar(); });
   el('next-month').addEventListener('click', () => { if (++state.curMonth > 11) { state.curMonth = 0;  state.curYear++; } renderCalendar(); });
@@ -2163,6 +2167,18 @@ const CRM_SOURCE_LABELS = {
   event:'Evento', other:'Otro'
 };
 
+const CRM_ACTIVITY_LABELS = {
+  call:'Llamada',
+  whatsapp:'WhatsApp',
+  email:'Email',
+  note:'Nota',
+  visit:'Visita',
+  trial:'Prueba',
+  stage_change:'Cambio de etapa'
+};
+
+let crmSelectedLead = null;
+
 function crmFormatFollowUp(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -2242,11 +2258,23 @@ async function renderCRM() {
           <button class="icon-btn crm-delete-btn" title="Eliminar lead"><i class="ti ti-trash"></i></button>
         </div>`;
 
+      card.querySelector('.crm-stage-select').addEventListener('click', e => e.stopPropagation());
       card.querySelector('.crm-stage-select').addEventListener('change', async e => {
+        e.stopPropagation();
         const nextStage = e.target.value;
+        const previousStage = lead.stage;
         e.target.disabled = true;
+
         const result = await CRMAPI.moveStage(lead.id, nextStage);
+
         if (result) {
+          const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
+          const toLabel = CRM_STAGES.find(s => s.id === nextStage)?.label || nextStage;
+          await CRMAPI.createActivity(
+            lead.id,
+            'stage_change',
+            `${fromLabel} → ${toLabel}`
+          );
           showToast('✓ Lead actualizado');
           await renderCRM();
         } else {
@@ -2256,7 +2284,8 @@ async function renderCRM() {
         }
       });
 
-      card.querySelector('.crm-delete-btn').addEventListener('click', async () => {
+      card.querySelector('.crm-delete-btn').addEventListener('click', async e => {
+        e.stopPropagation();
         if (!confirm(`¿Eliminar a ${lead.full_name} del CRM?`)) return;
         const ok = await CRMAPI.deleteLead(lead.id);
         if (ok) {
@@ -2267,11 +2296,166 @@ async function renderCRM() {
         }
       });
 
+      card.addEventListener('click', () => openCRMLeadDetail(lead));
+
       body.appendChild(card);
     });
 
     board.appendChild(col);
   });
+}
+
+
+async function openCRMLeadDetail(lead) {
+  crmSelectedLead = lead;
+
+  el('crm-detail-modal').classList.remove('hidden');
+  el('crm-detail-name').textContent = lead.full_name || 'Lead';
+  el('crm-detail-meta').textContent = [
+    CRM_SOURCE_LABELS[lead.source] || lead.source || 'Otro',
+    lead.phone || null,
+    lead.email || null
+  ].filter(Boolean).join(' · ');
+
+  el('crm-detail-stage').value = lead.stage || 'new';
+  el('crm-detail-followup').value = lead.next_follow_up_at
+    ? new Date(new Date(lead.next_follow_up_at).getTime() - new Date().getTimezoneOffset() * 60000)
+        .toISOString().slice(0,16)
+    : '';
+
+  el('crm-detail-notes').value = lead.notes || '';
+  el('crm-activity-note').value = '';
+  el('crm-activity-type').value = 'whatsapp';
+
+  await renderCRMActivities(lead.id);
+}
+
+function closeCRMLeadDetail() {
+  crmSelectedLead = null;
+  el('crm-detail-modal').classList.add('hidden');
+}
+
+async function renderCRMActivities(leadId) {
+  const wrap = el('crm-activity-list');
+  wrap.innerHTML = '<div class="crm-activity-empty">Cargando historial...</div>';
+
+  const rows = await CRMAPI.listActivities(leadId);
+
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="crm-activity-empty">Todavía no hay actividades.</div>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+
+  rows.forEach(activity => {
+    const item = document.createElement('div');
+    item.className = 'crm-activity-item';
+
+    const when = new Date(activity.created_at).toLocaleString('es-MX', {
+      day:'2-digit',
+      month:'short',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit'
+    });
+
+    item.innerHTML = `
+      <div class="crm-activity-dot"></div>
+      <div class="crm-activity-content">
+        <div class="crm-activity-top">
+          <strong>${escHtml(CRM_ACTIVITY_LABELS[activity.type] || activity.type)}</strong>
+          <span>${escHtml(when)}</span>
+        </div>
+        ${activity.note ? `<div class="crm-activity-note">${escHtml(activity.note)}</div>` : ''}
+      </div>
+      <button class="icon-btn crm-activity-delete" title="Eliminar actividad">
+        <i class="ti ti-trash"></i>
+      </button>`;
+
+    item.querySelector('.crm-activity-delete').addEventListener('click', async () => {
+      const ok = await CRMAPI.deleteActivity(activity.id);
+      if (ok) {
+        showToast('Actividad eliminada');
+        await renderCRMActivities(leadId);
+      } else {
+        showToast('Error al eliminar actividad');
+      }
+    });
+
+    wrap.appendChild(item);
+  });
+}
+
+async function saveCRMActivity() {
+  if (!crmSelectedLead) return;
+
+  const type = el('crm-activity-type').value;
+  const note = el('crm-activity-note').value.trim();
+  const btn = el('crm-activity-save');
+
+  if (!note && type !== 'visit' && type !== 'trial') {
+    showToast('Agrega una nota para esta actividad');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
+
+  const result = await CRMAPI.createActivity(
+    crmSelectedLead.id,
+    type,
+    note || null
+  );
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-plus"></i> Registrar actividad';
+
+  if (!result) {
+    showToast('Error al registrar actividad');
+    return;
+  }
+
+  el('crm-activity-note').value = '';
+  showToast('✓ Actividad registrada');
+  await renderCRMActivities(crmSelectedLead.id);
+}
+
+async function saveCRMLeadDetail() {
+  if (!crmSelectedLead) return;
+
+  const stage = el('crm-detail-stage').value;
+  const followupRaw = el('crm-detail-followup').value;
+  const notes = el('crm-detail-notes').value.trim();
+
+  const changes = {
+    stage,
+    next_follow_up_at: followupRaw ? new Date(followupRaw).toISOString() : null,
+    notes: notes || null
+  };
+
+  const previousStage = crmSelectedLead.stage;
+  const result = await CRMAPI.updateLead(crmSelectedLead.id, changes);
+
+  if (!result) {
+    showToast('Error al guardar cambios');
+    return;
+  }
+
+  if (previousStage !== stage) {
+    const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
+    const toLabel = CRM_STAGES.find(s => s.id === stage)?.label || stage;
+    await CRMAPI.createActivity(
+      crmSelectedLead.id,
+      'stage_change',
+      `${fromLabel} → ${toLabel}`
+    );
+  }
+
+  crmSelectedLead = { ...crmSelectedLead, ...result };
+  showToast('✓ Lead actualizado');
+  await renderCRM();
+  await renderCRMActivities(crmSelectedLead.id);
 }
 
 function openCRMLeadModal() {
