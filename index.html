@@ -38,10 +38,31 @@
     .crm-delete-btn{flex:0 0 auto}
     .crm-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .crm-notes-input{min-height:84px;resize:vertical}
+
+    .crm-card{cursor:pointer}
+    .crm-detail-box{width:min(960px,94vw);max-width:960px;max-height:88vh;overflow:auto}
+    .crm-detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .crm-detail-meta{color:var(--text2);font-size:12px;margin-top:4px}
+    .crm-detail-grid{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(360px,1.2fr);gap:18px}
+    .crm-detail-left,.crm-detail-right{min-width:0}
+    .crm-timeline-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+    .crm-activity-create{display:grid;grid-template-columns:150px 1fr auto;gap:8px;align-items:start;margin-bottom:14px}
+    .crm-activity-note-input{min-height:42px;resize:vertical}
+    .crm-activity-list{display:flex;flex-direction:column;gap:10px}
+    .crm-activity-empty{padding:22px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:10px}
+    .crm-activity-item{display:grid;grid-template-columns:14px 1fr auto;gap:9px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
+    .crm-activity-dot{width:9px;height:9px;border-radius:999px;background:var(--blue);margin-top:5px}
+    .crm-activity-top{display:flex;justify-content:space-between;gap:12px;font-size:11px}
+    .crm-activity-top span{color:var(--text3);white-space:nowrap}
+    .crm-activity-note{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.4}
+    .crm-activity-delete{width:30px;height:30px}
+
     @media(max-width:700px){
       .crm-header{align-items:flex-start}
       .crm-board{grid-template-columns:repeat(7,82vw)}
       .crm-form-grid{grid-template-columns:1fr}
+      .crm-detail-grid{grid-template-columns:1fr}
+      .crm-activity-create{grid-template-columns:1fr}
     }
   </style>
 
@@ -318,6 +339,77 @@
           <div class="modal-actions">
             <button class="btn-secondary" id="crm-lead-cancel">Cancelar</button>
             <button class="save-btn" id="crm-lead-save"><i class="ti ti-user-plus"></i> Crear lead</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRM LEAD DETAIL MODAL -->
+      <div id="crm-detail-modal" class="modal-overlay hidden">
+        <div class="modal-box crm-detail-box">
+          <div class="crm-detail-header">
+            <div>
+              <div class="modal-title" id="crm-detail-name">Lead</div>
+              <div class="crm-detail-meta" id="crm-detail-meta"></div>
+            </div>
+            <button class="icon-btn" id="crm-detail-close"><i class="ti ti-x"></i></button>
+          </div>
+
+          <div class="crm-detail-grid">
+            <div class="crm-detail-left">
+              <div class="field-group">
+                <label class="field-label">Etapa</label>
+                <select class="field-input" id="crm-detail-stage">
+                  <option value="new">Nuevos</option>
+                  <option value="contacted">Contactados</option>
+                  <option value="trial_scheduled">Prueba agendada</option>
+                  <option value="trial_completed">Prueba realizada</option>
+                  <option value="negotiating">Negociación</option>
+                  <option value="won">Ganados</option>
+                  <option value="lost">Perdidos</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">Próximo seguimiento</label>
+                <input class="field-input" type="datetime-local" id="crm-detail-followup" />
+              </div>
+
+              <div class="field-group">
+                <label class="field-label">Notas generales</label>
+                <textarea class="field-input crm-notes-input" id="crm-detail-notes"></textarea>
+              </div>
+
+              <button class="save-btn" id="crm-detail-save">
+                <i class="ti ti-device-floppy"></i> Guardar cambios
+              </button>
+            </div>
+
+            <div class="crm-detail-right">
+              <div class="crm-timeline-title">Historial</div>
+
+              <div class="crm-activity-create">
+                <select class="field-input" id="crm-activity-type">
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="call">Llamada</option>
+                  <option value="email">Email</option>
+                  <option value="note">Nota</option>
+                  <option value="visit">Visita</option>
+                  <option value="trial">Prueba</option>
+                </select>
+
+                <textarea
+                  class="field-input crm-activity-note-input"
+                  id="crm-activity-note"
+                  placeholder="¿Qué pasó con este lead?"
+                ></textarea>
+
+                <button class="save-btn" id="crm-activity-save">
+                  <i class="ti ti-plus"></i> Registrar actividad
+                </button>
+              </div>
+
+              <div class="crm-activity-list" id="crm-activity-list"></div>
+            </div>
           </div>
         </div>
       </div>
