@@ -463,6 +463,29 @@ const ProfileAPI = {
   clearCache() { this._cache = {}; },
 };
 
+// ---- ORGANIZATION MEMBER ----
+const OrganizationMemberAPI = {
+
+  async getMine() {
+    try {
+      const userId = Auth.getUser()?.id;
+      if (!userId) return null;
+
+      const rows = await sbReq(
+        'GET',
+        `organization_members?select=role,is_active,membership_channel,membership_subtype,membership_expires&user_id=eq.${userId}&is_active=eq.true&limit=1`
+      );
+
+      return rows?.[0] || null;
+
+    } catch(e) {
+      console.warn('OrganizationMemberAPI.getMine:', e.message);
+      return null;
+    }
+  },
+
+};
+
 // ---- PODIUMS ----
 const PodiumAPI = {
   async getForUser(userId) {
