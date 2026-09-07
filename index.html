@@ -15,6 +15,36 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <link rel="stylesheet" href="/style.css" />
+
+  <style>
+    .crm-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+    .crm-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+    .crm-stats span{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:12px;color:var(--text2)}
+    .crm-stats strong{color:var(--text);font-size:14px}
+    .crm-board{display:grid;grid-template-columns:repeat(7,minmax(230px,1fr));gap:12px;overflow-x:auto;padding-bottom:18px;align-items:start}
+    .crm-column{min-width:230px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .crm-column-header{display:flex;justify-content:space-between;align-items:center;padding:12px 13px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+    .crm-count{display:inline-flex;min-width:23px;height:23px;align-items:center;justify-content:center;border-radius:999px;background:var(--surface);font-size:11px}
+    .crm-column-body{padding:9px;display:flex;flex-direction:column;gap:9px;min-height:90px}
+    .crm-empty{padding:18px 8px;text-align:center;color:var(--text3);font-size:12px}
+    .crm-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:11px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+    .crm-card-name{font-weight:700;font-size:14px;margin-bottom:7px}
+    .crm-card-source,.crm-card-line{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:11px;margin-top:5px}
+    .crm-card-notes{font-size:11px;color:var(--text2);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.4}
+    .crm-followup{display:flex;align-items:center;gap:5px;font-size:11px;margin-top:8px;padding:6px 7px;border-radius:7px;background:var(--surface2)}
+    .crm-followup.overdue{font-weight:700}
+    .crm-card-actions{display:flex;gap:6px;margin-top:10px;align-items:center}
+    .crm-stage-select{font-size:11px!important;padding:7px!important;min-width:0;flex:1}
+    .crm-delete-btn{flex:0 0 auto}
+    .crm-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .crm-notes-input{min-height:84px;resize:vertical}
+    @media(max-width:700px){
+      .crm-header{align-items:flex-start}
+      .crm-board{grid-template-columns:repeat(7,82vw)}
+      .crm-form-grid{grid-template-columns:1fr}
+    }
+  </style>
+
 </head>
 <body data-theme="dark">
 
@@ -78,6 +108,7 @@
       <button class="nav-tab" data-view="checkins"><i class="ti ti-scan"></i><span>Check-ins</span></button>
       <button class="nav-tab" data-view="members" id="nav-tab-members" style="display:none"><i class="ti ti-users"></i><span>Miembros</span></button>
       <button class="nav-tab" data-view="reports" id="nav-tab-reports" style="display:none"><i class="ti ti-chart-bar"></i><span>Reportes</span></button>
+      <button class="nav-tab" data-view="crm" id="nav-tab-crm" style="display:none"><i class="ti ti-address-book"></i><span>CRM</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
@@ -229,6 +260,68 @@
         <div id="reports-content"></div>
       </section>
       
+      <!-- CRM VIEW (admin only) -->
+      <section id="view-crm" class="view">
+        <div class="crm-header">
+          <div>
+            <h2 class="checkins-title">CRM</h2>
+            <div class="checkins-subtitle">Pipeline comercial de Hub Mind</div>
+          </div>
+          <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
+        </div>
+        <div class="crm-stats" id="crm-stats"></div>
+        <div class="crm-board" id="crm-board"></div>
+      </section>
+
+      <!-- NEW CRM LEAD MODAL -->
+      <div id="crm-lead-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:460px">
+          <div class="modal-title"><i class="ti ti-user-plus" style="color:var(--blue)"></i> Nuevo lead</div>
+          <div class="field-group">
+            <label class="field-label">Nombre *</label>
+            <input class="field-input" id="crm-name" placeholder="Nombre completo" />
+          </div>
+          <div class="crm-form-grid">
+            <div class="field-group">
+              <label class="field-label">Teléfono</label>
+              <input class="field-input" type="tel" id="crm-phone" placeholder="55 0000 0000" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Email</label>
+              <input class="field-input" type="email" id="crm-email" placeholder="correo@email.com" />
+            </div>
+          </div>
+          <div class="crm-form-grid">
+            <div class="field-group">
+              <label class="field-label">Origen</label>
+              <select class="field-input" id="crm-source">
+                <option value="other">Otro</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="website">Website</option>
+                <option value="referral">Referido</option>
+                <option value="walk_in">Walk-in</option>
+                <option value="event">Evento</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Próximo seguimiento</label>
+              <input class="field-input" type="datetime-local" id="crm-followup" />
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Notas</label>
+            <textarea class="field-input crm-notes-input" id="crm-notes" placeholder="Qué busca, qué le interesa, contexto..."></textarea>
+          </div>
+          <div class="login-error hidden" id="crm-lead-error"></div>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="crm-lead-cancel">Cancelar</button>
+            <button class="save-btn" id="crm-lead-save"><i class="ti ti-user-plus"></i> Crear lead</button>
+          </div>
+        </div>
+      </div>
+
       <!-- LEADERBOARD VIEW (admin/coach) -->
       <section id="view-leaderboard-admin" class="view">
       </section>
