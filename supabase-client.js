@@ -982,7 +982,7 @@ const CRMAPI = {
       console.warn('CRMAPI.getFollowUps:', e.message);
       return [];
     }
-  }
+  },
   async listActivities(leadId) {
     try {
       const rows = await sbReq(
