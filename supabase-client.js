@@ -873,6 +873,119 @@ async setRole(userId, role) {
   }
  }
 };
+// ---- CRM ----
+// Capa de acceso del frontend al CRM de leads.
+// RLS en Supabase se encarga de limitar cada operación a la organización actual.
+const CRMAPI = {
+
+  async listLeads() {
+    try {
+      const rows = await sbReq(
+        'GET',
+        'crm_leads?select=*&order=created_at.desc'
+      );
+
+      return rows || [];
+
+    } catch (e) {
+      console.warn('CRMAPI.listLeads:', e.message);
+      return [];
+    }
+  },
+
+  async createLead({
+    full_name,
+    phone,
+    email,
+    source = 'other',
+    stage = 'new',
+    assigned_to = null,
+    next_follow_up_at = null,
+    notes = null
+  }) {
+    try {
+      const rows = await sbReq(
+        'POST',
+        'crm_leads',
+        {
+          full_name,
+          phone: phone || null,
+          email: email || null,
+          source,
+          stage,
+          assigned_to,
+          next_follow_up_at,
+          notes
+        }
+      );
+
+      return rows?.[0] || null;
+
+    } catch (e) {
+      console.error('CRMAPI.createLead:', e);
+      return null;
+    }
+  },
+
+  async updateLead(leadId, changes) {
+    try {
+      const rows = await sbReq(
+        'PATCH',
+        `crm_leads?id=eq.${leadId}`,
+        {
+          ...changes,
+          updated_at: new Date().toISOString()
+        }
+      );
+
+      return rows?.[0] || null;
+
+    } catch (e) {
+      console.error('CRMAPI.updateLead:', e);
+      return null;
+    }
+  },
+
+  async deleteLead(leadId) {
+    try {
+      await sbReq(
+        'DELETE',
+        `crm_leads?id=eq.${leadId}`,
+        null,
+        'return=minimal'
+      );
+
+      return true;
+
+    } catch (e) {
+      console.error('CRMAPI.deleteLead:', e);
+      return false;
+    }
+  },
+
+  async moveStage(leadId, stage) {
+    return this.updateLead(leadId, { stage });
+  },
+
+  async getFollowUps() {
+    try {
+      const now = new Date().toISOString();
+
+      const rows = await sbReq(
+        'GET',
+        `crm_leads?select=*&next_follow_up_at=lte.${encodeURIComponent(now)}&stage=not.in.(won,lost)&order=next_follow_up_at.asc`
+      );
+
+      return rows || [];
+
+    } catch (e) {
+      console.warn('CRMAPI.getFollowUps:', e.message);
+      return [];
+    }
+  }
+
+};
+
 // ---- REPORTS (admin only) ----
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
