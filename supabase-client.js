@@ -983,6 +983,7 @@ const CRMAPI = {
       return [];
     }
   },
+
   async listActivities(leadId) {
     try {
       const rows = await sbReq(
@@ -1033,7 +1034,8 @@ const CRMAPI = {
       console.error('CRMAPI.deleteActivity:', e);
       return false;
     }
-  },
+  }
+
 };
 
 // ---- REPORTS (admin only) ----
