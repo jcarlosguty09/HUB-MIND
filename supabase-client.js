@@ -1034,6 +1034,97 @@ const CRMAPI = {
       console.error('CRMAPI.deleteActivity:', e);
       return false;
     }
+  },
+
+  async listTasks({ status = null, leadId = null } = {}) {
+    try {
+      let path = 'crm_tasks?select=*&order=due_at.asc';
+
+      if (status) path += `&status=eq.${encodeURIComponent(status)}`;
+      if (leadId) path += `&lead_id=eq.${encodeURIComponent(leadId)}`;
+
+      const rows = await sbReq('GET', path);
+      return rows || [];
+
+    } catch (e) {
+      console.warn('CRMAPI.listTasks:', e.message);
+      return [];
+    }
+  },
+
+  async createTask({
+    lead_id,
+    title,
+    due_at,
+    assigned_to = null,
+    note = null
+  }) {
+    try {
+      const rows = await sbReq(
+        'POST',
+        'crm_tasks',
+        {
+          lead_id,
+          title,
+          due_at,
+          assigned_to,
+          note
+        }
+      );
+
+      return rows?.[0] || null;
+
+    } catch (e) {
+      console.error('CRMAPI.createTask:', e);
+      return null;
+    }
+  },
+
+  async updateTask(taskId, changes) {
+    try {
+      const rows = await sbReq(
+        'PATCH',
+        `crm_tasks?id=eq.${taskId}`,
+        changes
+      );
+
+      return rows?.[0] || null;
+
+    } catch (e) {
+      console.error('CRMAPI.updateTask:', e);
+      return null;
+    }
+  },
+
+  async completeTask(taskId) {
+    return this.updateTask(taskId, {
+      status: 'completed',
+      completed_at: new Date().toISOString()
+    });
+  },
+
+  async reopenTask(taskId) {
+    return this.updateTask(taskId, {
+      status: 'pending',
+      completed_at: null
+    });
+  },
+
+  async deleteTask(taskId) {
+    try {
+      await sbReq(
+        'DELETE',
+        `crm_tasks?id=eq.${taskId}`,
+        null,
+        'return=minimal'
+      );
+
+      return true;
+
+    } catch (e) {
+      console.error('CRMAPI.deleteTask:', e);
+      return false;
+    }
   }
 
 };

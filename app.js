@@ -1914,6 +1914,7 @@ async function init() {
   el('crm-detail-close').addEventListener('click', closeCRMLeadDetail);
   el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
   el('crm-activity-save').addEventListener('click', saveCRMActivity);
+  el('crm-task-save').addEventListener('click', createCRMTaskForSelectedLead);
   el('crm-detail-save').addEventListener('click', saveCRMLeadDetail);
 
   el('prev-month').addEventListener('click', () => { if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; } renderCalendar(); });
@@ -2187,6 +2188,28 @@ function crmFormatFollowUp(value) {
   });
 }
 
+function crmTodayRange() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function crmTaskIsDueToday(task) {
+  if (!task?.due_at || task.status !== 'pending') return false;
+  const due = new Date(task.due_at);
+  const { start, end } = crmTodayRange();
+  return due >= start && due <= end;
+}
+
+function crmTaskIsOverdue(task) {
+  if (!task?.due_at || task.status !== 'pending') return false;
+  const { start } = crmTodayRange();
+  return new Date(task.due_at) < start;
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -2194,22 +2217,27 @@ async function renderCRM() {
 
   board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
 
-  const leads = await CRMAPI.listLeads();
+  const [leads, tasks] = await Promise.all([
+    CRMAPI.listLeads(),
+    CRMAPI.listTasks({ status: 'pending' })
+  ]);
+
+  const leadMap = Object.fromEntries(leads.map(l => [l.id, l]));
+  const dueToday = tasks.filter(crmTaskIsDueToday);
+  const overdueTasks = tasks.filter(crmTaskIsOverdue);
 
   if (stats) {
     const open = leads.filter(l => !['won','lost'].includes(l.stage)).length;
     const won = leads.filter(l => l.stage === 'won').length;
-    const overdue = leads.filter(l =>
-      l.next_follow_up_at &&
-      new Date(l.next_follow_up_at) <= new Date() &&
-      !['won','lost'].includes(l.stage)
-    ).length;
     stats.innerHTML = `
       <span><strong>${leads.length}</strong> leads</span>
       <span><strong>${open}</strong> activos</span>
       <span><strong>${won}</strong> ganados</span>
-      <span><strong>${overdue}</strong> seguimientos pendientes</span>`;
+      <span><strong>${dueToday.length}</strong> tareas hoy</span>
+      <span><strong>${overdueTasks.length}</strong> vencidas</span>`;
   }
+
+  renderCRMTodayTasks([...overdueTasks, ...dueToday], leadMap);
 
   board.innerHTML = '';
 
@@ -2306,6 +2334,196 @@ async function renderCRM() {
 }
 
 
+
+async function renderCRMTodayTasks(tasks, leadMap = {}) {
+  const wrap = el('crm-today-tasks');
+  if (!wrap) return;
+
+  wrap.innerHTML = '';
+
+  if (!tasks.length) {
+    wrap.innerHTML = `
+      <div class="crm-tasks-empty">
+        <i class="ti ti-circle-check"></i>
+        Sin seguimientos pendientes para hoy.
+      </div>`;
+    return;
+  }
+
+  tasks.forEach(task => {
+    const lead = leadMap[task.lead_id];
+    const row = document.createElement('div');
+    row.className = 'crm-task-row' + (crmTaskIsOverdue(task) ? ' overdue' : '');
+
+    const dueLabel = new Date(task.due_at).toLocaleString('es-MX', {
+      day:'2-digit',
+      month:'short',
+      hour:'2-digit',
+      minute:'2-digit'
+    });
+
+    row.innerHTML = `
+      <button class="crm-task-check" title="Completar seguimiento">
+        <i class="ti ti-circle"></i>
+      </button>
+      <div class="crm-task-main">
+        <div class="crm-task-title">${escHtml(task.title)}</div>
+        <div class="crm-task-meta">
+          ${lead ? `<span>${escHtml(lead.full_name)}</span>` : ''}
+          <span>${escHtml(dueLabel)}</span>
+          ${crmTaskIsOverdue(task) ? '<span class="crm-task-overdue-label">Vencida</span>' : ''}
+        </div>
+        ${task.note ? `<div class="crm-task-note">${escHtml(task.note)}</div>` : ''}
+      </div>
+      ${lead ? `<button class="icon-btn crm-task-open" title="Abrir lead"><i class="ti ti-arrow-up-right"></i></button>` : ''}`;
+
+    row.querySelector('.crm-task-check').addEventListener('click', async () => {
+      const result = await CRMAPI.completeTask(task.id);
+      if (!result) {
+        showToast('Error al completar seguimiento');
+        return;
+      }
+
+      await CRMAPI.createActivity(
+        task.lead_id,
+        'note',
+        `Seguimiento completado: ${task.title}`
+      );
+
+      showToast('✓ Seguimiento completado');
+      await renderCRM();
+    });
+
+    const openBtn = row.querySelector('.crm-task-open');
+    if (openBtn && lead) {
+      openBtn.addEventListener('click', () => openCRMLeadDetail(lead));
+    }
+
+    wrap.appendChild(row);
+  });
+}
+
+async function renderCRMLeadTasks(leadId) {
+  const wrap = el('crm-lead-task-list');
+  if (!wrap) return;
+
+  wrap.innerHTML = '<div class="crm-activity-empty">Cargando seguimientos...</div>';
+
+  const tasks = await CRMAPI.listTasks({ leadId });
+
+  if (!tasks.length) {
+    wrap.innerHTML = '<div class="crm-activity-empty">Este lead no tiene seguimientos.</div>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+
+  tasks.forEach(task => {
+    const row = document.createElement('div');
+    row.className = 'crm-lead-task-item' + (task.status === 'completed' ? ' completed' : '');
+
+    const dueLabel = new Date(task.due_at).toLocaleString('es-MX', {
+      day:'2-digit',
+      month:'short',
+      year:'numeric',
+      hour:'2-digit',
+      minute:'2-digit'
+    });
+
+    row.innerHTML = `
+      <button class="crm-task-check" title="${task.status === 'completed' ? 'Reabrir' : 'Completar'}">
+        <i class="ti ti-${task.status === 'completed' ? 'circle-check-filled' : 'circle'}"></i>
+      </button>
+      <div class="crm-task-main">
+        <div class="crm-task-title">${escHtml(task.title)}</div>
+        <div class="crm-task-meta">
+          <span>${escHtml(dueLabel)}</span>
+          <span>${task.status === 'completed' ? 'Completada' : 'Pendiente'}</span>
+        </div>
+        ${task.note ? `<div class="crm-task-note">${escHtml(task.note)}</div>` : ''}
+      </div>
+      <button class="icon-btn crm-task-delete" title="Eliminar seguimiento">
+        <i class="ti ti-trash"></i>
+      </button>`;
+
+    row.querySelector('.crm-task-check').addEventListener('click', async () => {
+      const result = task.status === 'completed'
+        ? await CRMAPI.reopenTask(task.id)
+        : await CRMAPI.completeTask(task.id);
+
+      if (!result) {
+        showToast('Error al actualizar seguimiento');
+        return;
+      }
+
+      showToast(task.status === 'completed' ? 'Seguimiento reabierto' : '✓ Seguimiento completado');
+      await renderCRMLeadTasks(leadId);
+      await renderCRM();
+    });
+
+    row.querySelector('.crm-task-delete').addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este seguimiento?')) return;
+      const ok = await CRMAPI.deleteTask(task.id);
+      if (!ok) {
+        showToast('Error al eliminar seguimiento');
+        return;
+      }
+      showToast('Seguimiento eliminado');
+      await renderCRMLeadTasks(leadId);
+      await renderCRM();
+    });
+
+    wrap.appendChild(row);
+  });
+}
+
+async function createCRMTaskForSelectedLead() {
+  if (!crmSelectedLead) return;
+
+  const title = el('crm-task-title').value.trim();
+  const dueRaw = el('crm-task-due').value;
+  const note = el('crm-task-note').value.trim();
+
+  if (!title || !dueRaw) {
+    showToast('Escribe título y fecha del seguimiento');
+    return;
+  }
+
+  const btn = el('crm-task-save');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
+
+  const result = await CRMAPI.createTask({
+    lead_id: crmSelectedLead.id,
+    title,
+    due_at: new Date(dueRaw).toISOString(),
+    note: note || null
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-plus"></i> Crear seguimiento';
+
+  if (!result) {
+    showToast('Error al crear seguimiento');
+    return;
+  }
+
+  el('crm-task-title').value = '';
+  el('crm-task-due').value = '';
+  el('crm-task-note').value = '';
+
+  await CRMAPI.createActivity(
+    crmSelectedLead.id,
+    'note',
+    `Seguimiento creado: ${title}`
+  );
+
+  showToast('✓ Seguimiento creado');
+  await renderCRMLeadTasks(crmSelectedLead.id);
+  await renderCRMActivities(crmSelectedLead.id);
+  await renderCRM();
+}
+
 async function openCRMLeadDetail(lead) {
   crmSelectedLead = lead;
 
@@ -2327,7 +2545,14 @@ async function openCRMLeadDetail(lead) {
   el('crm-activity-note').value = '';
   el('crm-activity-type').value = 'whatsapp';
 
-  await renderCRMActivities(lead.id);
+  el('crm-task-title').value = '';
+  el('crm-task-due').value = '';
+  el('crm-task-note').value = '';
+
+  await Promise.all([
+    renderCRMActivities(lead.id),
+    renderCRMLeadTasks(lead.id)
+  ]);
 }
 
 function closeCRMLeadDetail() {

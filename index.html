@@ -39,6 +39,28 @@
     .crm-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .crm-notes-input{min-height:84px;resize:vertical}
 
+
+    .crm-tasks-panel{margin:0 0 18px;border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden}
+    .crm-tasks-panel-header{padding:13px 14px;border-bottom:1px solid var(--border)}
+    .crm-tasks-panel-title{font-weight:700;font-size:14px}
+    .crm-today-tasks{display:flex;flex-direction:column}
+    .crm-tasks-empty{display:flex;align-items:center;gap:8px;padding:16px 14px;color:var(--text3);font-size:12px}
+    .crm-task-row,.crm-lead-task-item{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:start;padding:11px 12px;border-bottom:1px solid var(--border)}
+    .crm-task-row:last-child,.crm-lead-task-item:last-child{border-bottom:0}
+    .crm-task-row.overdue{background:rgba(239,68,68,.05)}
+    .crm-task-check{border:0;background:transparent;color:var(--text2);padding:3px;cursor:pointer;font-size:20px;line-height:1}
+    .crm-task-main{min-width:0}
+    .crm-task-title{font-size:12px;font-weight:700}
+    .crm-task-meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--text3);font-size:10px;margin-top:3px}
+    .crm-task-note{font-size:11px;color:var(--text2);margin-top:5px}
+    .crm-task-overdue-label{font-weight:700}
+    .crm-task-create{display:grid;grid-template-columns:1fr 180px;gap:8px;margin-bottom:10px}
+    .crm-task-create textarea,.crm-task-create button{grid-column:1 / -1}
+    .crm-lead-task-list{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px}
+    .crm-lead-task-item.completed{opacity:.6}
+    .crm-lead-task-item.completed .crm-task-title{text-decoration:line-through}
+    .crm-history-title{margin-top:4px}
+
     .crm-card{cursor:pointer}
     .crm-detail-box{width:min(960px,94vw);max-width:960px;max-height:88vh;overflow:auto}
     .crm-detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -63,6 +85,8 @@
       .crm-form-grid{grid-template-columns:1fr}
       .crm-detail-grid{grid-template-columns:1fr}
       .crm-activity-create{grid-template-columns:1fr}
+      .crm-task-create{grid-template-columns:1fr}
+      .crm-task-create textarea,.crm-task-create button{grid-column:auto}
     }
   </style>
 
@@ -291,6 +315,17 @@
           <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
         </div>
         <div class="crm-stats" id="crm-stats"></div>
+
+        <div class="crm-tasks-panel">
+          <div class="crm-tasks-panel-header">
+            <div>
+              <div class="crm-tasks-panel-title">Seguimientos de hoy</div>
+              <div class="checkins-subtitle">Lo que requiere acción comercial ahora</div>
+            </div>
+          </div>
+          <div id="crm-today-tasks" class="crm-today-tasks"></div>
+        </div>
+
         <div class="crm-board" id="crm-board"></div>
       </section>
 
@@ -385,7 +420,20 @@
             </div>
 
             <div class="crm-detail-right">
-              <div class="crm-timeline-title">Historial</div>
+              <div class="crm-timeline-title">Seguimientos</div>
+
+              <div class="crm-task-create">
+                <input class="field-input" id="crm-task-title" placeholder="Ej: Escribir por WhatsApp" />
+                <input class="field-input" type="datetime-local" id="crm-task-due" />
+                <textarea class="field-input crm-activity-note-input" id="crm-task-note" placeholder="Nota opcional"></textarea>
+                <button class="save-btn" id="crm-task-save">
+                  <i class="ti ti-plus"></i> Crear seguimiento
+                </button>
+              </div>
+
+              <div class="crm-lead-task-list" id="crm-lead-task-list"></div>
+
+              <div class="crm-timeline-title crm-history-title">Historial</div>
 
               <div class="crm-activity-create">
                 <select class="field-input" id="crm-activity-type">
