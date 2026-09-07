@@ -983,7 +983,57 @@ const CRMAPI = {
       return [];
     }
   }
+  async listActivities(leadId) {
+    try {
+      const rows = await sbReq(
+        'GET',
+        `crm_activities?select=*&lead_id=eq.${leadId}&order=created_at.desc`
+      );
 
+      return rows || [];
+
+    } catch (e) {
+      console.warn('CRMAPI.listActivities:', e.message);
+      return [];
+    }
+  },
+
+  async createActivity(leadId, type, note = null) {
+    try {
+      const rows = await sbReq(
+        'POST',
+        'crm_activities',
+        {
+          lead_id: leadId,
+          type,
+          note: note || null
+        }
+      );
+
+      return rows?.[0] || null;
+
+    } catch (e) {
+      console.error('CRMAPI.createActivity:', e);
+      return null;
+    }
+  },
+
+  async deleteActivity(activityId) {
+    try {
+      await sbReq(
+        'DELETE',
+        `crm_activities?id=eq.${activityId}`,
+        null,
+        'return=minimal'
+      );
+
+      return true;
+
+    } catch (e) {
+      console.error('CRMAPI.deleteActivity:', e);
+      return false;
+    }
+  },
 };
 
 // ---- REPORTS (admin only) ----
