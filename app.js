@@ -93,6 +93,7 @@ function showView(v) {
   if (v === 'dashboard-admin') renderAdminDashboard();
   if (v === 'members') renderMembers();
   if (v === 'reports') renderReports();
+  if (v === 'crm') renderCRM();
 }
 
 // ---- SUPABASE LOAD ----
@@ -745,6 +746,7 @@ async function showApp() {
   // Mostrar tab de Miembros solo para admin
   el('nav-tab-members').style.display = role === 'admin' ? '' : 'none';
   el('nav-tab-reports').style.display = role === 'admin' ? '' : 'none';
+  el('nav-tab-crm').style.display = role === 'admin' ? '' : 'none';
 
   await renderCalendar();
   await renderToday();
@@ -1905,6 +1907,10 @@ async function init() {
 
   document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   el('theme-toggle').addEventListener('click', toggleTheme);
+  el('crm-new-btn').addEventListener('click', openCRMLeadModal);
+  el('crm-lead-cancel').addEventListener('click', closeCRMLeadModal);
+  el('crm-lead-save').addEventListener('click', saveCRMLead);
+  el('crm-lead-modal').addEventListener('click', e => { if (e.target === el('crm-lead-modal')) closeCRMLeadModal(); });
 
   el('prev-month').addEventListener('click', () => { if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; } renderCalendar(); });
   el('next-month').addEventListener('click', () => { if (++state.curMonth > 11) { state.curMonth = 0;  state.curYear++; } renderCalendar(); });
@@ -2139,6 +2145,191 @@ async function init() {
     showLogin();
   }
 }
+
+// ---- CRM (admin only) ----
+const CRM_STAGES = [
+  { id:'new',             label:'Nuevos' },
+  { id:'contacted',       label:'Contactados' },
+  { id:'trial_scheduled', label:'Prueba agendada' },
+  { id:'trial_completed', label:'Prueba realizada' },
+  { id:'negotiating',     label:'Negociación' },
+  { id:'won',             label:'Ganados' },
+  { id:'lost',            label:'Perdidos' },
+];
+
+const CRM_SOURCE_LABELS = {
+  walk_in:'Walk-in', instagram:'Instagram', facebook:'Facebook',
+  whatsapp:'WhatsApp', website:'Website', referral:'Referido',
+  event:'Evento', other:'Otro'
+};
+
+function crmFormatFollowUp(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  return d.toLocaleString('es-MX', {
+    day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+async function renderCRM() {
+  const board = el('crm-board');
+  const stats = el('crm-stats');
+  if (!board) return;
+
+  board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
+
+  const leads = await CRMAPI.listLeads();
+
+  if (stats) {
+    const open = leads.filter(l => !['won','lost'].includes(l.stage)).length;
+    const won = leads.filter(l => l.stage === 'won').length;
+    const overdue = leads.filter(l =>
+      l.next_follow_up_at &&
+      new Date(l.next_follow_up_at) <= new Date() &&
+      !['won','lost'].includes(l.stage)
+    ).length;
+    stats.innerHTML = `
+      <span><strong>${leads.length}</strong> leads</span>
+      <span><strong>${open}</strong> activos</span>
+      <span><strong>${won}</strong> ganados</span>
+      <span><strong>${overdue}</strong> seguimientos pendientes</span>`;
+  }
+
+  board.innerHTML = '';
+
+  CRM_STAGES.forEach(stage => {
+    const stageLeads = leads.filter(l => l.stage === stage.id);
+    const col = document.createElement('div');
+    col.className = `crm-column crm-stage-${stage.id}`;
+    col.innerHTML = `
+      <div class="crm-column-header">
+        <span>${stage.label}</span>
+        <span class="crm-count">${stageLeads.length}</span>
+      </div>
+      <div class="crm-column-body"></div>`;
+
+    const body = col.querySelector('.crm-column-body');
+
+    if (!stageLeads.length) {
+      body.innerHTML = '<div class="crm-empty">Sin leads</div>';
+    }
+
+    stageLeads.forEach(lead => {
+      const card = document.createElement('div');
+      card.className = 'crm-card';
+
+      const followUpDue = lead.next_follow_up_at &&
+        new Date(lead.next_follow_up_at) <= new Date() &&
+        !['won','lost'].includes(lead.stage);
+
+      card.innerHTML = `
+        <div class="crm-card-name">${escHtml(lead.full_name)}</div>
+        <div class="crm-card-source">
+          <i class="ti ti-bolt"></i> ${escHtml(CRM_SOURCE_LABELS[lead.source] || lead.source || 'Otro')}
+        </div>
+        ${lead.phone ? `<div class="crm-card-line"><i class="ti ti-phone"></i>${escHtml(lead.phone)}</div>` : ''}
+        ${lead.email ? `<div class="crm-card-line"><i class="ti ti-mail"></i>${escHtml(lead.email)}</div>` : ''}
+        ${lead.next_follow_up_at ? `
+          <div class="crm-followup${followUpDue ? ' overdue' : ''}">
+            <i class="ti ti-calendar-time"></i>
+            ${followUpDue ? 'Pendiente · ' : ''}${escHtml(crmFormatFollowUp(lead.next_follow_up_at))}
+          </div>` : ''}
+        ${lead.notes ? `<div class="crm-card-notes">${escHtml(lead.notes)}</div>` : ''}
+        <div class="crm-card-actions">
+          <select class="field-input crm-stage-select" aria-label="Mover etapa">
+            ${CRM_STAGES.map(s => `<option value="${s.id}"${s.id === lead.stage ? ' selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+          <button class="icon-btn crm-delete-btn" title="Eliminar lead"><i class="ti ti-trash"></i></button>
+        </div>`;
+
+      card.querySelector('.crm-stage-select').addEventListener('change', async e => {
+        const nextStage = e.target.value;
+        e.target.disabled = true;
+        const result = await CRMAPI.moveStage(lead.id, nextStage);
+        if (result) {
+          showToast('✓ Lead actualizado');
+          await renderCRM();
+        } else {
+          showToast('Error al mover lead');
+          e.target.disabled = false;
+          e.target.value = lead.stage;
+        }
+      });
+
+      card.querySelector('.crm-delete-btn').addEventListener('click', async () => {
+        if (!confirm(`¿Eliminar a ${lead.full_name} del CRM?`)) return;
+        const ok = await CRMAPI.deleteLead(lead.id);
+        if (ok) {
+          showToast('Lead eliminado');
+          await renderCRM();
+        } else {
+          showToast('Error al eliminar lead');
+        }
+      });
+
+      body.appendChild(card);
+    });
+
+    board.appendChild(col);
+  });
+}
+
+function openCRMLeadModal() {
+  el('crm-lead-modal').classList.remove('hidden');
+  el('crm-lead-error').classList.add('hidden');
+  el('crm-name').value = '';
+  el('crm-phone').value = '';
+  el('crm-email').value = '';
+  el('crm-source').value = 'other';
+  el('crm-followup').value = '';
+  el('crm-notes').value = '';
+  setTimeout(() => el('crm-name').focus(), 50);
+}
+
+function closeCRMLeadModal() {
+  el('crm-lead-modal').classList.add('hidden');
+}
+
+async function saveCRMLead() {
+  const name = el('crm-name').value.trim();
+  const err = el('crm-lead-error');
+  if (!name) {
+    err.textContent = 'Escribe el nombre del lead.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  const btn = el('crm-lead-save');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
+  err.classList.add('hidden');
+
+  const result = await CRMAPI.createLead({
+    full_name: name,
+    phone: el('crm-phone').value.trim() || null,
+    email: el('crm-email').value.trim() || null,
+    source: el('crm-source').value,
+    stage: 'new',
+    next_follow_up_at: el('crm-followup').value
+      ? new Date(el('crm-followup').value).toISOString()
+      : null,
+    notes: el('crm-notes').value.trim() || null
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-user-plus"></i> Crear lead';
+
+  if (!result) {
+    err.textContent = 'No se pudo crear el lead.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  closeCRMLeadModal();
+  showToast('✓ Lead creado');
+  await renderCRM();
+}
+
 // ---- MEMBERS (admin only) ----
 const ROLE_PERMISSIONS = {
   admin: [
