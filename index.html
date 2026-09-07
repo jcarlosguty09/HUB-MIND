@@ -60,6 +60,13 @@
     .crm-lead-task-item.completed{opacity:.6}
     .crm-lead-task-item.completed .crm-task-title{text-decoration:line-through}
     .crm-history-title{margin-top:4px}
+    .crm-convert-box{margin-top:16px;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .crm-convert-title{font-size:12px;font-weight:700}
+    .crm-convert-sub{font-size:10px;color:var(--text3);margin-top:3px;line-height:1.35}
+    .crm-convert-success{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700}
+    .crm-convert-box.converted{display:block}
+    .crm-convert-person{display:flex;flex-direction:column;gap:3px;padding:11px 12px;margin-bottom:14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border)}
+    .crm-convert-person span{font-size:11px;color:var(--text2)}
 
     .crm-card{cursor:pointer}
     .crm-detail-box{width:min(960px,94vw);max-width:960px;max-height:88vh;overflow:auto}
@@ -417,6 +424,18 @@
               <button class="save-btn" id="crm-detail-save">
                 <i class="ti ti-device-floppy"></i> Guardar cambios
               </button>
+
+              <div class="crm-convert-box" id="crm-convert-box">
+                <div>
+                  <div class="crm-convert-title">Convertir a miembro</div>
+                  <div class="crm-convert-sub">
+                    Crea su acceso de atleta y lo agrega automáticamente a Hub Mind.
+                  </div>
+                </div>
+                <button class="save-btn" id="crm-convert-open">
+                  <i class="ti ti-user-check"></i> Convertir
+                </button>
+              </div>
             </div>
 
             <div class="crm-detail-right">
@@ -458,6 +477,57 @@
 
               <div class="crm-activity-list" id="crm-activity-list"></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRM CONVERT LEAD MODAL -->
+      <div id="crm-convert-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:460px">
+          <div class="modal-title">
+            <i class="ti ti-user-check" style="color:var(--blue)"></i>
+            Convertir a miembro
+          </div>
+
+          <div class="crm-convert-person">
+            <strong id="crm-convert-name">Lead</strong>
+            <span id="crm-convert-email"></span>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Contraseña inicial</label>
+            <input class="field-input" type="text" id="crm-convert-password" value="HubMindAtleta" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Canal de membresía</label>
+            <select class="field-input" id="crm-convert-channel">
+              <option value="">Sin asignar</option>
+              <option value="direct">Directa</option>
+              <option value="wellhub">Wellhub</option>
+              <option value="totalpass">TotalPass</option>
+              <option value="classpass">ClassPass</option>
+              <option value="other">Otro</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Tipo / plan</label>
+            <input class="field-input" id="crm-convert-subtype" placeholder="Ej: Mensual, 12 clases, Unlimited..." />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Vencimiento</label>
+            <input class="field-input" type="date" id="crm-convert-expires" />
+          </div>
+
+          <div class="login-error hidden" id="crm-convert-error"></div>
+
+          <div class="modal-actions">
+            <button class="btn-secondary" id="crm-convert-cancel">Cancelar</button>
+            <button class="save-btn" id="crm-convert-save">
+              <i class="ti ti-user-check"></i> Crear miembro
+            </button>
           </div>
         </div>
       </div>

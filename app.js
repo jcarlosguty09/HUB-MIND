@@ -1917,6 +1917,12 @@ async function init() {
   el('crm-task-save').addEventListener('click', createCRMTaskForSelectedLead);
   el('crm-detail-save').addEventListener('click', saveCRMLeadDetail);
 
+  el('crm-convert-cancel').addEventListener('click', closeCRMConvertModal);
+  el('crm-convert-save').addEventListener('click', convertSelectedLeadToMember);
+  el('crm-convert-modal').addEventListener('click', e => {
+    if (e.target === el('crm-convert-modal')) closeCRMConvertModal();
+  });
+
   el('prev-month').addEventListener('click', () => { if (--state.curMonth < 0) { state.curMonth = 11; state.curYear--; } renderCalendar(); });
   el('next-month').addEventListener('click', () => { if (++state.curMonth > 11) { state.curMonth = 0;  state.curYear++; } renderCalendar(); });
 
@@ -2524,6 +2530,106 @@ async function createCRMTaskForSelectedLead() {
   await renderCRM();
 }
 
+
+function openCRMConvertModal(lead) {
+  if (!lead) return;
+
+  if (!lead.email) {
+    showToast('Agrega un email al lead antes de convertirlo');
+    return;
+  }
+
+  crmSelectedLead = lead;
+
+  el('crm-convert-name').textContent = lead.full_name || 'Lead';
+  el('crm-convert-email').textContent = lead.email || '';
+  el('crm-convert-password').value = 'HubMindAtleta';
+  el('crm-convert-channel').value = '';
+  el('crm-convert-subtype').value = '';
+  el('crm-convert-expires').value = '';
+  el('crm-convert-error').classList.add('hidden');
+  el('crm-convert-modal').classList.remove('hidden');
+}
+
+function closeCRMConvertModal() {
+  el('crm-convert-modal').classList.add('hidden');
+}
+
+async function convertSelectedLeadToMember() {
+  const lead = crmSelectedLead;
+  if (!lead) return;
+
+  const password = el('crm-convert-password').value.trim();
+  const channel = el('crm-convert-channel').value || null;
+  const subtype = el('crm-convert-subtype').value.trim() || null;
+  const expires = el('crm-convert-expires').value || null;
+
+  const err = el('crm-convert-error');
+  err.classList.add('hidden');
+
+  if (!lead.email) {
+    err.textContent = 'El lead necesita un email para crear su acceso.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  if (password.length < 6) {
+    err.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  const btn = el('crm-convert-save');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Convirtiendo...';
+
+  try {
+    const created = await AdminAPI.createUser(
+      lead.email,
+      password,
+      'atleta',
+      lead.full_name,
+      {
+        phone: lead.phone || null,
+        lead_id: lead.id
+      }
+    );
+
+    if (!created?.id) {
+      throw new Error('La función no devolvió el usuario creado');
+    }
+
+    if (channel || subtype || expires) {
+      const membershipOk = await MemberAPI.setMembership(
+        created.id,
+        channel,
+        subtype,
+        expires
+      );
+
+      if (!membershipOk) {
+        showToast('Miembro creado, pero revisa la membresía');
+      }
+    }
+
+    AthleteAPI.clearCache();
+    ProfileAPI.clearCache();
+
+    closeCRMConvertModal();
+    closeCRMLeadDetail();
+    showToast('✓ Lead convertido a miembro');
+    await renderCRM();
+
+  } catch (e) {
+    console.error('convertSelectedLeadToMember:', e);
+    err.textContent = e.message || 'No se pudo convertir el lead.';
+    err.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-user-check"></i> Crear miembro';
+  }
+}
+
 async function openCRMLeadDetail(lead) {
   crmSelectedLead = lead;
 
@@ -2544,6 +2650,35 @@ async function openCRMLeadDetail(lead) {
   el('crm-detail-notes').value = lead.notes || '';
   el('crm-activity-note').value = '';
   el('crm-activity-type').value = 'whatsapp';
+
+  const convertBox = el('crm-convert-box');
+  const convertBtn = el('crm-convert-open');
+
+  if (lead.converted_user_id) {
+    convertBox.classList.add('converted');
+    convertBox.innerHTML = `
+      <div class="crm-convert-success">
+        <i class="ti ti-circle-check-filled"></i>
+        Este lead ya fue convertido a miembro.
+      </div>`;
+  } else {
+    convertBox.classList.remove('converted');
+    convertBox.innerHTML = `
+      <div>
+        <div class="crm-convert-title">Convertir a miembro</div>
+        <div class="crm-convert-sub">
+          Crea su acceso de atleta y lo agrega automáticamente a Hub Mind.
+        </div>
+      </div>
+      <button class="save-btn" id="crm-convert-open">
+        <i class="ti ti-user-check"></i> Convertir
+      </button>`;
+
+    const freshBtn = el('crm-convert-open');
+    freshBtn.disabled = !lead.email;
+    freshBtn.title = lead.email ? '' : 'Este lead necesita email para crear acceso';
+    freshBtn.addEventListener('click', () => openCRMConvertModal(lead));
+  }
 
   el('crm-task-title').value = '';
   el('crm-task-due').value = '';

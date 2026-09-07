@@ -346,10 +346,20 @@ const AthleteAPI = {
 
 // ---- CREATE USER (admin/coach via Edge Function) ----
 const AdminAPI = {
-  async createUser(email, password, role, fullName) {
+  async createUser(email, password, role, fullName, options = {}) {
     try {
-      // Use the existing create-users edge function logic via direct admin call
       const token = Auth.getToken();
+
+      const body = {
+        email,
+        password,
+        role,
+        full_name: fullName
+      };
+
+      if (options.phone) body.phone = options.phone;
+      if (options.lead_id) body.lead_id = options.lead_id;
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
         method: 'POST',
         headers: {
@@ -357,14 +367,19 @@ const AdminAPI = {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, role, full_name: fullName }),
+        body: JSON.stringify(body),
       });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `HTTP ${res.status}`);
       }
+
       return await res.json();
-    } catch(e) { throw e; }
+
+    } catch(e) {
+      throw e;
+    }
   },
 };
 
