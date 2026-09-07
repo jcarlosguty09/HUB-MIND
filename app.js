@@ -807,10 +807,11 @@ async function renderAthleteDashboard() {
   if (!dashEl) return;
   dashEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
-  const [podiums, recentScores, profile] = await Promise.all([
+  const [podiums, recentScores, profile, membership] = await Promise.all([
     PodiumAPI.getForUser(userId),
     PodiumAPI.getRecentScores(userId, 10),
     ProfileAPI.get(userId),
+    OrganizationMemberAPI.getMine(),
   ]);
 
   const name     = profile?.full_name || Auth.getUser()?.email?.split('@')[0] || 'Atleta';
@@ -824,15 +825,15 @@ const total = podiums.gold + podiums.silver + podiums.bronze;
 
   // Estado de membresía
   let membershipHTML = '';
-  const ch = profile?.membership_channel;
+  const ch = membership?.membership_channel;
   if (ch) {
     const channelLabels = { membresia: 'Membresía', wellhub: 'WellHub', totalpass: 'Total Pass', fitpass: 'FitPass' };
     const chLabel = channelLabels[ch] || ch;
-    const subLabel = (ch === 'membresia' && profile?.membership_subtype) ? ` · ${escHtml(profile.membership_subtype)}` : '';
+    const subLabel = (ch === 'membresia' && membership?.membership_subtype) ? ` · ${escHtml(membership.membership_subtype)}` : '';
 
     let statusTag = '';
-    if (profile?.membership_expires) {
-      const exp = new Date(profile.membership_expires + 'T00:00:00');
+    if (membership?.membership_expires) {
+      const exp = new Date(membership.membership_expires + 'T00:00:00');
       const now = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) + 'T00:00:00');
       const days = Math.round((exp - now) / 86400000);
       const fmtExp = exp.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -2709,70 +2710,49 @@ function showEditMemberModal(m, onSaved) {
     }
   });
 
- // Guardar cambios
-modal.querySelector('#em-save').addEventListener('click', async () => {
-  const btn = modal.querySelector('#em-save');
+  // Guardar cambios
+  modal.querySelector('#em-save').addEventListener('click', async () => {
+     const name   = modal.querySelector('#em-name').value.trim();
+    const gender = modal.querySelector('#em-gender').value;
+    const role   = modal.querySelector('#em-role').value;
+    const birth  = modal.querySelector('#em-birth').value;
+    const phone  = modal.querySelector('#em-phone').value.trim();
 
-  const name   = modal.querySelector('#em-name').value.trim();
-  const gender = modal.querySelector('#em-gender').value;
-  const role   = modal.querySelector('#em-role').value;
-  const birth  = modal.querySelector('#em-birth').value;
-  const phone  = modal.querySelector('#em-phone').value.trim();
+    if (!name) { showErr('El nombre no puede estar vacío'); return; }
+    errEl.classList.add('hidden');
+    btn.disabled = true; btn.textContent = 'Guardando...';
 
-  if (!name) {
-    showErr('El nombre no puede estar vacío');
-    return;
-  }
-
-  errEl.classList.add('hidden');
-
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
-
-  const tasks = [];
-
-  if (
-    name   !== (m.full_name || '') ||
-    gender !== (m.gender || '') ||
-    birth  !== (m.birth_date || '') ||
-    phone  !== (m.phone || '')
-  ) {
-    tasks.push(
-      MemberAPI.updateProfile(m.id, {
+       const tasks = [];
+    if (name  !== (m.full_name  || '') || gender !== (m.gender || '') ||
+        birth !== (m.birth_date || '') || phone  !== (m.phone  || '')) {
+      tasks.push(MemberAPI.updateProfile(m.id, {
         full_name: name,
         gender: gender || null,
         birth_date: birth || null,
         phone: phone || null,
-      })
-    );
-  }
+      }));
+    }
+    if (role !== m.role) {
+      tasks.push(MemberAPI.setRole(m.id, role));
+    }
 
-  if (role !== m.role) {
-    tasks.push(MemberAPI.setRole(m.id, role));
-  }
+    if (!tasks.length) { modal.remove(); return; }
 
-  if (!tasks.length) {
-    modal.remove();
-    return;
-  }
+    const results = await Promise.all(tasks);
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
 
-  const results = await Promise.all(tasks);
-
-  btn.disabled = false;
-  btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
-
-  if (results.every(Boolean)) {
-    showToast('✓ Miembro actualizado');
-    ProfileAPI.clearCache();
-    AthleteAPI.clearCache();
-    modal.remove();
-
-    if (onSaved) onSaved();
-  } else {
-    showErr('Error al guardar algunos cambios');
-  }
-});
+    if (results.every(Boolean)) {
+      showToast('✓ Miembro actualizado');
+      ProfileAPI.clearCache();
+      AthleteAPI.clearCache();
+      modal.remove();
+      if (onSaved) onSaved();
+    } else {
+      showErr('Error al guardar algunos cambios');
+    }
+  });
 }
+
   // Texto amigable de cumpleaños: edad y cuántos días faltan
 function fmtBirthday(dateStr) {
   if (!dateStr) return '';
