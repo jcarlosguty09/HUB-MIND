@@ -867,13 +867,24 @@ const ReportAPI = {
       return rows || [];
     } catch(e) { console.warn('ReportAPI.checkinsInRange:', e.message); return []; }
   },
-// Perfiles con su canal de membresía (para reportes)
-  async profilesWithMembership() {
-    try {
-      const rows = await sbReq('GET', 'profiles?select=id,full_name,membership_channel,membership_subtype,membership_expires');
-      return rows || [];
-    } catch(e) { console.warn('ReportAPI.profilesWithMembership:', e.message); return []; }
-  },
+// Miembros de la organización actual con su membresía
+async profilesWithMembership() {
+  try {
+    const rows = await sbReq(
+      'GET',
+      'members_admin?select=id,full_name,membership_channel,membership_subtype,membership_expires,is_active'
+    );
+
+    return rows || [];
+
+  } catch(e) {
+    console.warn(
+      'ReportAPI.profilesWithMembership:',
+      e.message
+    );
+    return [];
+  }
+},
   // Último check-in de cada atleta (para detectar inactivos)
   async lastCheckinPerUser() {
     try {
