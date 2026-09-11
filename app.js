@@ -1912,6 +1912,7 @@ async function init() {
   el('crm-lead-save').addEventListener('click', saveCRMLead);
   el('crm-lead-modal').addEventListener('click', e => { if (e.target === el('crm-lead-modal')) closeCRMLeadModal(); });
   el('crm-detail-close').addEventListener('click', closeCRMLeadDetail);
+  el('crm-detail-stage').addEventListener('change', crmToggleLostReasonField);
   el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
   el('crm-activity-save').addEventListener('click', saveCRMActivity);
   el('crm-task-save').addEventListener('click', createCRMTaskForSelectedLead);
@@ -2188,6 +2189,10 @@ let crmSelectedLead = null;
 let crmStaff = [];
 let crmLeadOwnerFilter = 'all';
 let crmDashboardPeriod = '30';
+let crmSearchQuery = '';
+let crmStageFilter = 'all';
+let crmSourceFilter = 'all';
+let crmAssigneeFilter = 'all';
 
 function crmFormatFollowUp(value) {
   if (!value) return '';
@@ -2296,7 +2301,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const closeRate = closedCount ? won.length / closedCount : 0;
 
   const cycleDays = won
-    .map(l => crmDaysBetween(l.created_at, l.updated_at))
+    .map(l => crmDaysBetween(l.created_at, l.closed_at || l.updated_at))
     .filter(v => v !== null);
   const avgCycle = cycleDays.length
     ? cycleDays.reduce((a,b) => a + b, 0) / cycleDays.length
@@ -2487,6 +2492,124 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   });
 }
 
+
+function crmNormalizeText(value) {
+  return (value || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function renderCRMAdvancedFilters(allLeads) {
+  const wrap = el('crm-advanced-filters');
+  if (!wrap) return;
+
+  const sources = [...new Set(allLeads.map(l => l.source).filter(Boolean))]
+    .sort((a,b) => (CRM_SOURCE_LABELS[a] || a).localeCompare(CRM_SOURCE_LABELS[b] || b));
+
+  wrap.innerHTML = `
+    <div class="crm-search-wrap">
+      <i class="ti ti-search"></i>
+      <input class="field-input" id="crm-search-input" placeholder="Buscar nombre, teléfono, email o notas..." value="${escHtml(crmSearchQuery)}" />
+    </div>
+
+    <select class="field-input crm-filter-select" id="crm-filter-stage">
+      <option value="all">Todas las etapas</option>
+      ${CRM_STAGES.map(s => `<option value="${s.id}"${crmStageFilter === s.id ? ' selected' : ''}>${escHtml(s.label)}</option>`).join('')}
+    </select>
+
+    <select class="field-input crm-filter-select" id="crm-filter-source">
+      <option value="all">Todas las fuentes</option>
+      ${sources.map(source => `<option value="${source}"${crmSourceFilter === source ? ' selected' : ''}>${escHtml(CRM_SOURCE_LABELS[source] || source)}</option>`).join('')}
+    </select>
+
+    <select class="field-input crm-filter-select" id="crm-filter-assignee">
+      <option value="all">Todos los responsables</option>
+      <option value="unassigned"${crmAssigneeFilter === 'unassigned' ? ' selected' : ''}>Sin asignar</option>
+      ${crmStaff.map(person => `<option value="${person.id}"${crmAssigneeFilter === person.id ? ' selected' : ''}>${escHtml(person.full_name)}</option>`).join('')}
+    </select>
+
+    <button class="btn-secondary crm-clear-filters" id="crm-clear-filters">
+      <i class="ti ti-filter-off"></i> Limpiar
+    </button>
+  `;
+
+  const searchInput = el('crm-search-input');
+  let searchTimer = null;
+
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      crmSearchQuery = searchInput.value;
+      await renderCRM();
+    }, 180);
+  });
+
+  el('crm-filter-stage')?.addEventListener('change', async e => {
+    crmStageFilter = e.target.value;
+    await renderCRM();
+  });
+
+  el('crm-filter-source')?.addEventListener('change', async e => {
+    crmSourceFilter = e.target.value;
+    await renderCRM();
+  });
+
+  el('crm-filter-assignee')?.addEventListener('change', async e => {
+    crmAssigneeFilter = e.target.value;
+    await renderCRM();
+  });
+
+  el('crm-clear-filters')?.addEventListener('click', async () => {
+    crmSearchQuery = '';
+    crmStageFilter = 'all';
+    crmSourceFilter = 'all';
+    crmAssigneeFilter = 'all';
+    crmLeadOwnerFilter = 'all';
+    await renderCRM();
+  });
+}
+
+function crmApplyAdvancedFilters(leads) {
+  const q = crmNormalizeText(crmSearchQuery);
+
+  return leads.filter(lead => {
+    if (crmStageFilter !== 'all' && lead.stage !== crmStageFilter) return false;
+    if (crmSourceFilter !== 'all' && lead.source !== crmSourceFilter) return false;
+
+    if (crmAssigneeFilter === 'unassigned' && lead.assigned_to) return false;
+    if (
+      crmAssigneeFilter !== 'all' &&
+      crmAssigneeFilter !== 'unassigned' &&
+      lead.assigned_to !== crmAssigneeFilter
+    ) return false;
+
+    if (q) {
+      const haystack = crmNormalizeText([
+        lead.full_name,
+        lead.phone,
+        lead.email,
+        lead.notes,
+        lead.lost_reason,
+        CRM_SOURCE_LABELS[lead.source] || lead.source
+      ].filter(Boolean).join(' '));
+
+      if (!haystack.includes(q)) return false;
+    }
+
+    return true;
+  });
+}
+
+function crmToggleLostReasonField() {
+  const stage = el('crm-detail-stage')?.value;
+  const group = el('crm-lost-reason-group');
+  if (!group) return;
+  group.classList.toggle('hidden', stage !== 'lost');
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -2511,11 +2634,14 @@ async function renderCRM() {
     leads = allLeads.filter(l => !l.assigned_to);
   }
 
+  leads = crmApplyAdvancedFilters(leads);
+
   const leadMap = Object.fromEntries(allLeads.map(l => [l.id, l]));
   const dueToday = tasks.filter(crmTaskIsDueToday);
   const overdueTasks = tasks.filter(crmTaskIsOverdue);
 
   renderCRMDashboard(allLeads, tasks, crmStaff);
+  renderCRMAdvancedFilters(allLeads);
   renderCRMOwnerFilters(allLeads, currentUserId);
 
   if (stats) {
@@ -2527,7 +2653,7 @@ async function renderCRM() {
       <span><strong>${won}</strong> ganados</span>
       <span><strong>${dueToday.length}</strong> tareas hoy</span>
       <span><strong>${overdueTasks.length}</strong> vencidas</span>
-      ${crmLeadOwnerFilter !== 'all' ? `<span><strong>${leads.length}</strong> visibles</span>` : ''}`;
+      ${(crmLeadOwnerFilter !== 'all' || crmSearchQuery || crmStageFilter !== 'all' || crmSourceFilter !== 'all' || crmAssigneeFilter !== 'all') ? `<span><strong>${leads.length}</strong> visibles</span>` : ''}`;
   }
 
   renderCRMTodayTasks([...overdueTasks, ...dueToday], leadMap);
@@ -2575,6 +2701,9 @@ async function renderCRM() {
           <i class="ti ti-user"></i>
           ${escHtml(crmStaffName(lead.assigned_to))}
         </div>
+        ${lead.stage === 'lost' && lead.lost_reason ? `
+          <div class="crm-lost-badge"><i class="ti ti-x"></i>${escHtml(lead.lost_reason)}</div>
+        ` : ''}
         ${lead.notes ? `<div class="crm-card-notes">${escHtml(lead.notes)}</div>` : ''}
         <div class="crm-card-actions">
           <select class="field-input crm-stage-select" aria-label="Mover etapa">
@@ -2590,15 +2719,36 @@ async function renderCRM() {
         const previousStage = lead.stage;
         e.target.disabled = true;
 
-        const result = await CRMAPI.moveStage(lead.id, nextStage);
+        let lostReason = null;
+        if (nextStage === 'lost') {
+          lostReason = prompt('¿Por qué se perdió este lead?');
+          if (lostReason === null) {
+            e.target.disabled = false;
+            e.target.value = previousStage;
+            return;
+          }
+          lostReason = lostReason.trim();
+          if (!lostReason) {
+            showToast('Escribe un motivo de pérdida');
+            e.target.disabled = false;
+            e.target.value = previousStage;
+            return;
+          }
+        }
+
+        const result = await CRMAPI.updateLead(lead.id, {
+          stage: nextStage,
+          lost_reason: nextStage === 'lost' ? lostReason : null
+        });
 
         if (result) {
           const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
           const toLabel = CRM_STAGES.find(s => s.id === nextStage)?.label || nextStage;
+          const reasonSuffix = nextStage === 'lost' && lostReason ? ` · Motivo: ${lostReason}` : '';
           await CRMAPI.createActivity(
             lead.id,
             'stage_change',
-            `${fromLabel} → ${toLabel}`
+            `${fromLabel} → ${toLabel}${reasonSuffix}`
           );
           showToast('✓ Lead actualizado');
           await renderCRM();
@@ -2840,7 +2990,7 @@ async function createCRMTaskForSelectedLead() {
   el('crm-task-due').value = '';
   el('crm-task-note').value = '';
   el('crm-task-assignee').innerHTML = crmAssigneeOptions(
-    lead.assigned_to || Auth.getUser()?.id || null
+    crmSelectedLead?.assigned_to || Auth.getUser()?.id || null
   );
 
   await CRMAPI.createActivity(
@@ -2966,8 +3116,14 @@ async function openCRMLeadDetail(lead) {
     lead.email || null
   ].filter(Boolean).join(' · ');
 
+  el('crm-detail-full-name').value = lead.full_name || '';
+  el('crm-detail-phone').value = lead.phone || '';
+  el('crm-detail-email').value = lead.email || '';
+  el('crm-detail-source').value = lead.source || 'other';
   el('crm-detail-stage').value = lead.stage || 'new';
   el('crm-detail-assignee').innerHTML = crmAssigneeOptions(lead.assigned_to);
+  el('crm-detail-lost-reason').value = lead.lost_reason || '';
+  crmToggleLostReasonField();
   el('crm-detail-followup').value = lead.next_follow_up_at
     ? new Date(new Date(lead.next_follow_up_at).getTime() - new Date().getTimezoneOffset() * 60000)
         .toISOString().slice(0,16)
@@ -3110,16 +3266,37 @@ async function saveCRMActivity() {
 async function saveCRMLeadDetail() {
   if (!crmSelectedLead) return;
 
+  const fullName = el('crm-detail-full-name').value.trim();
+  const phone = el('crm-detail-phone').value.trim();
+  const email = el('crm-detail-email').value.trim();
+  const source = el('crm-detail-source').value || 'other';
   const stage = el('crm-detail-stage').value;
   const assignedTo = el('crm-detail-assignee').value || null;
   const followupRaw = el('crm-detail-followup').value;
   const notes = el('crm-detail-notes').value.trim();
+  const lostReason = el('crm-detail-lost-reason').value.trim();
+
+  if (!fullName) {
+    showToast('El nombre del lead es obligatorio');
+    return;
+  }
+
+  if (stage === 'lost' && !lostReason) {
+    showToast('Agrega el motivo de pérdida');
+    el('crm-detail-lost-reason').focus();
+    return;
+  }
 
   const changes = {
+    full_name: fullName,
+    phone: phone || null,
+    email: email || null,
+    source,
     stage,
     assigned_to: assignedTo,
     next_follow_up_at: followupRaw ? new Date(followupRaw).toISOString() : null,
-    notes: notes || null
+    notes: notes || null,
+    lost_reason: stage === 'lost' ? lostReason : null
   };
 
   const previousStage = crmSelectedLead.stage;
@@ -3133,10 +3310,11 @@ async function saveCRMLeadDetail() {
   if (previousStage !== stage) {
     const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
     const toLabel = CRM_STAGES.find(s => s.id === stage)?.label || stage;
+    const reasonSuffix = stage === 'lost' && lostReason ? ` · Motivo: ${lostReason}` : '';
     await CRMAPI.createActivity(
       crmSelectedLead.id,
       'stage_change',
-      `${fromLabel} → ${toLabel}`
+      `${fromLabel} → ${toLabel}${reasonSuffix}`
     );
   }
 
@@ -3149,6 +3327,14 @@ async function saveCRMLeadDetail() {
   }
 
   crmSelectedLead = { ...crmSelectedLead, ...result };
+
+  el('crm-detail-name').textContent = crmSelectedLead.full_name || 'Lead';
+  el('crm-detail-meta').textContent = [
+    CRM_SOURCE_LABELS[crmSelectedLead.source] || crmSelectedLead.source || 'Otro',
+    crmSelectedLead.phone || null,
+    crmSelectedLead.email || null
+  ].filter(Boolean).join(' · ');
+
   showToast('✓ Lead actualizado');
   await renderCRM();
   await renderCRMActivities(crmSelectedLead.id);
