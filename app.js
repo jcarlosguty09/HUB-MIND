@@ -2613,11 +2613,11 @@ async function openCoachQuickLeadModal() {
   el('coach-quick-lead-email').value = '';
   el('coach-quick-lead-source').value = 'walk_in';
   el('coach-quick-lead-note').value = '';
-  modal.classList.add('show');
+  modal.classList.remove('hidden');
 }
 
 function closeCoachQuickLeadModal() {
-  el('coach-quick-lead-modal')?.classList.remove('show');
+  el('coach-quick-lead-modal')?.classList.add('hidden');
 }
 
 async function submitCoachQuickLead() {
