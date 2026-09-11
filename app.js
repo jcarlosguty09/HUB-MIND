@@ -2360,6 +2360,21 @@ function renderCRMDashboard(allLeads, tasks, staff) {
 
   const unassigned = periodLeads.filter(l => !l.assigned_to).length;
 
+  // Lost reasons
+  const lostReasonMap = {};
+  lost.forEach(lead => {
+    const reason = (lead.lost_reason || 'Sin motivo registrado').trim();
+    lostReasonMap[reason] = (lostReasonMap[reason] || 0) + 1;
+  });
+
+  const lostReasonRows = Object.entries(lostReasonMap)
+    .map(([reason, count]) => ({
+      reason,
+      count,
+      rate: lost.length ? count / lost.length : 0
+    }))
+    .sort((a, b) => b.count - a.count);
+
   root.innerHTML = `
     <div class="crm-dashboard-top">
       <div>
@@ -2453,6 +2468,29 @@ function renderCRMDashboard(allLeads, tasks, staff) {
               <span><strong>${crmPercent(row.rate)}</strong></span>
             </div>
           `).join('') : `<div class="crm-analytics-empty">Sin leads en este periodo.</div>`}
+        </div>
+      </div>
+
+      <div class="crm-analytics-card">
+        <div class="crm-analytics-head">
+          <div>
+            <div class="crm-analytics-title">Motivos de pérdida</div>
+            <div class="crm-analytics-sub">${lost.length ? `${lost.length} oportunidades perdidas en el periodo` : 'Todavía no hay oportunidades perdidas'}</div>
+          </div>
+        </div>
+        <div class="crm-loss-list">
+          ${lostReasonRows.length ? lostReasonRows.map(row => `
+            <div class="crm-loss-row">
+              <div class="crm-loss-main">
+                <span class="crm-loss-reason">${escHtml(row.reason)}</span>
+                <span class="crm-loss-count">${row.count}</span>
+              </div>
+              <div class="crm-loss-track">
+                <div class="crm-loss-fill" style="width:${Math.max(5, row.rate * 100)}%"></div>
+              </div>
+              <div class="crm-loss-percent">${crmPercent(row.rate)}</div>
+            </div>
+          `).join('') : `<div class="crm-analytics-empty">Cuando un lead se pierda, aquí veremos por qué.</div>`}
         </div>
       </div>
 
@@ -2610,6 +2648,50 @@ function crmToggleLostReasonField() {
   group.classList.toggle('hidden', stage !== 'lost');
 }
 
+
+async function crmChangeLeadStage(lead, nextStage) {
+  const previousStage = lead.stage;
+  if (!nextStage || nextStage === previousStage) return true;
+
+  let lostReason = null;
+
+  if (nextStage === 'lost') {
+    lostReason = prompt('¿Por qué se perdió este lead?');
+    if (lostReason === null) return false;
+
+    lostReason = lostReason.trim();
+    if (!lostReason) {
+      showToast('Escribe un motivo de pérdida');
+      return false;
+    }
+  }
+
+  const result = await CRMAPI.updateLead(lead.id, {
+    stage: nextStage,
+    lost_reason: nextStage === 'lost' ? lostReason : null
+  });
+
+  if (!result) {
+    showToast('Error al mover lead');
+    return false;
+  }
+
+  const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
+  const toLabel = CRM_STAGES.find(s => s.id === nextStage)?.label || nextStage;
+  const reasonSuffix = nextStage === 'lost' && lostReason
+    ? ` · Motivo: ${lostReason}`
+    : '';
+
+  await CRMAPI.createActivity(
+    lead.id,
+    'stage_change',
+    `${fromLabel} → ${toLabel}${reasonSuffix}`
+  );
+
+  showToast(`✓ ${lead.full_name} → ${toLabel}`);
+  return true;
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -2672,14 +2754,58 @@ async function renderCRM() {
       <div class="crm-column-body"></div>`;
 
     const body = col.querySelector('.crm-column-body');
+    body.dataset.stage = stage.id;
+
+    body.addEventListener('dragover', e => {
+      e.preventDefault();
+      body.classList.add('drag-over');
+    });
+
+    body.addEventListener('dragleave', e => {
+      if (!body.contains(e.relatedTarget)) {
+        body.classList.remove('drag-over');
+      }
+    });
+
+    body.addEventListener('drop', async e => {
+      e.preventDefault();
+      body.classList.remove('drag-over');
+
+      const leadId = e.dataTransfer.getData('text/crm-lead-id');
+      if (!leadId) return;
+
+      const draggedLead = leads.find(l => l.id === leadId) || allLeads.find(l => l.id === leadId);
+      if (!draggedLead || draggedLead.stage === stage.id) return;
+
+      body.classList.add('drop-saving');
+      const ok = await crmChangeLeadStage(draggedLead, stage.id);
+      body.classList.remove('drop-saving');
+
+      if (ok) await renderCRM();
+    });
 
     if (!stageLeads.length) {
-      body.innerHTML = '<div class="crm-empty">Sin leads</div>';
+      body.innerHTML = '<div class="crm-empty">Arrastra un lead aquí</div>';
     }
 
     stageLeads.forEach(lead => {
       const card = document.createElement('div');
       card.className = 'crm-card';
+      card.draggable = true;
+      card.dataset.leadId = lead.id;
+
+      card.addEventListener('dragstart', e => {
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/crm-lead-id', lead.id);
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        document.querySelectorAll('.crm-column-body.drag-over').forEach(node => {
+          node.classList.remove('drag-over');
+        });
+      });
 
       const followUpDue = lead.next_follow_up_at &&
         new Date(lead.next_follow_up_at) <= new Date() &&
@@ -2712,54 +2838,40 @@ async function renderCRM() {
           <button class="icon-btn crm-delete-btn" title="Eliminar lead"><i class="ti ti-trash"></i></button>
         </div>`;
 
-      card.querySelector('.crm-stage-select').addEventListener('click', e => e.stopPropagation());
-      card.querySelector('.crm-stage-select').addEventListener('change', async e => {
+      const stageSelect = card.querySelector('.crm-stage-select');
+      const deleteBtn = card.querySelector('.crm-delete-btn');
+
+      stageSelect.addEventListener('pointerdown', () => {
+        card.draggable = false;
+      });
+      stageSelect.addEventListener('pointerup', () => {
+        card.draggable = true;
+      });
+      stageSelect.addEventListener('click', e => e.stopPropagation());
+      stageSelect.addEventListener('change', async e => {
         e.stopPropagation();
         const nextStage = e.target.value;
         const previousStage = lead.stage;
+
         e.target.disabled = true;
+        const ok = await crmChangeLeadStage(lead, nextStage);
 
-        let lostReason = null;
-        if (nextStage === 'lost') {
-          lostReason = prompt('¿Por qué se perdió este lead?');
-          if (lostReason === null) {
-            e.target.disabled = false;
-            e.target.value = previousStage;
-            return;
-          }
-          lostReason = lostReason.trim();
-          if (!lostReason) {
-            showToast('Escribe un motivo de pérdida');
-            e.target.disabled = false;
-            e.target.value = previousStage;
-            return;
-          }
-        }
-
-        const result = await CRMAPI.updateLead(lead.id, {
-          stage: nextStage,
-          lost_reason: nextStage === 'lost' ? lostReason : null
-        });
-
-        if (result) {
-          const fromLabel = CRM_STAGES.find(s => s.id === previousStage)?.label || previousStage;
-          const toLabel = CRM_STAGES.find(s => s.id === nextStage)?.label || nextStage;
-          const reasonSuffix = nextStage === 'lost' && lostReason ? ` · Motivo: ${lostReason}` : '';
-          await CRMAPI.createActivity(
-            lead.id,
-            'stage_change',
-            `${fromLabel} → ${toLabel}${reasonSuffix}`
-          );
-          showToast('✓ Lead actualizado');
+        if (ok) {
           await renderCRM();
         } else {
-          showToast('Error al mover lead');
           e.target.disabled = false;
-          e.target.value = lead.stage;
+          e.target.value = previousStage;
         }
       });
 
-      card.querySelector('.crm-delete-btn').addEventListener('click', async e => {
+      deleteBtn.addEventListener('pointerdown', () => {
+        card.draggable = false;
+      });
+      deleteBtn.addEventListener('pointerup', () => {
+        card.draggable = true;
+      });
+
+      deleteBtn.addEventListener('click', async e => {
         e.stopPropagation();
         if (!confirm(`¿Eliminar a ${lead.full_name} del CRM?`)) return;
         const ok = await CRMAPI.deleteLead(lead.id);
