@@ -79,6 +79,19 @@ function toggleTheme() {
   localStorage.setItem('hm-theme', state.isDark ? 'dark' : 'light');
 }
 
+
+function showPassModal() {
+  const modal = el('pass-modal');
+  if (!modal) return;
+
+  el('new-password').value = '';
+  el('confirm-password').value = '';
+  el('pass-error').classList.add('hidden');
+  modal.classList.remove('hidden');
+
+  setTimeout(() => el('new-password')?.focus(), 50);
+}
+
 // ---- ROLE ACCESS ----
 const STAFF_ROLE_LABELS = {
   master_admin: 'Admin Maestro',
@@ -2139,6 +2152,9 @@ async function init() {
   el('change-pass-btn').addEventListener('click', () => showPassModal());
   el('change-pass-atleta').addEventListener('click', () => showPassModal());
   el('pass-cancel').addEventListener('click', () => el('pass-modal').classList.add('hidden'));
+  el('pass-modal').addEventListener('click', e => {
+    if (e.target === el('pass-modal')) el('pass-modal').classList.add('hidden');
+  });
   el('pass-save').addEventListener('click', async () => {
     const np = el('new-password').value;
     const cp = el('confirm-password').value;
@@ -4153,8 +4169,15 @@ function showEditMemberModal(m, onSaved) {
         <select class="field-input" id="em-role">
           <option value="atleta"${m.role === 'atleta' ? ' selected' : ''}>Atleta</option>
           <option value="coach"${m.role === 'coach' ? ' selected' : ''}>Coach</option>
+          <option value="sales"${m.role === 'sales' ? ' selected' : ''}>Sales</option>
           <option value="admin"${m.role === 'admin' ? ' selected' : ''}>Admin</option>
+          ${state.role === 'master_admin'
+            ? `<option value="master_admin"${m.role === 'master_admin' ? ' selected' : ''}>Admin Maestro</option>`
+            : ''}
         </select>
+        <span style="font-size:11px;color:var(--text3)">
+          Admin Maestro solo puede ser asignado por otro Admin Maestro.
+        </span>
       </div>
 
       <div class="em-status-row">
@@ -4207,7 +4230,8 @@ function showEditMemberModal(m, onSaved) {
 
   // Guardar cambios
   modal.querySelector('#em-save').addEventListener('click', async () => {
-     const name   = modal.querySelector('#em-name').value.trim();
+    const btn = modal.querySelector('#em-save');
+    const name   = modal.querySelector('#em-name').value.trim();
     const gender = modal.querySelector('#em-gender').value;
     const role   = modal.querySelector('#em-role').value;
     const birth  = modal.querySelector('#em-birth').value;
@@ -4217,7 +4241,7 @@ function showEditMemberModal(m, onSaved) {
     errEl.classList.add('hidden');
     btn.disabled = true; btn.textContent = 'Guardando...';
 
-       const tasks = [];
+    const tasks = [];
     if (name  !== (m.full_name  || '') || gender !== (m.gender || '') ||
         birth !== (m.birth_date || '') || phone  !== (m.phone  || '')) {
       tasks.push(MemberAPI.updateProfile(m.id, {
@@ -4228,22 +4252,32 @@ function showEditMemberModal(m, onSaved) {
       }));
     }
     if (role !== m.role) {
-      tasks.push(MemberAPI.setRole(m.id, role));
+      tasks.push(
+        MemberAPI.setRole(m.id, role).then(ok => {
+          if (!ok) throw new Error('No se pudo cambiar el rol');
+          return true;
+        })
+      );
     }
 
     if (!tasks.length) { modal.remove(); return; }
 
-    const results = await Promise.all(tasks);
-    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+    try {
+      const results = await Promise.all(tasks);
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
 
-    if (results.every(Boolean)) {
-      showToast('✓ Miembro actualizado');
-      ProfileAPI.clearCache();
-      AthleteAPI.clearCache();
-      modal.remove();
-      if (onSaved) onSaved();
-    } else {
-      showErr('Error al guardar algunos cambios');
+      if (results.every(Boolean)) {
+        showToast('✓ Miembro actualizado');
+        ProfileAPI.clearCache();
+        AthleteAPI.clearCache();
+        modal.remove();
+        if (onSaved) onSaved();
+      } else {
+        showErr('Error al guardar algunos cambios');
+      }
+    } catch (e) {
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+      showErr(e.message || 'Error al guardar cambios');
     }
   });
 }

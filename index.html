@@ -99,6 +99,25 @@
     .crm-analytics-empty{padding:20px 4px;text-align:center;color:var(--text3);font-size:10px}
     .crm-section-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin:0 0 8px}
 
+
+    .quick-lead-box{max-width:560px;width:min(560px,calc(100vw - 32px));padding:0;overflow:hidden}
+    .quick-lead-header{display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid var(--border)}
+    .quick-lead-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.12);color:var(--blue);font-size:18px;flex:0 0 auto}
+    .quick-lead-heading{min-width:0;flex:1}
+    .quick-lead-heading .modal-title{margin:0;font-size:16px}
+    .quick-lead-subtitle{font-size:11px;color:var(--text3);margin-top:3px}
+    .quick-lead-close{flex:0 0 auto}
+    .quick-lead-body{padding:18px 22px 6px}
+    .quick-lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .quick-lead-textarea{resize:vertical;min-height:88px}
+    .quick-lead-info{display:flex;align-items:flex-start;gap:8px;padding:10px 11px;border-radius:9px;background:var(--surface2);color:var(--text3);font-size:10px;line-height:1.4;margin-top:4px}
+    .quick-lead-info i{font-size:14px;color:var(--blue);margin-top:1px}
+    .quick-lead-actions{padding:14px 22px 20px;margin-top:0}
+    @media(max-width:600px){
+      .quick-lead-grid{grid-template-columns:1fr}
+      .quick-lead-header,.quick-lead-body,.quick-lead-actions{padding-left:16px;padding-right:16px}
+    }
+
     .crm-advanced-filters{display:grid;grid-template-columns:minmax(260px,1.5fr) repeat(3,minmax(145px,.6fr)) auto;gap:8px;align-items:center;margin-bottom:10px}
     .crm-search-wrap{position:relative;min-width:0}
     .crm-search-wrap>i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
@@ -835,6 +854,7 @@
         <select class="field-input" id="cu-role">
           <option value="atleta">Atleta</option>
           <option value="coach">Coach</option>
+          <option value="sales">Sales</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -872,38 +892,41 @@
   <script src="/timer.js"></script>
   <script src="/app.js"></script>
 
-  <!-- QUICK LEAD: pensado para coaches. Permite registrar un prospecto sin entrar al CRM. -->
+  <!-- QUICK LEAD: captura rápida para coaches sin acceso al CRM -->
   <div class="modal-overlay hidden" id="coach-quick-lead-modal">
-    <div class="modal-card" style="max-width:520px">
-      <div class="modal-header">
-        <div>
+    <div class="modal-box quick-lead-box">
+      <div class="quick-lead-header">
+        <div class="quick-lead-icon"><i class="ti ti-user-plus"></i></div>
+        <div class="quick-lead-heading">
           <div class="modal-title">Registrar nuevo lead</div>
-          <div class="modal-subtitle">Captura rápida para recepción / coaches</div>
+          <div class="quick-lead-subtitle">Captura rápida para recepción y coaches</div>
         </div>
-        <button class="icon-btn" id="coach-quick-lead-close"><i class="ti ti-x"></i></button>
+        <button class="icon-btn quick-lead-close" id="coach-quick-lead-close" type="button">
+          <i class="ti ti-x"></i>
+        </button>
       </div>
 
-      <div class="modal-body">
+      <div class="quick-lead-body">
         <div class="field-group">
-          <label class="field-label">Nombre *</label>
-          <input class="field-input" id="coach-quick-lead-name" placeholder="Nombre completo" />
+          <label class="field-label">Nombre completo *</label>
+          <input class="field-input" id="coach-quick-lead-name" placeholder="Ej. Juan Pérez" autocomplete="name" />
         </div>
 
-        <div class="crm-form-grid">
+        <div class="quick-lead-grid">
           <div class="field-group">
             <label class="field-label">Teléfono</label>
-            <input class="field-input" id="coach-quick-lead-phone" type="tel" placeholder="55..." />
+            <input class="field-input" id="coach-quick-lead-phone" type="tel" placeholder="55 1234 5678" autocomplete="tel" />
           </div>
           <div class="field-group">
             <label class="field-label">Email</label>
-            <input class="field-input" id="coach-quick-lead-email" type="email" placeholder="correo@ejemplo.com" />
+            <input class="field-input" id="coach-quick-lead-email" type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
           </div>
         </div>
 
         <div class="field-group">
-          <label class="field-label">Origen</label>
+          <label class="field-label">¿De dónde llegó?</label>
           <select class="field-input" id="coach-quick-lead-source">
-            <option value="walk_in">Walk-in</option>
+            <option value="walk_in">Walk-in / llegó al gym</option>
             <option value="referral">Referido</option>
             <option value="instagram">Instagram</option>
             <option value="facebook">Facebook</option>
@@ -915,14 +938,20 @@
         </div>
 
         <div class="field-group">
-          <label class="field-label">Nota</label>
-          <textarea class="field-input" id="coach-quick-lead-note" rows="3" placeholder="Qué está buscando, clase de interés, horario, etc."></textarea>
+          <label class="field-label">Nota inicial</label>
+          <textarea class="field-input quick-lead-textarea" id="coach-quick-lead-note" rows="3"
+            placeholder="Ej. Busca horario 7 pm, interesado en CrossFit, quiere clase prueba..."></textarea>
+        </div>
+
+        <div class="quick-lead-info">
+          <i class="ti ti-info-circle"></i>
+          <span>El lead entrará automáticamente a <strong>Nuevos</strong> para que Admin/Sales continúe el seguimiento.</span>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-secondary" id="coach-quick-lead-cancel">Cancelar</button>
-        <button class="btn-primary" id="coach-quick-lead-save">
+      <div class="modal-actions quick-lead-actions">
+        <button class="btn-secondary" id="coach-quick-lead-cancel" type="button">Cancelar</button>
+        <button class="save-btn" id="coach-quick-lead-save" type="button">
           <i class="ti ti-user-plus"></i> Registrar lead
         </button>
       </div>
