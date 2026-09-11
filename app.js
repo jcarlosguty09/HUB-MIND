@@ -2187,6 +2187,7 @@ const CRM_ACTIVITY_LABELS = {
 let crmSelectedLead = null;
 let crmStaff = [];
 let crmLeadOwnerFilter = 'all';
+let crmDashboardPeriod = '30';
 
 function crmFormatFollowUp(value) {
   if (!value) return '';
@@ -2244,6 +2245,248 @@ function crmAssigneeOptions(selectedId = null, includeUnassigned = true) {
   `).join('');
 }
 
+
+function crmPeriodStart(period) {
+  if (period === 'all') return null;
+  const days = Number(period) || 30;
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function crmPercent(value) {
+  if (!Number.isFinite(value)) return '0%';
+  return `${Math.round(value * 100)}%`;
+}
+
+function crmDaysBetween(start, end) {
+  const a = new Date(start);
+  const b = new Date(end);
+  const ms = b - a;
+  return Number.isFinite(ms) && ms >= 0 ? ms / 86400000 : null;
+}
+
+function crmStageLabel(stageId) {
+  return CRM_STAGES.find(s => s.id === stageId)?.label || stageId;
+}
+
+function renderCRMDashboard(allLeads, tasks, staff) {
+  const root = el('crm-dashboard');
+  if (!root) return;
+
+  const start = crmPeriodStart(crmDashboardPeriod);
+
+  const periodLeads = start
+    ? allLeads.filter(l => new Date(l.created_at) >= start)
+    : [...allLeads];
+
+  const won = periodLeads.filter(l => l.stage === 'won');
+  const lost = periodLeads.filter(l => l.stage === 'lost');
+  const active = periodLeads.filter(l => !['won', 'lost'].includes(l.stage));
+  const trialsScheduled = periodLeads.filter(l =>
+    ['trial_scheduled','trial_completed','negotiating','won'].includes(l.stage)
+  ).length;
+  const trialsCompleted = periodLeads.filter(l =>
+    ['trial_completed','negotiating','won'].includes(l.stage)
+  ).length;
+
+  const conversionRate = periodLeads.length ? won.length / periodLeads.length : 0;
+  const closedCount = won.length + lost.length;
+  const closeRate = closedCount ? won.length / closedCount : 0;
+
+  const cycleDays = won
+    .map(l => crmDaysBetween(l.created_at, l.updated_at))
+    .filter(v => v !== null);
+  const avgCycle = cycleDays.length
+    ? cycleDays.reduce((a,b) => a + b, 0) / cycleDays.length
+    : null;
+
+  const pendingTasks = tasks.filter(t => t.status === 'pending');
+  const overdueTasks = pendingTasks.filter(crmTaskIsOverdue);
+  const dueToday = pendingTasks.filter(crmTaskIsDueToday);
+
+  // Funnel
+  const funnelData = CRM_STAGES
+    .filter(s => !['lost'].includes(s.id))
+    .map(stage => ({
+      ...stage,
+      count: periodLeads.filter(l => l.stage === stage.id).length
+    }));
+  const funnelMax = Math.max(1, ...funnelData.map(x => x.count));
+
+  // Sources
+  const sourceIds = [...new Set(periodLeads.map(l => l.source || 'other'))];
+  const sourceRows = sourceIds.map(source => {
+    const rows = periodLeads.filter(l => (l.source || 'other') === source);
+    const wins = rows.filter(l => l.stage === 'won').length;
+    const losses = rows.filter(l => l.stage === 'lost').length;
+    return {
+      source,
+      label: CRM_SOURCE_LABELS[source] || source,
+      leads: rows.length,
+      wins,
+      losses,
+      rate: rows.length ? wins / rows.length : 0
+    };
+  }).sort((a,b) => b.leads - a.leads);
+
+  const bestSource = [...sourceRows]
+    .filter(r => r.leads >= 1)
+    .sort((a,b) => (b.rate - a.rate) || (b.wins - a.wins))[0];
+
+  // Staff performance
+  const staffRows = (staff || []).map(person => {
+    const assigned = periodLeads.filter(l => l.assigned_to === person.id);
+    const wins = assigned.filter(l => l.stage === 'won').length;
+    const opens = assigned.filter(l => !['won','lost'].includes(l.stage)).length;
+    const personTasks = pendingTasks.filter(t => t.assigned_to === person.id);
+    const overdue = personTasks.filter(crmTaskIsOverdue).length;
+    return {
+      ...person,
+      leads: assigned.length,
+      wins,
+      opens,
+      rate: assigned.length ? wins / assigned.length : 0,
+      pending: personTasks.length,
+      overdue
+    };
+  }).sort((a,b) => (b.wins - a.wins) || (b.leads - a.leads));
+
+  const unassigned = periodLeads.filter(l => !l.assigned_to).length;
+
+  root.innerHTML = `
+    <div class="crm-dashboard-top">
+      <div>
+        <div class="crm-dashboard-title">Dashboard comercial</div>
+        <div class="checkins-subtitle">Salud del pipeline y rendimiento de ventas</div>
+      </div>
+      <div class="crm-period-tabs">
+        <button class="crm-period-btn${crmDashboardPeriod === '30' ? ' active' : ''}" data-period="30">30 días</button>
+        <button class="crm-period-btn${crmDashboardPeriod === '90' ? ' active' : ''}" data-period="90">90 días</button>
+        <button class="crm-period-btn${crmDashboardPeriod === 'all' ? ' active' : ''}" data-period="all">Todo</button>
+      </div>
+    </div>
+
+    <div class="crm-kpi-grid">
+      <div class="crm-kpi-card">
+        <div class="crm-kpi-label">Leads</div>
+        <div class="crm-kpi-value">${periodLeads.length}</div>
+        <div class="crm-kpi-sub">${active.length} activos</div>
+      </div>
+      <div class="crm-kpi-card">
+        <div class="crm-kpi-label">Conversión total</div>
+        <div class="crm-kpi-value">${crmPercent(conversionRate)}</div>
+        <div class="crm-kpi-sub">${won.length} ganados de ${periodLeads.length}</div>
+      </div>
+      <div class="crm-kpi-card">
+        <div class="crm-kpi-label">Tasa de cierre</div>
+        <div class="crm-kpi-value">${crmPercent(closeRate)}</div>
+        <div class="crm-kpi-sub">${won.length} ganados · ${lost.length} perdidos</div>
+      </div>
+      <div class="crm-kpi-card">
+        <div class="crm-kpi-label">Ciclo estimado</div>
+        <div class="crm-kpi-value">${avgCycle === null ? '—' : `${avgCycle.toFixed(1)}d`}</div>
+        <div class="crm-kpi-sub">Lead → ganado</div>
+      </div>
+      <div class="crm-kpi-card${overdueTasks.length ? ' warning' : ''}">
+        <div class="crm-kpi-label">Seguimientos</div>
+        <div class="crm-kpi-value">${dueToday.length}</div>
+        <div class="crm-kpi-sub">${overdueTasks.length} vencidos</div>
+      </div>
+      <div class="crm-kpi-card">
+        <div class="crm-kpi-label">Pruebas</div>
+        <div class="crm-kpi-value">${trialsCompleted}</div>
+        <div class="crm-kpi-sub">${trialsScheduled} llegaron a agendada+</div>
+      </div>
+    </div>
+
+    <div class="crm-insight-grid">
+      <div class="crm-analytics-card">
+        <div class="crm-analytics-head">
+          <div>
+            <div class="crm-analytics-title">Embudo</div>
+            <div class="crm-analytics-sub">Distribución actual de los leads del periodo</div>
+          </div>
+        </div>
+        <div class="crm-funnel-list">
+          ${funnelData.map(row => `
+            <div class="crm-funnel-row">
+              <div class="crm-funnel-label">${escHtml(row.label)}</div>
+              <div class="crm-funnel-track">
+                <div class="crm-funnel-fill" style="width:${Math.max(row.count ? 6 : 0, (row.count / funnelMax) * 100)}%"></div>
+              </div>
+              <div class="crm-funnel-count">${row.count}</div>
+            </div>
+          `).join('')}
+          <div class="crm-funnel-row lost">
+            <div class="crm-funnel-label">Perdidos</div>
+            <div class="crm-funnel-track">
+              <div class="crm-funnel-fill" style="width:${Math.max(lost.length ? 6 : 0, (lost.length / funnelMax) * 100)}%"></div>
+            </div>
+            <div class="crm-funnel-count">${lost.length}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="crm-analytics-card">
+        <div class="crm-analytics-head">
+          <div>
+            <div class="crm-analytics-title">Fuentes de leads</div>
+            <div class="crm-analytics-sub">${bestSource ? `Mejor conversión: ${escHtml(bestSource.label)} · ${crmPercent(bestSource.rate)}` : 'Aún no hay suficientes datos'}</div>
+          </div>
+        </div>
+        <div class="crm-source-table">
+          <div class="crm-source-row crm-source-head">
+            <span>Fuente</span><span>Leads</span><span>Ganados</span><span>Conv.</span>
+          </div>
+          ${sourceRows.length ? sourceRows.map(row => `
+            <div class="crm-source-row">
+              <span>${escHtml(row.label)}</span>
+              <span>${row.leads}</span>
+              <span>${row.wins}</span>
+              <span><strong>${crmPercent(row.rate)}</strong></span>
+            </div>
+          `).join('') : `<div class="crm-analytics-empty">Sin leads en este periodo.</div>`}
+        </div>
+      </div>
+
+      <div class="crm-analytics-card crm-team-card">
+        <div class="crm-analytics-head">
+          <div>
+            <div class="crm-analytics-title">Equipo comercial</div>
+            <div class="crm-analytics-sub">${unassigned} leads sin responsable</div>
+          </div>
+        </div>
+        <div class="crm-team-list">
+          ${staffRows.length ? staffRows.map(person => `
+            <div class="crm-team-row">
+              <div class="crm-team-person">
+                <div class="crm-team-avatar">${escHtml((person.full_name || '?').split(' ').map(x => x[0]).join('').slice(0,2).toUpperCase())}</div>
+                <div>
+                  <div class="crm-team-name">${escHtml(person.full_name)}</div>
+                  <div class="crm-team-role">${escHtml(crmStaffRoleLabel(person.role))}</div>
+                </div>
+              </div>
+              <div class="crm-team-metric"><strong>${person.leads}</strong><span>leads</span></div>
+              <div class="crm-team-metric"><strong>${person.wins}</strong><span>ganados</span></div>
+              <div class="crm-team-metric"><strong>${crmPercent(person.rate)}</strong><span>conv.</span></div>
+              <div class="crm-team-metric${person.overdue ? ' danger' : ''}"><strong>${person.overdue}</strong><span>vencidas</span></div>
+            </div>
+          `).join('') : `<div class="crm-analytics-empty">No hay staff comercial disponible.</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll('.crm-period-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      crmDashboardPeriod = btn.dataset.period;
+      await renderCRM();
+    });
+  });
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -2272,6 +2515,7 @@ async function renderCRM() {
   const dueToday = tasks.filter(crmTaskIsDueToday);
   const overdueTasks = tasks.filter(crmTaskIsOverdue);
 
+  renderCRMDashboard(allLeads, tasks, crmStaff);
   renderCRMOwnerFilters(allLeads, currentUserId);
 
   if (stats) {

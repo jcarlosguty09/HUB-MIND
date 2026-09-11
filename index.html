@@ -40,6 +40,50 @@
     .crm-notes-input{min-height:84px;resize:vertical}
 
 
+
+    .crm-dashboard{margin-bottom:22px}
+    .crm-dashboard-top{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:12px}
+    .crm-dashboard-title{font-size:16px;font-weight:700}
+    .crm-period-tabs{display:flex;gap:5px;padding:3px;border:1px solid var(--border);background:var(--surface);border-radius:10px}
+    .crm-period-btn{border:0;background:transparent;color:var(--text3);padding:6px 10px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer}
+    .crm-period-btn.active{background:var(--surface2);color:var(--text)}
+    .crm-kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:10px}
+    .crm-kpi-card{padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);min-width:0}
+    .crm-kpi-card.warning{border-color:rgba(239,68,68,.45)}
+    .crm-kpi-label{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);font-weight:700}
+    .crm-kpi-value{font-size:22px;font-weight:700;line-height:1.1;margin-top:5px}
+    .crm-kpi-sub{font-size:9px;color:var(--text3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .crm-insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .crm-analytics-card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:13px;min-width:0}
+    .crm-team-card{grid-column:1 / -1}
+    .crm-analytics-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+    .crm-analytics-title{font-size:12px;font-weight:700}
+    .crm-analytics-sub{font-size:9px;color:var(--text3);margin-top:2px}
+    .crm-funnel-list{display:flex;flex-direction:column;gap:7px}
+    .crm-funnel-row{display:grid;grid-template-columns:105px 1fr 26px;align-items:center;gap:8px}
+    .crm-funnel-label{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .crm-funnel-track{height:7px;border-radius:999px;background:var(--surface2);overflow:hidden}
+    .crm-funnel-fill{height:100%;border-radius:999px;background:var(--blue)}
+    .crm-funnel-row.lost .crm-funnel-fill{opacity:.45}
+    .crm-funnel-count{text-align:right;font-size:10px;font-weight:700}
+    .crm-source-table{display:flex;flex-direction:column}
+    .crm-source-row{display:grid;grid-template-columns:1fr 50px 58px 52px;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:10px}
+    .crm-source-row:last-child{border-bottom:0}
+    .crm-source-head{font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);font-weight:700}
+    .crm-source-row span:not(:first-child){text-align:right}
+    .crm-team-list{display:flex;flex-direction:column}
+    .crm-team-row{display:grid;grid-template-columns:minmax(180px,1.5fr) repeat(4,minmax(55px,.45fr));align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+    .crm-team-row:last-child{border-bottom:0}
+    .crm-team-person{display:flex;align-items:center;gap:8px;min-width:0}
+    .crm-team-avatar{width:28px;height:28px;border-radius:999px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex:0 0 auto}
+    .crm-team-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .crm-team-role{font-size:8px;color:var(--text3);margin-top:1px}
+    .crm-team-metric{text-align:right;display:flex;flex-direction:column}
+    .crm-team-metric strong{font-size:11px}
+    .crm-team-metric span{font-size:8px;color:var(--text3)}
+    .crm-team-metric.danger strong{color:#ef4444}
+    .crm-analytics-empty{padding:20px 4px;text-align:center;color:var(--text3);font-size:10px}
+    .crm-section-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin:0 0 8px}
     .crm-owner-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-5px 0 16px}
     .crm-filter-btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);padding:7px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer}
     .crm-filter-btn span{display:inline-flex;min-width:19px;height:19px;align-items:center;justify-content:center;margin-left:4px;border-radius:999px;background:var(--surface2);font-size:10px}
@@ -94,6 +138,14 @@
     .crm-activity-delete{width:30px;height:30px}
 
     @media(max-width:700px){
+      .crm-dashboard-top{align-items:flex-start;flex-direction:column}
+      .crm-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .crm-insight-grid{grid-template-columns:1fr}
+      .crm-team-card{grid-column:auto}
+      .crm-team-row{grid-template-columns:1fr repeat(2,55px)}
+      .crm-team-row .crm-team-metric:nth-last-child(-n+2){display:none}
+      .crm-funnel-row{grid-template-columns:92px 1fr 24px}
+
       .crm-header{align-items:flex-start}
       .crm-board{grid-template-columns:repeat(7,82vw)}
       .crm-form-grid{grid-template-columns:1fr}
@@ -330,6 +382,9 @@
           </div>
           <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
         </div>
+        <div id="crm-dashboard" class="crm-dashboard"></div>
+
+        <div class="crm-section-label">Pipeline operativo</div>
         <div class="crm-stats" id="crm-stats"></div>
         <div class="crm-owner-filters" id="crm-owner-filters"></div>
 
