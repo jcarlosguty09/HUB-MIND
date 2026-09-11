@@ -546,7 +546,8 @@ const RoleAPI = {
   async getRole() {
     try {
       const userId = Auth.getUser()?.id;
-      if (!userId) return 'coach';
+      // Seguridad: si no podemos identificar al usuario, nunca elevamos privilegios.
+      if (!userId) return 'atleta';
 
       const rows = await sbReq(
         'GET',
@@ -560,11 +561,12 @@ const RoleAPI = {
 
       console.log('[Role] userId:', userId, 'role:', role);
 
-      return role || 'coach';
+      return role || 'atleta';
 
     } catch(e) {
       console.warn('[Role] getRole error:', e.message);
-      return 'coach';
+      // Fail closed: un fallo de red/RLS no debe convertir a alguien en coach.
+      return 'atleta';
     }
   },
 };

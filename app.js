@@ -79,8 +79,65 @@ function toggleTheme() {
   localStorage.setItem('hm-theme', state.isDark ? 'dark' : 'light');
 }
 
+// ---- ROLE ACCESS ----
+const STAFF_ROLE_LABELS = {
+  master_admin: 'Admin Maestro',
+  admin: 'Admin',
+  coach: 'Coach',
+  sales: 'Ventas',
+  atleta: 'Atleta',
+};
+
+const ROLE_ALLOWED_VIEWS = {
+  // Admin Maestro: acceso total de operación de la organización.
+  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history']),
+
+  // Admin: entrenamiento + operación + CRM. No es el rol máximo.
+  admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history']),
+
+  // Coach: entrenamiento y operación deportiva. NO ve CRM.
+  coach: new Set(['calendar','today','classes','checkins','leaderboard-admin','history']),
+
+  // Sales: solamente CRM.
+  sales: new Set(['crm']),
+
+  // Miembro: usa la app de atleta.
+  atleta: new Set([]),
+};
+
+function canRoleAccessView(role, view) {
+  return ROLE_ALLOWED_VIEWS[role]?.has(view) || false;
+}
+
+function configureStaffNavigation(role) {
+  [...document.querySelectorAll('.nav-tab')].forEach(tab => {
+    tab.style.display = canRoleAccessView(role, tab.dataset.view) ? '' : 'none';
+  });
+
+  const createUserBtn = el('create-user-btn');
+  if (createUserBtn) {
+    createUserBtn.style.display = ['master_admin','admin','coach'].includes(role) ? '' : 'none';
+  }
+
+  const quickLeadBtn = el('coach-quick-lead-btn');
+  if (quickLeadBtn) {
+    quickLeadBtn.style.display = ['master_admin','admin','coach'].includes(role) ? '' : 'none';
+  }
+}
+
+function defaultViewForRole(role) {
+  if (role === 'sales') return 'crm';
+  return 'calendar';
+}
+
 // ---- VIEW ----
 function showView(v) {
+  // Defensa adicional de UX. La seguridad real sigue estando en RLS/Edge Functions.
+  if (state.role && !canRoleAccessView(state.role, v)) {
+    const fallback = defaultViewForRole(state.role);
+    if (v !== fallback && canRoleAccessView(state.role, fallback)) return showView(fallback);
+    return;
+  }
   state.view = v;
   document.querySelectorAll('.view').forEach(s => s.classList.remove('active'));
   el(`view-${v}`).classList.add('active');
@@ -740,16 +797,24 @@ async function showApp() {
 
   const role = await RoleAPI.getRole();
   state.role = role;
+
   const badge = el('role-badge');
-  badge.textContent = role === 'admin' ? 'Admin' : 'Coach';
+  badge.textContent = STAFF_ROLE_LABELS[role] || role;
   badge.className = 'role-badge ' + role;
-  // Mostrar tab de Miembros solo para admin
-  el('nav-tab-members').style.display = role === 'admin' ? '' : 'none';
-  el('nav-tab-reports').style.display = role === 'admin' ? '' : 'none';
-  el('nav-tab-crm').style.display = role === 'admin' ? '' : 'none';
+
+  configureStaffNavigation(role);
+
+  const defaultView = defaultViewForRole(role);
+
+  // Ventas entra directo al CRM y no carga módulos de entrenamiento.
+  if (role === 'sales') {
+    showView('crm');
+    return;
+  }
 
   await renderCalendar();
   await renderToday();
+  showView(defaultView);
 }
 
 
@@ -1912,6 +1977,10 @@ async function init() {
   el('crm-lead-save').addEventListener('click', saveCRMLead);
   el('crm-lead-modal').addEventListener('click', e => { if (e.target === el('crm-lead-modal')) closeCRMLeadModal(); });
   el('crm-detail-close').addEventListener('click', closeCRMLeadDetail);
+  el('coach-quick-lead-close')?.addEventListener('click', closeCoachQuickLeadModal);
+  el('coach-quick-lead-cancel')?.addEventListener('click', closeCoachQuickLeadModal);
+  el('coach-quick-lead-save')?.addEventListener('click', submitCoachQuickLead);
+
   el('crm-detail-stage').addEventListener('change', crmToggleLostReasonField);
   el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
   el('crm-activity-save').addEventListener('click', saveCRMActivity);
@@ -2002,7 +2071,8 @@ async function init() {
       await Auth.signIn(email, password, remember);
       const role = await RoleAPI.getRole();
       if (role === 'atleta') await showAtleta();
-      else await showApp();
+      else if (['master_admin','admin','coach','sales'].includes(role)) await showApp();
+      else throw new Error('Tu usuario no tiene un rol válido en esta organización');
     }
     catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
     finally { btn.innerHTML = '<i class="ti ti-login"></i> Entrar'; btn.disabled = false; }
@@ -2530,6 +2600,62 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   });
 }
 
+
+
+async function openCoachQuickLeadModal() {
+  if (!['coach','admin','master_admin'].includes(state.role)) return;
+
+  const modal = el('coach-quick-lead-modal');
+  if (!modal) return;
+
+  el('coach-quick-lead-name').value = '';
+  el('coach-quick-lead-phone').value = '';
+  el('coach-quick-lead-email').value = '';
+  el('coach-quick-lead-source').value = 'walk_in';
+  el('coach-quick-lead-note').value = '';
+  modal.classList.add('show');
+}
+
+function closeCoachQuickLeadModal() {
+  el('coach-quick-lead-modal')?.classList.remove('show');
+}
+
+async function submitCoachQuickLead() {
+  const name = el('coach-quick-lead-name')?.value.trim();
+  const phone = el('coach-quick-lead-phone')?.value.trim();
+  const email = el('coach-quick-lead-email')?.value.trim();
+  const source = el('coach-quick-lead-source')?.value || 'walk_in';
+  const note = el('coach-quick-lead-note')?.value.trim();
+
+  if (!name) {
+    showToast('El nombre es obligatorio');
+    return;
+  }
+
+  const btn = el('coach-quick-lead-save');
+  if (btn) btn.disabled = true;
+
+  try {
+    const created = await CRMAPI.createLead({
+      full_name: name,
+      phone: phone || null,
+      email: email || null,
+      source,
+      stage: 'new',
+      notes: note || null
+    });
+
+    if (!created) throw new Error('No se pudo crear el lead');
+
+    showToast('✓ Lead registrado');
+    closeCoachQuickLeadModal();
+  } catch (e) {
+    console.error('[CRM] quick lead error', e);
+    showToast(e.message || 'Error al registrar lead');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
 function crmNormalizeText(value) {
   return (value || '')
@@ -3525,7 +3651,7 @@ const ROLE_PERMISSIONS = {
   ],
 };
 
-const ROLE_LABELS = { admin: 'Admin', coach: 'Coach', atleta: 'Atleta' };
+const ROLE_LABELS = { master_admin: 'Admin Maestro', admin: 'Admin', coach: 'Coach', sales: 'Ventas', atleta: 'Atleta', member: 'Atleta' };
 const ROLE_COLORS = { admin: 'purple', coach: 'blue', atleta: 'green' };
 
 async function renderMembers() {

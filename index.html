@@ -233,7 +233,8 @@
         <button class="icon-btn" id="theme-toggle"><i class="ti ti-sun"></i></button>
         <button class="icon-btn" id="create-user-btn" title="Crear usuario"><i class="ti ti-user-plus"></i></button>
         <button class="icon-btn" id="change-pass-btn" title="Cambiar contraseña"><i class="ti ti-key"></i></button>
-        <button class="icon-btn" id="logout-btn"><i class="ti ti-logout"></i></button>
+        <button class="btn-secondary" id="coach-quick-lead-btn" style="display:none" onclick="openCoachQuickLeadModal()"><i class="ti ti-user-plus"></i> Registrar lead</button>
+          <button class="icon-btn" id="logout-btn"><i class="ti ti-logout"></i></button>
         <div class="sync-dot" id="sync-dot"></div>
       </div>
     </header>
@@ -870,5 +871,63 @@
   <script src="/supabase-client.js"></script>
   <script src="/timer.js"></script>
   <script src="/app.js"></script>
+
+  <!-- QUICK LEAD: pensado para coaches. Permite registrar un prospecto sin entrar al CRM. -->
+  <div class="modal-overlay" id="coach-quick-lead-modal">
+    <div class="modal-card" style="max-width:520px">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Registrar nuevo lead</div>
+          <div class="modal-subtitle">Captura rápida para recepción / coaches</div>
+        </div>
+        <button class="icon-btn" id="coach-quick-lead-close"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field-group">
+          <label class="field-label">Nombre *</label>
+          <input class="field-input" id="coach-quick-lead-name" placeholder="Nombre completo" />
+        </div>
+
+        <div class="crm-form-grid">
+          <div class="field-group">
+            <label class="field-label">Teléfono</label>
+            <input class="field-input" id="coach-quick-lead-phone" type="tel" placeholder="55..." />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Email</label>
+            <input class="field-input" id="coach-quick-lead-email" type="email" placeholder="correo@ejemplo.com" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Origen</label>
+          <select class="field-input" id="coach-quick-lead-source">
+            <option value="walk_in">Walk-in</option>
+            <option value="referral">Referido</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="website">Website</option>
+            <option value="event">Evento</option>
+            <option value="other">Otro</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Nota</label>
+          <textarea class="field-input" id="coach-quick-lead-note" rows="3" placeholder="Qué está buscando, clase de interés, horario, etc."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" id="coach-quick-lead-cancel">Cancelar</button>
+        <button class="btn-primary" id="coach-quick-lead-save">
+          <i class="ti ti-user-plus"></i> Registrar lead
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
