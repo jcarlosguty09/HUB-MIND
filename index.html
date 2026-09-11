@@ -118,12 +118,17 @@
       .quick-lead-header,.quick-lead-body,.quick-lead-actions{padding-left:16px;padding-right:16px}
     }
 
-    .crm-advanced-filters{display:grid;grid-template-columns:minmax(260px,1.5fr) repeat(3,minmax(145px,.6fr)) auto;gap:8px;align-items:center;margin-bottom:10px}
+    .crm-advanced-filters{display:grid;grid-template-columns:minmax(240px,1.4fr) repeat(3,minmax(130px,.55fr)) auto auto;gap:8px;align-items:center;margin-bottom:10px}
     .crm-search-wrap{position:relative;min-width:0}
     .crm-search-wrap>i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
     .crm-search-wrap input{padding-left:33px;width:100%}
     .crm-filter-select{min-width:0}
     .crm-clear-filters{height:38px;white-space:nowrap}
+    .crm-attention-toggle.active{border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.08);color:#f59e0b}
+    .crm-attention-badge{display:flex;align-items:center;gap:5px;padding:6px 7px;margin-top:7px;border:1px solid rgba(245,158,11,.25);border-radius:8px;background:rgba(245,158,11,.07);color:#f59e0b;font-size:9px;line-height:1.25}
+    .crm-whatsapp-btn{color:#10b981}
+    .crm-detail-attention{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:5px 8px;border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.07);border-radius:8px;color:#f59e0b;font-size:9px}
+    .crm-detail-header-actions{display:flex;align-items:center;gap:8px}
     .crm-lost-badge{display:flex;align-items:center;gap:5px;padding:6px 7px;margin-top:7px;border:1px solid rgba(239,68,68,.22);border-radius:8px;background:rgba(239,68,68,.06);color:#ef4444;font-size:9px;line-height:1.25}
     .crm-owner-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-5px 0 16px}
     .crm-filter-btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);padding:7px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer}
@@ -506,8 +511,14 @@
             <div>
               <div class="modal-title" id="crm-detail-name">Lead</div>
               <div class="crm-detail-meta" id="crm-detail-meta"></div>
+              <div id="crm-detail-attention" class="crm-detail-attention hidden"></div>
             </div>
-            <button class="icon-btn" id="crm-detail-close"><i class="ti ti-x"></i></button>
+            <div class="crm-detail-header-actions">
+              <button class="btn-secondary" id="crm-detail-whatsapp" type="button" style="display:none">
+                <i class="ti ti-brand-whatsapp"></i> WhatsApp
+              </button>
+              <button class="icon-btn" id="crm-detail-close"><i class="ti ti-x"></i></button>
+            </div>
           </div>
 
           <div class="crm-detail-grid">

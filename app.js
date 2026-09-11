@@ -2279,6 +2279,7 @@ let crmSearchQuery = '';
 let crmStageFilter = 'all';
 let crmSourceFilter = 'all';
 let crmAssigneeFilter = 'all';
+let crmAttentionFilter = false;
 
 function crmFormatFollowUp(value) {
   if (!value) return '';
@@ -2396,6 +2397,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const pendingTasks = tasks.filter(t => t.status === 'pending');
   const overdueTasks = pendingTasks.filter(crmTaskIsOverdue);
   const dueToday = pendingTasks.filter(crmTaskIsDueToday);
+  const attentionLeads = periodLeads.filter(crmLeadNeedsAttention);
 
   // Funnel
   const funnelData = CRM_STAGES
@@ -2500,10 +2502,10 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-kpi-value">${dueToday.length}</div>
         <div class="crm-kpi-sub">${overdueTasks.length} vencidos</div>
       </div>
-      <div class="crm-kpi-card">
-        <div class="crm-kpi-label">Pruebas</div>
-        <div class="crm-kpi-value">${trialsCompleted}</div>
-        <div class="crm-kpi-sub">${trialsScheduled} llegaron a agendada+</div>
+      <div class="crm-kpi-card${attentionLeads.length ? ' warning' : ''}">
+        <div class="crm-kpi-label">Atención requerida</div>
+        <div class="crm-kpi-value">${attentionLeads.length}</div>
+        <div class="crm-kpi-sub">Leads estancados / vencidos</div>
       </div>
     </div>
 
@@ -2682,6 +2684,70 @@ function crmNormalizeText(value) {
     .trim();
 }
 
+
+function crmHoursSince(dateValue) {
+  if (!dateValue) return null;
+  const d = new Date(dateValue);
+  const ms = Date.now() - d.getTime();
+  if (!Number.isFinite(ms)) return null;
+  return ms / 3600000;
+}
+
+function crmLeadNeedsAttention(lead) {
+  if (!lead || ['won','lost'].includes(lead.stage)) return false;
+
+  const overdueFollowUp = lead.next_follow_up_at &&
+    new Date(lead.next_follow_up_at).getTime() < Date.now();
+
+  const staleHours = crmHoursSince(lead.updated_at || lead.created_at);
+  const staleByStage =
+    (lead.stage === 'new' && staleHours !== null && staleHours >= 24) ||
+    (
+      ['contacted','trial_scheduled','trial_completed','negotiating'].includes(lead.stage) &&
+      staleHours !== null &&
+      staleHours >= 72
+    );
+
+  return Boolean(overdueFollowUp || staleByStage);
+}
+
+function crmLeadAttentionReason(lead) {
+  if (!lead) return '';
+
+  if (lead.next_follow_up_at &&
+      new Date(lead.next_follow_up_at).getTime() < Date.now()) {
+    return 'Seguimiento vencido';
+  }
+
+  const hours = crmHoursSince(lead.updated_at || lead.created_at);
+
+  if (lead.stage === 'new' && hours !== null && hours >= 24) {
+    return 'Nuevo sin atender +24h';
+  }
+
+  if (
+    ['contacted','trial_scheduled','trial_completed','negotiating'].includes(lead.stage) &&
+    hours !== null &&
+    hours >= 72
+  ) {
+    return 'Sin movimiento +72h';
+  }
+
+  return '';
+}
+
+function crmWhatsAppUrl(phone, leadName) {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (!digits) return null;
+
+  const normalized = digits.length === 10 ? `52${digits}` : digits;
+  const message = encodeURIComponent(
+    `Hola ${leadName || ''}, soy de Hub Mind. Te escribo para dar seguimiento a tu interés.`
+  );
+
+  return `https://wa.me/${normalized}?text=${message}`;
+}
+
 function renderCRMAdvancedFilters(allLeads) {
   const wrap = el('crm-advanced-filters');
   if (!wrap) return;
@@ -2710,6 +2776,10 @@ function renderCRMAdvancedFilters(allLeads) {
       <option value="unassigned"${crmAssigneeFilter === 'unassigned' ? ' selected' : ''}>Sin asignar</option>
       ${crmStaff.map(person => `<option value="${person.id}"${crmAssigneeFilter === person.id ? ' selected' : ''}>${escHtml(person.full_name)}</option>`).join('')}
     </select>
+
+    <button class="btn-secondary crm-attention-toggle${crmAttentionFilter ? ' active' : ''}" id="crm-attention-filter">
+      <i class="ti ti-alert-circle"></i> Requieren atención
+    </button>
 
     <button class="btn-secondary crm-clear-filters" id="crm-clear-filters">
       <i class="ti ti-filter-off"></i> Limpiar
@@ -2742,11 +2812,17 @@ function renderCRMAdvancedFilters(allLeads) {
     await renderCRM();
   });
 
+  el('crm-attention-filter')?.addEventListener('click', async () => {
+    crmAttentionFilter = !crmAttentionFilter;
+    await renderCRM();
+  });
+
   el('crm-clear-filters')?.addEventListener('click', async () => {
     crmSearchQuery = '';
     crmStageFilter = 'all';
     crmSourceFilter = 'all';
     crmAssigneeFilter = 'all';
+    crmAttentionFilter = false;
     crmLeadOwnerFilter = 'all';
     await renderCRM();
   });
@@ -2765,6 +2841,8 @@ function crmApplyAdvancedFilters(leads) {
       crmAssigneeFilter !== 'unassigned' &&
       lead.assigned_to !== crmAssigneeFilter
     ) return false;
+
+    if (crmAttentionFilter && !crmLeadNeedsAttention(lead)) return false;
 
     if (q) {
       const haystack = crmNormalizeText([
@@ -2877,7 +2955,7 @@ async function renderCRM() {
       <span><strong>${won}</strong> ganados</span>
       <span><strong>${dueToday.length}</strong> tareas hoy</span>
       <span><strong>${overdueTasks.length}</strong> vencidas</span>
-      ${(crmLeadOwnerFilter !== 'all' || crmSearchQuery || crmStageFilter !== 'all' || crmSourceFilter !== 'all' || crmAssigneeFilter !== 'all') ? `<span><strong>${leads.length}</strong> visibles</span>` : ''}`;
+      ${(crmLeadOwnerFilter !== 'all' || crmSearchQuery || crmStageFilter !== 'all' || crmSourceFilter !== 'all' || crmAssigneeFilter !== 'all' || crmAttentionFilter) ? `<span><strong>${leads.length}</strong> visibles</span>` : ''}`;
   }
 
   renderCRMTodayTasks([...overdueTasks, ...dueToday], leadMap);
@@ -2969,6 +3047,12 @@ async function renderCRM() {
           <i class="ti ti-user"></i>
           ${escHtml(crmStaffName(lead.assigned_to))}
         </div>
+        ${crmLeadNeedsAttention(lead) ? `
+          <div class="crm-attention-badge">
+            <i class="ti ti-alert-triangle"></i>${escHtml(crmLeadAttentionReason(lead))}
+          </div>
+        ` : ''}
+
         ${lead.stage === 'lost' && lead.lost_reason ? `
           <div class="crm-lost-badge"><i class="ti ti-x"></i>${escHtml(lead.lost_reason)}</div>
         ` : ''}
@@ -2977,11 +3061,13 @@ async function renderCRM() {
           <select class="field-input crm-stage-select" aria-label="Mover etapa">
             ${CRM_STAGES.map(s => `<option value="${s.id}"${s.id === lead.stage ? ' selected' : ''}>${s.label}</option>`).join('')}
           </select>
+          ${lead.phone ? `<button class="icon-btn crm-whatsapp-btn" title="Abrir WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>` : ''}
           <button class="icon-btn crm-delete-btn" title="Eliminar lead"><i class="ti ti-trash"></i></button>
         </div>`;
 
       const stageSelect = card.querySelector('.crm-stage-select');
       const deleteBtn = card.querySelector('.crm-delete-btn');
+      const whatsappBtn = card.querySelector('.crm-whatsapp-btn');
 
       stageSelect.addEventListener('pointerdown', () => {
         card.draggable = false;
@@ -3005,6 +3091,20 @@ async function renderCRM() {
           e.target.value = previousStage;
         }
       });
+
+      if (whatsappBtn) {
+        whatsappBtn.addEventListener('pointerdown', () => {
+          card.draggable = false;
+        });
+        whatsappBtn.addEventListener('pointerup', () => {
+          card.draggable = true;
+        });
+        whatsappBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const url = crmWhatsAppUrl(lead.phone, lead.full_name);
+          if (url) window.open(url, '_blank', 'noopener');
+        });
+      }
 
       deleteBtn.addEventListener('pointerdown', () => {
         card.draggable = false;
@@ -3378,6 +3478,26 @@ async function openCRMLeadDetail(lead) {
   el('crm-detail-assignee').innerHTML = crmAssigneeOptions(lead.assigned_to);
   el('crm-detail-lost-reason').value = lead.lost_reason || '';
   crmToggleLostReasonField();
+
+  const attentionBox = el('crm-detail-attention');
+  if (attentionBox) {
+    if (crmLeadNeedsAttention(lead)) {
+      attentionBox.classList.remove('hidden');
+      attentionBox.innerHTML = `<i class="ti ti-alert-triangle"></i><span>${escHtml(crmLeadAttentionReason(lead))}</span>`;
+    } else {
+      attentionBox.classList.add('hidden');
+      attentionBox.innerHTML = '';
+    }
+  }
+
+  const detailWhatsApp = el('crm-detail-whatsapp');
+  if (detailWhatsApp) {
+    detailWhatsApp.style.display = lead.phone ? '' : 'none';
+    detailWhatsApp.onclick = () => {
+      const url = crmWhatsAppUrl(lead.phone, lead.full_name);
+      if (url) window.open(url, '_blank', 'noopener');
+    };
+  }
   el('crm-detail-followup').value = lead.next_follow_up_at
     ? new Date(new Date(lead.next_follow_up_at).getTime() - new Date().getTimezoneOffset() * 60000)
         .toISOString().slice(0,16)
