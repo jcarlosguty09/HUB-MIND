@@ -40,6 +40,11 @@
     .crm-notes-input{min-height:84px;resize:vertical}
 
 
+    .crm-owner-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-5px 0 16px}
+    .crm-filter-btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);padding:7px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer}
+    .crm-filter-btn span{display:inline-flex;min-width:19px;height:19px;align-items:center;justify-content:center;margin-left:4px;border-radius:999px;background:var(--surface2);font-size:10px}
+    .crm-filter-btn.active{border-color:var(--blue);color:var(--blue)}
+    .crm-card-assignee{display:flex;align-items:center;gap:5px;color:var(--text3);font-size:10px;margin-top:8px}
     .crm-tasks-panel{margin:0 0 18px;border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden}
     .crm-tasks-panel-header{padding:13px 14px;border-bottom:1px solid var(--border)}
     .crm-tasks-panel-title{font-weight:700;font-size:14px}
@@ -55,7 +60,9 @@
     .crm-task-note{font-size:11px;color:var(--text2);margin-top:5px}
     .crm-task-overdue-label{font-weight:700}
     .crm-task-create{display:grid;grid-template-columns:1fr 180px;gap:8px;margin-bottom:10px}
-    .crm-task-create textarea,.crm-task-create button{grid-column:1 / -1}
+    .crm-task-create #crm-task-assignee,
+    .crm-task-create textarea,
+    .crm-task-create button{grid-column:1 / -1}
     .crm-lead-task-list{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px}
     .crm-lead-task-item.completed{opacity:.6}
     .crm-lead-task-item.completed .crm-task-title{text-decoration:line-through}
@@ -93,7 +100,9 @@
       .crm-detail-grid{grid-template-columns:1fr}
       .crm-activity-create{grid-template-columns:1fr}
       .crm-task-create{grid-template-columns:1fr}
-      .crm-task-create textarea,.crm-task-create button{grid-column:auto}
+      .crm-task-create #crm-task-assignee,
+      .crm-task-create textarea,
+      .crm-task-create button{grid-column:auto}
     }
   </style>
 
@@ -322,6 +331,7 @@
           <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
         </div>
         <div class="crm-stats" id="crm-stats"></div>
+        <div class="crm-owner-filters" id="crm-owner-filters"></div>
 
         <div class="crm-tasks-panel">
           <div class="crm-tasks-panel-header">
@@ -412,6 +422,11 @@
               </div>
 
               <div class="field-group">
+                <label class="field-label">Responsable</label>
+                <select class="field-input" id="crm-detail-assignee"></select>
+              </div>
+
+              <div class="field-group">
                 <label class="field-label">Próximo seguimiento</label>
                 <input class="field-input" type="datetime-local" id="crm-detail-followup" />
               </div>
@@ -444,6 +459,7 @@
               <div class="crm-task-create">
                 <input class="field-input" id="crm-task-title" placeholder="Ej: Escribir por WhatsApp" />
                 <input class="field-input" type="datetime-local" id="crm-task-due" />
+                <select class="field-input" id="crm-task-assignee"></select>
                 <textarea class="field-input crm-activity-note-input" id="crm-task-note" placeholder="Nota opcional"></textarea>
                 <button class="save-btn" id="crm-task-save">
                   <i class="ti ti-plus"></i> Crear seguimiento

@@ -1051,12 +1051,47 @@ const CRMAPI = {
     }
   },
 
-  async listTasks({ status = null, leadId = null } = {}) {
+  async listStaff() {
+    try {
+      const [memberships, profiles] = await Promise.all([
+        sbReq(
+          'GET',
+          'organization_members?select=user_id,role,is_active&is_active=eq.true&role=in.(owner,admin,coach,sales)'
+        ),
+        sbReq(
+          'GET',
+          'profiles?select=id,full_name,avatar_url'
+        )
+      ]);
+
+      const profileMap = {};
+      (profiles || []).forEach(p => {
+        profileMap[p.id] = p;
+      });
+
+      return (memberships || [])
+        .map(m => ({
+          id: m.user_id,
+          role: m.role,
+          full_name: profileMap[m.user_id]?.full_name || 'Sin nombre',
+          avatar_url: profileMap[m.user_id]?.avatar_url || null
+        }))
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+    } catch (e) {
+      console.warn('CRMAPI.listStaff:', e.message);
+      return [];
+    }
+  },
+
+  async listTasks({ status = null, leadId = null, assignedTo = undefined } = {}) {
     try {
       let path = 'crm_tasks?select=*&order=due_at.asc';
 
       if (status) path += `&status=eq.${encodeURIComponent(status)}`;
       if (leadId) path += `&lead_id=eq.${encodeURIComponent(leadId)}`;
+      if (assignedTo === null) path += '&assigned_to=is.null';
+      if (assignedTo) path += `&assigned_to=eq.${encodeURIComponent(assignedTo)}`;
 
       const rows = await sbReq('GET', path);
       return rows || [];

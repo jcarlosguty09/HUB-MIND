@@ -2185,6 +2185,8 @@ const CRM_ACTIVITY_LABELS = {
 };
 
 let crmSelectedLead = null;
+let crmStaff = [];
+let crmLeadOwnerFilter = 'all';
 
 function crmFormatFollowUp(value) {
   if (!value) return '';
@@ -2216,6 +2218,32 @@ function crmTaskIsOverdue(task) {
   return new Date(task.due_at) < start;
 }
 
+function crmStaffName(userId) {
+  if (!userId) return 'Sin asignar';
+  return crmStaff.find(s => s.id === userId)?.full_name || 'Usuario';
+}
+
+function crmStaffRoleLabel(role) {
+  return {
+    owner: 'Owner',
+    admin: 'Admin',
+    coach: 'Coach',
+    sales: 'Ventas'
+  }[role] || role || '';
+}
+
+function crmAssigneeOptions(selectedId = null, includeUnassigned = true) {
+  const unassigned = includeUnassigned
+    ? `<option value=""${!selectedId ? ' selected' : ''}>Sin asignar</option>`
+    : '';
+
+  return unassigned + crmStaff.map(s => `
+    <option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>
+      ${escHtml(s.full_name)} · ${escHtml(crmStaffRoleLabel(s.role))}
+    </option>
+  `).join('');
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -2223,24 +2251,39 @@ async function renderCRM() {
 
   board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
 
-  const [leads, tasks] = await Promise.all([
+  const [allLeads, tasks, staff] = await Promise.all([
     CRMAPI.listLeads(),
-    CRMAPI.listTasks({ status: 'pending' })
+    CRMAPI.listTasks({ status: 'pending' }),
+    CRMAPI.listStaff()
   ]);
 
-  const leadMap = Object.fromEntries(leads.map(l => [l.id, l]));
+  crmStaff = staff || [];
+
+  const currentUserId = Auth.getUser()?.id || null;
+
+  let leads = allLeads;
+  if (crmLeadOwnerFilter === 'mine') {
+    leads = allLeads.filter(l => l.assigned_to === currentUserId);
+  } else if (crmLeadOwnerFilter === 'unassigned') {
+    leads = allLeads.filter(l => !l.assigned_to);
+  }
+
+  const leadMap = Object.fromEntries(allLeads.map(l => [l.id, l]));
   const dueToday = tasks.filter(crmTaskIsDueToday);
   const overdueTasks = tasks.filter(crmTaskIsOverdue);
 
+  renderCRMOwnerFilters(allLeads, currentUserId);
+
   if (stats) {
-    const open = leads.filter(l => !['won','lost'].includes(l.stage)).length;
-    const won = leads.filter(l => l.stage === 'won').length;
+    const open = allLeads.filter(l => !['won','lost'].includes(l.stage)).length;
+    const won = allLeads.filter(l => l.stage === 'won').length;
     stats.innerHTML = `
-      <span><strong>${leads.length}</strong> leads</span>
+      <span><strong>${allLeads.length}</strong> leads</span>
       <span><strong>${open}</strong> activos</span>
       <span><strong>${won}</strong> ganados</span>
       <span><strong>${dueToday.length}</strong> tareas hoy</span>
-      <span><strong>${overdueTasks.length}</strong> vencidas</span>`;
+      <span><strong>${overdueTasks.length}</strong> vencidas</span>
+      ${crmLeadOwnerFilter !== 'all' ? `<span><strong>${leads.length}</strong> visibles</span>` : ''}`;
   }
 
   renderCRMTodayTasks([...overdueTasks, ...dueToday], leadMap);
@@ -2284,6 +2327,10 @@ async function renderCRM() {
             <i class="ti ti-calendar-time"></i>
             ${followUpDue ? 'Pendiente · ' : ''}${escHtml(crmFormatFollowUp(lead.next_follow_up_at))}
           </div>` : ''}
+        <div class="crm-card-assignee">
+          <i class="ti ti-user"></i>
+          ${escHtml(crmStaffName(lead.assigned_to))}
+        </div>
         ${lead.notes ? `<div class="crm-card-notes">${escHtml(lead.notes)}</div>` : ''}
         <div class="crm-card-actions">
           <select class="field-input crm-stage-select" aria-label="Mover etapa">
@@ -2341,6 +2388,33 @@ async function renderCRM() {
 
 
 
+
+function renderCRMOwnerFilters(allLeads, currentUserId) {
+  const wrap = el('crm-owner-filters');
+  if (!wrap) return;
+
+  const mine = allLeads.filter(l => l.assigned_to === currentUserId).length;
+  const unassigned = allLeads.filter(l => !l.assigned_to).length;
+
+  wrap.innerHTML = `
+    <button class="crm-filter-btn${crmLeadOwnerFilter === 'all' ? ' active' : ''}" data-filter="all">
+      Todos <span>${allLeads.length}</span>
+    </button>
+    <button class="crm-filter-btn${crmLeadOwnerFilter === 'mine' ? ' active' : ''}" data-filter="mine">
+      Mis leads <span>${mine}</span>
+    </button>
+    <button class="crm-filter-btn${crmLeadOwnerFilter === 'unassigned' ? ' active' : ''}" data-filter="unassigned">
+      Sin asignar <span>${unassigned}</span>
+    </button>`;
+
+  wrap.querySelectorAll('.crm-filter-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      crmLeadOwnerFilter = btn.dataset.filter;
+      await renderCRM();
+    });
+  });
+}
+
 async function renderCRMTodayTasks(tasks, leadMap = {}) {
   const wrap = el('crm-today-tasks');
   if (!wrap) return;
@@ -2376,6 +2450,7 @@ async function renderCRMTodayTasks(tasks, leadMap = {}) {
         <div class="crm-task-title">${escHtml(task.title)}</div>
         <div class="crm-task-meta">
           ${lead ? `<span>${escHtml(lead.full_name)}</span>` : ''}
+          <span><i class="ti ti-user"></i> ${escHtml(crmStaffName(task.assigned_to))}</span>
           <span>${escHtml(dueLabel)}</span>
           ${crmTaskIsOverdue(task) ? '<span class="crm-task-overdue-label">Vencida</span>' : ''}
         </div>
@@ -2443,6 +2518,7 @@ async function renderCRMLeadTasks(leadId) {
       <div class="crm-task-main">
         <div class="crm-task-title">${escHtml(task.title)}</div>
         <div class="crm-task-meta">
+          <span><i class="ti ti-user"></i> ${escHtml(crmStaffName(task.assigned_to))}</span>
           <span>${escHtml(dueLabel)}</span>
           <span>${task.status === 'completed' ? 'Completada' : 'Pendiente'}</span>
         </div>
@@ -2489,6 +2565,7 @@ async function createCRMTaskForSelectedLead() {
   const title = el('crm-task-title').value.trim();
   const dueRaw = el('crm-task-due').value;
   const note = el('crm-task-note').value.trim();
+  const assignedTo = el('crm-task-assignee').value || null;
 
   if (!title || !dueRaw) {
     showToast('Escribe título y fecha del seguimiento');
@@ -2503,6 +2580,7 @@ async function createCRMTaskForSelectedLead() {
     lead_id: crmSelectedLead.id,
     title,
     due_at: new Date(dueRaw).toISOString(),
+    assigned_to: assignedTo,
     note: note || null
   });
 
@@ -2517,6 +2595,9 @@ async function createCRMTaskForSelectedLead() {
   el('crm-task-title').value = '';
   el('crm-task-due').value = '';
   el('crm-task-note').value = '';
+  el('crm-task-assignee').innerHTML = crmAssigneeOptions(
+    lead.assigned_to || Auth.getUser()?.id || null
+  );
 
   await CRMAPI.createActivity(
     crmSelectedLead.id,
@@ -2642,6 +2723,7 @@ async function openCRMLeadDetail(lead) {
   ].filter(Boolean).join(' · ');
 
   el('crm-detail-stage').value = lead.stage || 'new';
+  el('crm-detail-assignee').innerHTML = crmAssigneeOptions(lead.assigned_to);
   el('crm-detail-followup').value = lead.next_follow_up_at
     ? new Date(new Date(lead.next_follow_up_at).getTime() - new Date().getTimezoneOffset() * 60000)
         .toISOString().slice(0,16)
@@ -2785,11 +2867,13 @@ async function saveCRMLeadDetail() {
   if (!crmSelectedLead) return;
 
   const stage = el('crm-detail-stage').value;
+  const assignedTo = el('crm-detail-assignee').value || null;
   const followupRaw = el('crm-detail-followup').value;
   const notes = el('crm-detail-notes').value.trim();
 
   const changes = {
     stage,
+    assigned_to: assignedTo,
     next_follow_up_at: followupRaw ? new Date(followupRaw).toISOString() : null,
     notes: notes || null
   };
@@ -2809,6 +2893,14 @@ async function saveCRMLeadDetail() {
       crmSelectedLead.id,
       'stage_change',
       `${fromLabel} → ${toLabel}`
+    );
+  }
+
+  if ((crmSelectedLead.assigned_to || null) !== assignedTo) {
+    await CRMAPI.createActivity(
+      crmSelectedLead.id,
+      'note',
+      `Responsable asignado: ${crmStaffName(assignedTo)}`
     );
   }
 
