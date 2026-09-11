@@ -477,7 +477,7 @@ function buildSectionCard(ctx, dateKey, classId, sec, idx) {
       </div>
       <div class="timer-fields">${renderTimerFields(mode, sec.timerConfig || {})}</div>
     </div>
-    ${isCoach ? '' : `<div class="section-footer"><span class="save-status"></span><button class="save-btn section-save-btn"><i class="ti ti-device-floppy"></i> Guardar</button></div>`}`;
+    ${canEdit ? `<div class="section-footer"><span class="save-status"></span><button class="save-btn section-save-btn"><i class="ti ti-device-floppy"></i> Guardar</button></div>` : ''}`;
 
   // Name
   card.querySelector('.section-name-input').addEventListener('input', e => {
