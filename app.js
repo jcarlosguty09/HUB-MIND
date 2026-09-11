@@ -143,6 +143,10 @@ function defaultViewForRole(role) {
   return 'calendar';
 }
 
+function canEditTraining(role = state.role) {
+  return ['master_admin','admin','coach'].includes(role);
+}
+
 // ---- VIEW ----
 function showView(v) {
   // Defensa adicional de UX. La seguridad real sigue estando en RLS/Edge Functions.
@@ -235,8 +239,8 @@ function addCalDay(grid, d, y, m, other) {
     selectDay(y, m, d);
   });
 
-  // Drag & drop (admin only)
-  if (state.role === 'admin') {
+  // Drag & drop para staff de training
+  if (canEditTraining()) {
     const hasWod = state.wods[key] && Object.values(state.wods[key]).some(secs => secs && secs.length);
 
     if (hasWod) {
@@ -386,8 +390,8 @@ function renderDay(ctx, dateKey) {
   }
   container.appendChild(sectionsEl);
 
-  // Add section button (admin only)
-  if (state.role === 'admin') {
+  // Agregar sección: Admin Maestro / Admin / Coach
+  if (canEditTraining()) {
     const addBtn = document.createElement('button');
     addBtn.className = 'add-section-btn';
     addBtn.innerHTML = '<i class="ti ti-plus"></i> Agregar sección';
@@ -454,15 +458,15 @@ function buildMyScoreBlock(dateKey, classId, existingScore = {}) {
 function buildSectionCard(ctx, dateKey, classId, sec, idx) {
   const card = document.createElement('div');
   card.className = 'section-card';
-  const isCoach = state.role === 'coach';
+  const canEdit = canEditTraining();
   const mode = sec.timerMode || 'stopwatch';
 
   card.innerHTML = `
     <div class="section-card-header">
-      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre (ej: MetCon, Strength...)" ${isCoach ? 'readonly style="pointer-events:none"' : ''} />
-      ${isCoach ? '' : `<button class="section-delete-btn" aria-label="Eliminar"><i class="ti ti-trash"></i></button>`}
+      <input class="section-name-input" value="${escHtml(sec.name || '')}" placeholder="Nombre (ej: MetCon, Strength...)" ${canEdit ? '' : 'readonly style="pointer-events:none"'} />
+      ${canEdit ? `<button class="section-delete-btn" aria-label="Eliminar"><i class="ti ti-trash"></i></button>` : ''}
     </div>
-    <textarea class="wod-editor" placeholder="Escribe el WOD aquí..." ${isCoach ? 'readonly style="background:var(--surface2);cursor:default"' : ''}>${escHtml(sec.content || '')}</textarea>
+    <textarea class="wod-editor" placeholder="Escribe el WOD aquí..." ${canEdit ? '' : 'readonly style="background:var(--surface2);cursor:default"'}>${escHtml(sec.content || '')}</textarea>
     <div class="section-timer-config">
       <div class="section-timer-label"><i class="ti ti-clock"></i> Timer</div>
       <div class="timer-modes">
@@ -485,6 +489,10 @@ function buildSectionCard(ctx, dateKey, classId, sec, idx) {
   });
   // Timer modes
   card.querySelectorAll('.timer-mode-btn').forEach(btn => {
+    if (!canEdit) {
+      btn.disabled = true;
+      return;
+    }
     btn.addEventListener('click', () => {
       const newMode = btn.dataset.mode;
       getSections(dateKey, classId)[idx].timerMode = newMode;
@@ -494,9 +502,15 @@ function buildSectionCard(ctx, dateKey, classId, sec, idx) {
       bindTimerFields(card, dateKey, classId, idx);
     });
   });
-  bindTimerFields(card, dateKey, classId, idx);
+  if (canEdit) {
+    bindTimerFields(card, dateKey, classId, idx);
+  } else {
+    card.querySelectorAll('.timer-fields input, .timer-fields select').forEach(input => {
+      input.disabled = true;
+    });
+  }
   // Delete
-  if (!isCoach) {
+  if (canEdit) {
     card.querySelector('.section-delete-btn').addEventListener('click', () => {
       getSections(dateKey, classId).splice(idx, 1);
       renderDay(ctx, dateKey);
@@ -3772,14 +3786,18 @@ async function saveCRMLead() {
 
 // ---- MEMBERS (admin only) ----
 const ROLE_PERMISSIONS = {
+  master_admin: [
+    'Acceso total', 'Crear y editar WODs', 'Crear usuarios', 'Gestionar CRM',
+    'Ver y gestionar check-ins', 'Gestionar miembros y roles',
+  ],
   admin: [
     'Crear y editar WODs', 'Crear usuarios', 'Ver y gestionar check-ins',
     'Vincular ZK IDs', 'Editar/borrar cualquier score', 'Mover WODs entre días',
-    'Ver panel de administración', 'Gestionar miembros',
+    'Ver panel de administración', 'Gestionar miembros', 'Gestionar CRM',
   ],
   coach: [
-    'Ver WODs', 'Agregar scores de atletas', 'Editar/borrar scores',
-    'Ver check-ins', 'Proyectar WODs',
+    'Crear y editar WODs', 'Mover WODs entre días', 'Agregar scores de atletas',
+    'Editar/borrar scores', 'Ver check-ins', 'Proyectar WODs', 'Registrar leads',
   ],
   atleta: [
     'Ver su WOD del día', 'Subir su propio score', 'Ver rankings',
