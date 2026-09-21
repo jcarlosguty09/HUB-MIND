@@ -3631,15 +3631,36 @@ async function openCRMLeadDetail(lead) {
 async function loadCRMTrialForm(lead) {
   const classSel = el('crm-trial-class');
   const assigneeSel = el('crm-trial-assignee');
-  if (!classSel || !assigneeSel) return;
+  const atInput = el('crm-trial-at');
+  if (!classSel || !assigneeSel || !atInput) return;
+
   assigneeSel.innerHTML = crmAssigneeOptions(lead.assigned_to);
   const schedule = await ScheduleAPI.getAll();
-  classSel.innerHTML = '<option value="">Seleccionar clase / horario</option>' + (schedule || []).map(c => {
-    const label = `${c.time || ''} · ${c.class_name || c.name || c.class_type || 'Clase'}`;
-    return `<option value="${escHtml(c.id)}" data-label="${escHtml(label)}">${escHtml(label)}</option>`;
-  }).join('');
-  el('crm-trial-at').value = '';
+
+  const renderTrialScheduleOptions = () => {
+    // datetime-local uses the browser's local calendar date. class_schedule uses
+    // 0=domingo ... 6=sábado, so only show classes that actually run that day.
+    const raw = atInput.value;
+    const selectedDay = raw ? new Date(raw).getDay() : null;
+    const rows = selectedDay === null
+      ? (schedule || [])
+      : (schedule || []).filter(c => Number(c.day_of_week) === selectedDay);
+
+    const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    classSel.innerHTML = '<option value="">Seleccionar clase / horario</option>' + rows.map(c => {
+      const info = CLASS_TYPE_INFO[c.class_type] || { label: c.class_type || 'Clase' };
+      const time = c.start_time ? fmtTime(c.start_time) : 'Sin hora';
+      const day = dayNames[Number(c.day_of_week)] || '';
+      const label = `${day} ${time} · ${info.label}`.trim();
+      return `<option value="${escHtml(c.id)}" data-label="${escHtml(label)}">${escHtml(label)}</option>`;
+    }).join('');
+  };
+
+  atInput.value = '';
   el('crm-trial-notes').value = '';
+  renderTrialScheduleOptions();
+  atInput.onchange = renderTrialScheduleOptions;
+  atInput.oninput = renderTrialScheduleOptions;
 }
 
 async function createCRMTrialForSelectedLead() {
