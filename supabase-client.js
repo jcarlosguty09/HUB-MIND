@@ -1088,6 +1088,35 @@ const CRMAPI = {
     }
   },
 
+  async listTrials(leadId = null) {
+    try {
+      let path = 'crm_trials?select=*&order=scheduled_at.desc';
+      if (leadId) path += `&lead_id=eq.${encodeURIComponent(leadId)}`;
+      return await sbReq('GET', path) || [];
+    } catch (e) { console.warn('CRMAPI.listTrials:', e.message); return []; }
+  },
+
+  async createTrial({ lead_id, scheduled_at, schedule_id = null, class_name = null, assigned_to = null, notes = null }) {
+    try {
+      const rows = await sbReq('POST', 'crm_trials', {
+        lead_id, scheduled_at, schedule_id, class_name, assigned_to, notes, status: 'scheduled'
+      });
+      return rows?.[0] || null;
+    } catch (e) { console.error('CRMAPI.createTrial:', e); return null; }
+  },
+
+  async updateTrial(trialId, changes) {
+    try {
+      const rows = await sbReq('PATCH', `crm_trials?id=eq.${trialId}`, { ...changes, updated_at: new Date().toISOString() });
+      return rows?.[0] || null;
+    } catch (e) { console.error('CRMAPI.updateTrial:', e); return null; }
+  },
+
+  async deleteTrial(trialId) {
+    try { await sbReq('DELETE', `crm_trials?id=eq.${trialId}`, null, 'return=minimal'); return true; }
+    catch (e) { console.error('CRMAPI.deleteTrial:', e); return false; }
+  },
+
   async listTasks({ status = null, leadId = null, assignedTo = undefined } = {}) {
     try {
       let path = 'crm_tasks?select=*&order=due_at.asc';

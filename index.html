@@ -204,7 +204,17 @@
       .crm-task-create textarea,
       .crm-task-create button{grid-column:auto}
     }
-  </style>
+  
+    .crm-trials-panel{margin-bottom:18px;border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--surface)}
+    .crm-trial-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .crm-trial-form .full{grid-column:1/-1}
+    .crm-trial-list{display:flex;flex-direction:column;gap:8px}
+    .crm-trial-item{border:1px solid var(--border);border-radius:10px;padding:10px}
+    .crm-trial-top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .crm-trial-title{font-weight:700;font-size:12px}.crm-trial-meta{font-size:10px;color:var(--text3);margin-top:3px}
+    .crm-trial-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.crm-trial-actions button{font-size:10px;padding:6px 8px}
+    @media(max-width:700px){.crm-trial-form{grid-template-columns:1fr}}
+</style>
 
 </head>
 <body data-theme="dark">
@@ -604,6 +614,18 @@
             </div>
 
             <div class="crm-detail-right">
+              <div class="crm-trials-panel">
+                <div class="crm-timeline-title">Clases de prueba</div>
+                <div class="checkins-subtitle">Agenda la prueba y registra si asistió, faltó o canceló.</div>
+                <div class="crm-trial-form">
+                  <input class="field-input" type="datetime-local" id="crm-trial-at" />
+                  <select class="field-input" id="crm-trial-class"><option value="">Seleccionar clase / horario</option></select>
+                  <select class="field-input full" id="crm-trial-assignee"></select>
+                  <textarea class="field-input crm-activity-note-input full" id="crm-trial-notes" placeholder="Nota opcional"></textarea>
+                  <button class="save-btn full" id="crm-trial-save"><i class="ti ti-calendar-plus"></i> Agendar prueba</button>
+                </div>
+                <div class="crm-trial-list" id="crm-trial-list"></div>
+              </div>
               <div class="crm-timeline-title">Seguimientos</div>
 
               <div class="crm-task-create">

@@ -2077,6 +2077,7 @@ async function init() {
   el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
   el('crm-activity-save').addEventListener('click', saveCRMActivity);
   el('crm-task-save').addEventListener('click', createCRMTaskForSelectedLead);
+  el('crm-trial-save').addEventListener('click', createCRMTrialForSelectedLead);
   el('crm-detail-save').addEventListener('click', saveCRMLeadDetail);
 
   el('crm-convert-cancel').addEventListener('click', closeCRMConvertModal);
@@ -3619,10 +3620,75 @@ async function openCRMLeadDetail(lead) {
   el('crm-task-due').value = '';
   el('crm-task-note').value = '';
 
+  await loadCRMTrialForm(lead);
   await Promise.all([
+    renderCRMTrials(lead.id),
     renderCRMActivities(lead.id),
     renderCRMLeadTasks(lead.id)
   ]);
+}
+
+async function loadCRMTrialForm(lead) {
+  const classSel = el('crm-trial-class');
+  const assigneeSel = el('crm-trial-assignee');
+  if (!classSel || !assigneeSel) return;
+  assigneeSel.innerHTML = crmAssigneeOptions(lead.assigned_to);
+  const schedule = await ScheduleAPI.getAll();
+  classSel.innerHTML = '<option value="">Seleccionar clase / horario</option>' + (schedule || []).map(c => {
+    const label = `${c.time || ''} · ${c.class_name || c.name || c.class_type || 'Clase'}`;
+    return `<option value="${escHtml(c.id)}" data-label="${escHtml(label)}">${escHtml(label)}</option>`;
+  }).join('');
+  el('crm-trial-at').value = '';
+  el('crm-trial-notes').value = '';
+}
+
+async function createCRMTrialForSelectedLead() {
+  if (!crmSelectedLead) return;
+  const at = el('crm-trial-at').value;
+  if (!at) { showToast('Selecciona fecha y hora de la prueba'); return; }
+  const sel = el('crm-trial-class');
+  const opt = sel.options[sel.selectedIndex];
+  const btn = el('crm-trial-save'); btn.disabled = true;
+  const trial = await CRMAPI.createTrial({
+    lead_id: crmSelectedLead.id,
+    scheduled_at: new Date(at).toISOString(),
+    schedule_id: sel.value || null,
+    class_name: opt?.dataset?.label || null,
+    assigned_to: el('crm-trial-assignee').value || crmSelectedLead.assigned_to || null,
+    notes: el('crm-trial-notes').value.trim() || null
+  });
+  btn.disabled = false;
+  if (!trial) { showToast('No se pudo agendar la prueba'); return; }
+  await CRMAPI.updateLead(crmSelectedLead.id, { stage:'trial_scheduled' });
+  await CRMAPI.createActivity(crmSelectedLead.id, 'trial', `Prueba agendada: ${crmFormatFollowUp(trial.scheduled_at)}${trial.class_name ? ' · '+trial.class_name : ''}`);
+  crmSelectedLead.stage = 'trial_scheduled'; el('crm-detail-stage').value = 'trial_scheduled';
+  await loadCRMTrialForm(crmSelectedLead); await renderCRMTrials(crmSelectedLead.id); await renderCRM();
+  showToast('✓ Prueba agendada');
+}
+
+async function renderCRMTrials(leadId) {
+  const wrap = el('crm-trial-list'); if (!wrap) return;
+  const rows = await CRMAPI.listTrials(leadId);
+  if (!rows.length) { wrap.innerHTML = '<div class="crm-activity-empty">Sin clases de prueba todavía.</div>'; return; }
+  const labels={scheduled:'Agendada',attended:'Asistió',no_show:'No-show',cancelled:'Cancelada'};
+  wrap.innerHTML = rows.map(t => `<div class="crm-trial-item" data-trial-id="${t.id}">
+    <div class="crm-trial-top"><div><div class="crm-trial-title">${escHtml(labels[t.status]||t.status)}</div><div class="crm-trial-meta">${escHtml(crmFormatFollowUp(t.scheduled_at))}${t.class_name?' · '+escHtml(t.class_name):''}</div></div></div>
+    ${t.notes?`<div class="crm-task-note">${escHtml(t.notes)}</div>`:''}
+    <div class="crm-trial-actions">
+      ${t.status==='scheduled'?`<button class="btn-secondary" data-trial-action="attended">✓ Asistió</button><button class="btn-secondary" data-trial-action="no_show">No-show</button><button class="btn-secondary" data-trial-action="cancelled">Cancelar</button>`:''}
+      <button class="icon-btn" data-trial-action="delete" title="Eliminar"><i class="ti ti-trash"></i></button>
+    </div></div>`).join('');
+  wrap.querySelectorAll('[data-trial-action]').forEach(btn=>btn.onclick=async()=>{
+    const box=btn.closest('[data-trial-id]'), id=box.dataset.trialId, action=btn.dataset.trialAction;
+    if(action==='delete'){ if(!confirm('¿Eliminar esta prueba?')) return; await CRMAPI.deleteTrial(id); }
+    else {
+      const updated=await CRMAPI.updateTrial(id,{status:action}); if(!updated) return;
+      const note=action==='attended'?'Asistió a la clase de prueba':action==='no_show'?'No se presentó a la clase de prueba':'Clase de prueba cancelada';
+      await CRMAPI.createActivity(leadId,'trial',note);
+      if(action==='attended'){ await CRMAPI.updateLead(leadId,{stage:'trial_completed'}); crmSelectedLead.stage='trial_completed'; el('crm-detail-stage').value='trial_completed'; }
+    }
+    await renderCRMTrials(leadId); await renderCRM();
+  });
 }
 
 function closeCRMLeadDetail() {
