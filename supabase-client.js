@@ -245,6 +245,8 @@ const CheckinAPI = {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal',
         },
+        // assigned_class_by / assigned_class_at los llena un trigger en Postgres.
+        // Así la auditoría no depende de datos que mande el navegador.
         body: JSON.stringify({ assigned_class_id: classScheduleId || null }),
       });
       return res.ok;

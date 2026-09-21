@@ -1394,11 +1394,10 @@ async function renderCheckins() {
   el('checkins-date').value = today;
   el('checkins-date-label').textContent = new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
-  // Load athletes and profiles for name lookup
+  // Atletas y horario semanal. Los check-ins se agrupan por class_schedule.id.
   const athletes = await AthleteAPI.list();
   const nameMap = {};
   athletes.forEach(a => nameMap[a.id] = { name: a.display_name, avatar: a.avatar_url });
-  // Clases por día de la semana (para el selector de asistencia)
   const allSchedule = await ScheduleAPI.getAll();
 
   async function load(date, search = '') {
@@ -1406,25 +1405,40 @@ async function renderCheckins() {
     const rows = await CheckinAPI.getForDate(date);
     _allCheckins = rows;
 
-    // Get profiles for user_ids
-    const userIds = [...new Set(rows.filter(r => r.user_id).map(r => r.user_id))];
+    // Perfiles tanto de asistentes como de quienes pasaron lista.
+    const userIds = [...new Set([
+      ...rows.filter(r => r.user_id).map(r => r.user_id),
+      ...rows.filter(r => r.assigned_class_by).map(r => r.assigned_class_by),
+    ])];
     const profiles = userIds.length ? await ProfileAPI.getMany(userIds) : {};
 
-    // Filter by search
+    const q = (search || '').toLowerCase().trim();
     const filtered = rows.filter(r => {
-      if (!search) return true;
+      if (!q) return true;
       const profile = r.user_id ? profiles[r.user_id] : null;
-      const name = profile?.full_name || nameMap[r.user_id]?.name || r.zk_user_id;
-      return name.toLowerCase().includes(search.toLowerCase());
+      const name = r.is_manual
+        ? (r.manual_name || 'Visita')
+        : (profile?.full_name || nameMap[r.user_id]?.name || `ZK#${r.zk_user_id || ''}`);
+      return String(name).toLowerCase().includes(q);
     });
 
-    // Stats
+    // Clases correspondientes al día seleccionado, no al reloj actual.
+    const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+    const dayClasses = allSchedule
+      .filter(c => c.day_of_week === dayOfWeek)
+      .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+    const scheduleMap = Object.fromEntries(dayClasses.map(c => [String(c.id), c]));
+
+    // KPIs de calidad de lista.
     const total = rows.length;
-    const mapped = rows.filter(r => r.user_id).length;
+    const assigned = rows.filter(r => r.assigned_class_id).length;
+    const unassigned = total - assigned;
+    const coverage = total ? Math.round((assigned / total) * 100) : 0;
     el('checkins-stats').innerHTML = `
       <div class="checkin-stat"><span class="checkin-stat-num">${total}</span><span class="checkin-stat-label">Total</span></div>
-      <div class="checkin-stat"><span class="checkin-stat-num">${mapped}</span><span class="checkin-stat-label">Identificados</span></div>
-      <div class="checkin-stat checkin-stat-unknown"><span class="checkin-stat-num">${total - mapped}</span><span class="checkin-stat-label">Sin vincular</span></div>`;
+      <div class="checkin-stat"><span class="checkin-stat-num">${assigned}</span><span class="checkin-stat-label">En clase</span></div>
+      <div class="checkin-stat checkin-stat-unknown"><span class="checkin-stat-num">${unassigned}</span><span class="checkin-stat-label">Sin clase</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${coverage}%</span><span class="checkin-stat-label">Lista</span></div>`;
 
     const listEl = el('checkins-list');
     listEl.innerHTML = '';
@@ -1434,29 +1448,35 @@ async function renderCheckins() {
       return;
     }
 
-    filtered.forEach(row => {
-      const profile = row.user_id ? profiles[row.user_id] : null;
-      const name    = row.is_manual ? (row.manual_name || 'Visita') : (profile?.full_name || nameMap[row.user_id]?.name || `ZK#${row.zk_user_id}`);
-      const avatar  = profile?.avatar_url || nameMap[row.user_id]?.avatar;
-      const initials = ProfileAPI.getInitials(profile?.full_name || name, '');
-      const time    = new Date(row.timestamp).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-      const isUnknown = !row.user_id;
+    const canAssign = ['master_admin','admin','coach'].includes(state.role);
+    const canAudit = ['master_admin','admin'].includes(state.role);
 
+    function renderCheckinCard(row) {
+      const profile = row.user_id ? profiles[row.user_id] : null;
+      const name = row.is_manual
+        ? (row.manual_name || 'Visita')
+        : (profile?.full_name || nameMap[row.user_id]?.name || `ZK#${row.zk_user_id}`);
+      const avatar = profile?.avatar_url || nameMap[row.user_id]?.avatar;
+      const initials = ProfileAPI.getInitials(profile?.full_name || name, '');
+      const time = new Date(row.timestamp).toLocaleTimeString('es-MX', {
+        hour:'2-digit', minute:'2-digit', timeZone:'America/Mexico_City'
+      });
+      const isUnknown = !row.user_id;
       const avatarHTML = avatar
         ? `<img src="${avatar}" class="checkin-avatar-img" />`
         : `<div class="checkin-avatar-placeholder${isUnknown ? ' unknown' : ''}">${escHtml(initials)}</div>`;
-
       const typeIcon = { face:'ti-face-id', fingerprint:'ti-fingerprint', card:'ti-credit-card', password:'ti-lock' }[row.verify_type] || 'ti-scan';
 
-     // Clases del día de ESTE check-in (según su fecha)
-      const rowDate = new Date(row.timestamp);
-      const rowDayCdmx = new Date(rowDate.toLocaleString('en-US', { timeZone: 'America/Mexico_City' })).getDay();
-      const dayClasses = allSchedule.filter(c => c.day_of_week === rowDayCdmx);
       const classOptions = dayClasses.map(c => {
         const info = CLASS_TYPE_INFO[c.class_type] || { label: c.class_type };
-        const sel = row.assigned_class_id === c.id ? ' selected' : '';
+        const sel = String(row.assigned_class_id || '') === String(c.id) ? ' selected' : '';
         return `<option value="${c.id}"${sel}>${fmtTime(c.start_time)} · ${escHtml(info.label)}</option>`;
       }).join('');
+
+      const assigner = row.assigned_class_by ? profiles[row.assigned_class_by] : null;
+      const auditLine = canAudit && row.assigned_class_id
+        ? `<div style="font-size:11px;color:var(--text3);margin-top:6px"><i class="ti ti-clipboard-check"></i> Lista: ${escHtml(assigner?.full_name || (row.assigned_class_by ? 'Usuario' : 'registro previo'))}${row.assigned_class_at ? ` · ${new Date(row.assigned_class_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'})}` : ''}</div>`
+        : '';
 
       const card = document.createElement('div');
       card.className = `checkin-card${isUnknown ? ' checkin-unknown' : ''}`;
@@ -1465,40 +1485,85 @@ async function renderCheckins() {
           <div class="checkin-avatar">${avatarHTML}</div>
           <div class="checkin-info">
             <div class="checkin-name">${escHtml(name)}${isUnknown ? ' <span class="checkin-badge-unknown">Sin vincular</span>' : ''}</div>
-         <div class="checkin-meta">
+            <div class="checkin-meta">
               <span><i class="ti ${row.is_manual ? 'ti-user-plus' : typeIcon}"></i> ${row.is_manual ? 'Manual' : (row.verify_type || 'face')}</span>
               ${row.is_manual ? (row.manual_phone ? `<span>${escHtml(row.manual_phone)}</span>` : '') : `<span>ZK#${row.zk_user_id}</span>`}
             </div>
+            ${auditLine}
           </div>
           <div class="checkin-time">${time}</div>
         </div>
         <div class="checkin-class-row">
           <i class="ti ti-clock-hour-4"></i>
-          <select class="checkin-class-select" data-checkin="${row.id}">
+          <select class="checkin-class-select" data-checkin="${row.id}" ${canAssign ? '' : 'disabled'}>
             <option value="">Sin clase asignada</option>
             ${classOptions}
           </select>
         </div>`;
 
-      // Click to link unknown user
       if (isUnknown) {
-        card.style.cursor = 'pointer';
-        card.title = 'Clic para vincular con atleta';
-        card.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
+        card.querySelector('.checkin-top')?.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
       }
 
-      // Selector de clase
       const classSelect = card.querySelector('.checkin-class-select');
-      if (classSelect) {
+      if (classSelect && canAssign) {
         classSelect.addEventListener('change', async (e) => {
+          e.target.disabled = true;
           const ok = await CheckinAPI.assignClass(row.id, e.target.value || null);
-          if (ok) showToast('✓ Clase asignada');
-          else showToast('Error al asignar clase');
+          if (ok) {
+            showToast(e.target.value ? '✓ Asistencia asignada a clase' : '✓ Asignación retirada');
+            await load(date, search);
+          } else {
+            e.target.disabled = false;
+            showToast('Error al asignar clase');
+          }
         });
       }
+      return card;
+    }
 
-      listEl.appendChild(card);
+    function addGroup(title, subtitle, groupRows, accent = false) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `margin:0 0 18px;border:1px solid var(--border);border-radius:14px;overflow:hidden;${accent ? 'border-color:rgba(245,158,11,.45);' : ''}`;
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;background:var(--surface2);border-bottom:1px solid var(--border)';
+      head.innerHTML = `<div><div style="font-weight:700">${title}</div>${subtitle ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${subtitle}</div>` : ''}</div><div style="font-weight:700">${groupRows.length}</div>`;
+      wrap.appendChild(head);
+      const body = document.createElement('div');
+      body.style.cssText = 'padding:10px;display:grid;gap:8px';
+      if (!groupRows.length) {
+        body.innerHTML = '<div style="padding:10px;color:var(--text3);font-size:12px">Sin asistentes asignados.</div>';
+      } else {
+        groupRows.forEach(r => body.appendChild(renderCheckinCard(r)));
+      }
+      wrap.appendChild(body);
+      listEl.appendChild(wrap);
+    }
+
+    // Pendientes arriba: hace evidente si el coach todavía no terminó de pasar lista.
+    const pendingRows = filtered.filter(r => !r.assigned_class_id);
+    if (pendingRows.length) {
+      addGroup('Pendientes por asignar', 'Check-ins que todavía no pertenecen a una clase', pendingRows, true);
+    }
+
+    // Un bloque por horario de clase.
+    dayClasses.forEach(c => {
+      const groupRows = filtered.filter(r => String(r.assigned_class_id || '') === String(c.id));
+      const info = CLASS_TYPE_INFO[c.class_type] || { label: c.class_type };
+      let subtitle = `${escHtml(info.label)}`;
+      if (canAudit && groupRows.length) {
+        const auditUsers = [...new Set(groupRows.map(r => r.assigned_class_by).filter(Boolean))];
+        const names = auditUsers.map(id => profiles[id]?.full_name || 'Usuario').join(', ');
+        const lastAt = groupRows.map(r => r.assigned_class_at).filter(Boolean).sort().pop();
+        if (names) subtitle += ` · Lista por ${escHtml(names)}`;
+        if (lastAt) subtitle += ` · última asignación ${new Date(lastAt).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'})}`;
+      }
+      addGroup(`${fmtTime(c.start_time)} · ${escHtml(info.label)}`, subtitle, groupRows);
     });
+
+    // Compatibilidad: si existe un assigned_class_id que ya no está en el horario actual.
+    const orphanRows = filtered.filter(r => r.assigned_class_id && !scheduleMap[String(r.assigned_class_id)]);
+    if (orphanRows.length) addGroup('Clase fuera del horario actual', 'Revisa estas asignaciones', orphanRows, true);
   }
   // ---- Check-in manual (atleta registrado o visita) ----
   let manualType = 'atleta';
