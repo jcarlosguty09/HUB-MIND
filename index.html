@@ -245,7 +245,62 @@
       .crm-command-summary{justify-content:flex-start}
       .crm-priority-grid{grid-template-columns:1fr}
     }
-  </style>
+  
+
+    /* HUB MIND — Responsive Desktop V1
+       Mobile/tablet stays unchanged. Desktop uses the available viewport. */
+    @media (min-width:1100px){
+      html,body{width:100%;min-width:0}
+      #app.app{
+        width:calc(100vw - 32px)!important;
+        max-width:1600px!important;
+        margin-left:auto!important;
+        margin-right:auto!important;
+      }
+      #app > .topbar,
+      #app > .nav-tabs,
+      #app > .main-content{
+        width:100%!important;
+        max-width:none!important;
+        box-sizing:border-box;
+      }
+      #app > .main-content{
+        padding-left:24px!important;
+        padding-right:24px!important;
+      }
+      #app .view{
+        width:100%!important;
+        max-width:none!important;
+      }
+      #view-crm .crm-kpi-grid{
+        grid-template-columns:repeat(6,minmax(140px,1fr));
+        gap:12px;
+      }
+      #view-crm .crm-insight-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:12px;
+      }
+      #view-crm .crm-team-card{grid-column:auto}
+      #view-crm .crm-priority-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:12px;
+      }
+      #view-crm .crm-board{
+        grid-template-columns:repeat(7,minmax(250px,1fr));
+        gap:14px;
+      }
+    }
+
+    @media (min-width:1450px){
+      #app > .main-content{
+        padding-left:32px!important;
+        padding-right:32px!important;
+      }
+      #view-crm .crm-priority-grid{
+        grid-template-columns:repeat(4,minmax(0,1fr));
+      }
+    }
+</style>
 
 </head>
 <body data-theme="dark">
