@@ -1075,34 +1075,42 @@ const CRMAPI = {
 
   async listStaff() {
     try {
-      const [memberships, profiles] = await Promise.all([
-        sbReq(
-          'GET',
-          'organization_members?select=user_id,role,is_active&is_active=eq.true&role=in.(owner,admin,coach,sales)'
-        ),
-        sbReq(
-          'GET',
-          'profiles?select=id,full_name,avatar_url'
-        )
-      ]);
-
-      const profileMap = {};
-      (profiles || []).forEach(p => {
-        profileMap[p.id] = p;
-      });
-
-      return (memberships || [])
-        .map(m => ({
-          id: m.user_id,
-          role: m.role,
-          full_name: profileMap[m.user_id]?.full_name || 'Sin nombre',
-          avatar_url: profileMap[m.user_id]?.avatar_url || null
-        }))
-        .sort((a, b) => a.full_name.localeCompare(b.full_name));
-
+      const rows = await sbReq(
+        'GET',
+        'crm_sales_team_roster?select=user_id,role,is_active,full_name,avatar_url&is_active=eq.true&order=full_name.asc'
+      );
+      return (rows || []).map(r => ({
+        id: r.user_id,
+        role: r.role,
+        full_name: r.full_name || 'Sin nombre',
+        avatar_url: r.avatar_url || null
+      }));
     } catch (e) {
       console.warn('CRMAPI.listStaff:', e.message);
       return [];
+    }
+  },
+
+  async listSalesTeamCandidates() {
+    try {
+      return await sbReq('GET', 'crm_sales_team_candidates?select=*&order=full_name.asc') || [];
+    } catch (e) {
+      console.warn('CRMAPI.listSalesTeamCandidates:', e.message);
+      return [];
+    }
+  },
+
+  async setSalesTeamMember(userId, enabled) {
+    try {
+      if (enabled) {
+        await sbReq('POST', 'crm_sales_team', { user_id: userId, is_active: true }, 'return=representation,resolution=merge-duplicates');
+      } else {
+        await sbReq('DELETE', `crm_sales_team?user_id=eq.${encodeURIComponent(userId)}`, null, 'return=minimal');
+      }
+      return true;
+    } catch (e) {
+      console.error('CRMAPI.setSalesTeamMember:', e);
+      return false;
     }
   },
 

@@ -2405,6 +2405,61 @@ function crmStaffRoleLabel(role) {
   }[role] || role || '';
 }
 
+
+async function openCRMSalesTeamModal() {
+  if (!['master_admin','admin'].includes(state.role)) return;
+  const modal = el('crm-sales-team-modal');
+  const list = el('crm-sales-team-list');
+  if (!modal || !list) return;
+  modal.classList.remove('hidden');
+  list.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando equipo...</div>';
+
+  const people = await CRMAPI.listSalesTeamCandidates();
+  if (!people.length) {
+    list.innerHTML = '<div class="crm-empty">No hay personal disponible.</div>';
+    return;
+  }
+
+  list.innerHTML = people.map(p => {
+    const initials = (p.full_name || 'U').split(/\s+/).slice(0,2).map(x => x[0] || '').join('').toUpperCase();
+    return `
+      <label class="crm-team-person">
+        <div class="crm-team-person-main">
+          <div class="crm-team-avatar">${escHtml(initials)}</div>
+          <div>
+            <div class="crm-team-person-name">${escHtml(p.full_name || 'Sin nombre')}</div>
+            <div class="crm-team-person-meta">${escHtml(crmStaffRoleLabel(p.role))}${p.active_leads ? ` · ${p.active_leads} lead${p.active_leads === 1 ? '' : 's'} activo${p.active_leads === 1 ? '' : 's'}` : ''}</div>
+          </div>
+        </div>
+        <span class="crm-team-toggle">
+          <input type="checkbox" data-user-id="${p.user_id}" ${p.in_sales_team ? 'checked' : ''}>
+          En ventas
+        </span>
+      </label>`;
+  }).join('');
+
+  list.querySelectorAll('input[data-user-id]').forEach(input => {
+    input.addEventListener('change', async () => {
+      input.disabled = true;
+      const enabled = input.checked;
+      const ok = await CRMAPI.setSalesTeamMember(input.dataset.userId, enabled);
+      if (!ok) {
+        input.checked = !enabled;
+        showToast('No se pudo actualizar el equipo');
+      } else {
+        showToast(enabled ? 'Agregado al equipo de ventas' : 'Quitado del equipo de ventas');
+        crmStaff = await CRMAPI.listStaff();
+        await renderCRM();
+      }
+      input.disabled = false;
+    });
+  });
+}
+
+function closeCRMSalesTeamModal() {
+  el('crm-sales-team-modal')?.classList.add('hidden');
+}
+
 function crmAssigneeOptions(selectedId = null, includeUnassigned = true) {
   const unassigned = includeUnassigned
     ? `<option value=""${!selectedId ? ' selected' : ''}>Sin asignar</option>`
@@ -4660,3 +4715,15 @@ function fmtBirthday(dateStr) {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+
+
+// CRM Sales Team V1 bindings
+el('crm-sales-team-btn')?.addEventListener('click', openCRMSalesTeamModal);
+el('crm-sales-team-close')?.addEventListener('click', closeCRMSalesTeamModal);
+el('crm-sales-team-cancel')?.addEventListener('click', closeCRMSalesTeamModal);
+el('crm-sales-team-modal')?.addEventListener('click', e => {
+  if (e.target?.id === 'crm-sales-team-modal') closeCRMSalesTeamModal();
+});
+if (!['master_admin','admin'].includes(state.role)) {
+  el('crm-sales-team-btn')?.classList.add('hidden');
+}

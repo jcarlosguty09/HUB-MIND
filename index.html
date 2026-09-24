@@ -300,7 +300,22 @@
         grid-template-columns:repeat(4,minmax(0,1fr));
       }
     }
-</style>
+
+    .crm-header-actions{display:flex;align-items:center;gap:8px}
+    .crm-sales-team-modal-box{max-width:620px}
+    .crm-team-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .crm-team-note{display:flex;gap:8px;align-items:flex-start;margin:12px 0;padding:10px 12px;border-radius:10px;background:var(--surface2);color:var(--text2);font-size:10px;line-height:1.4}
+    .crm-sales-team-list{display:grid;gap:8px;max-height:55vh;overflow:auto}
+    .crm-team-person{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+    .crm-team-person-main{display:flex;align-items:center;gap:10px;min-width:0}
+    .crm-team-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);font-weight:800;font-size:11px;flex:0 0 auto}
+    .crm-team-person-name{font-size:12px;font-weight:700}
+    .crm-team-person-meta{font-size:9px;color:var(--text3);margin-top:2px}
+    .crm-team-toggle{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;white-space:nowrap}
+    .crm-team-toggle input{width:17px;height:17px;accent-color:var(--blue)}
+    @media(max-width:699px){.crm-header-actions{flex-wrap:wrap;justify-content:flex-end}.crm-sales-team-modal-box{max-width:calc(100vw - 24px)}}
+
+  </style>
 
 </head>
 <body data-theme="dark">
@@ -525,7 +540,10 @@
             <h2 class="checkins-title">CRM</h2>
             <div class="checkins-subtitle">Pipeline comercial de Hub Mind</div>
           </div>
-          <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
+          <div class="crm-header-actions">
+            <button class="secondary-btn" id="crm-sales-team-btn"><i class="ti ti-users"></i> Equipo de ventas</button>
+            <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
+          </div>
         </div>
         <div id="crm-sales-command-center" class="crm-sales-command-center"></div>
         <div id="crm-dashboard" class="crm-dashboard"></div>
@@ -552,6 +570,25 @@
         <div class="crm-board" id="crm-board"></div>
       </section>
 
+
+
+      <!-- CRM SALES TEAM MODAL -->
+      <div id="crm-sales-team-modal" class="modal-overlay hidden">
+        <div class="modal-box crm-sales-team-modal-box">
+          <div class="crm-team-modal-head">
+            <div>
+              <div class="modal-title"><i class="ti ti-users" style="color:var(--blue)"></i> Equipo de ventas</div>
+              <div class="checkins-subtitle">Define quién puede recibir leads, tareas y pruebas comerciales.</div>
+            </div>
+            <button class="icon-btn" id="crm-sales-team-close" aria-label="Cerrar"><i class="ti ti-x"></i></button>
+          </div>
+          <div class="crm-team-note"><i class="ti ti-info-circle"></i> Quitar a alguien del equipo no borra su historial ni cambia su rol del sistema.</div>
+          <div id="crm-sales-team-list" class="crm-sales-team-list"></div>
+          <div class="modal-actions">
+            <button class="secondary-btn" id="crm-sales-team-cancel">Cerrar</button>
+          </div>
+        </div>
+      </div>
       <!-- NEW CRM LEAD MODAL -->
       <div id="crm-lead-modal" class="modal-overlay hidden">
         <div class="modal-box" style="max-width:460px">
