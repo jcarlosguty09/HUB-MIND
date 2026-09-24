@@ -1450,6 +1450,7 @@ async function renderCheckins() {
 
     const canAssign = ['master_admin','admin','coach'].includes(state.role);
     const canAudit = ['master_admin','admin'].includes(state.role);
+    const canDelete = ['master_admin','admin'].includes(state.role);
 
     function renderCheckinCard(row) {
       const profile = row.user_id ? profiles[row.user_id] : null;
@@ -1491,7 +1492,19 @@ async function renderCheckins() {
             </div>
             ${auditLine}
           </div>
-          <div class="checkin-time">${time}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="checkin-time">${time}</div>
+            ${canDelete ? `
+              <button
+                type="button"
+                class="checkin-delete-btn"
+                data-checkin-delete="${row.id}"
+                title="Eliminar check-in"
+                aria-label="Eliminar check-in"
+                style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(239,68,68,.28);background:rgba(239,68,68,.08);color:#ef4444;display:grid;place-items:center;cursor:pointer;flex:0 0 auto"
+              ><i class="ti ti-trash"></i></button>
+            ` : ''}
+          </div>
         </div>
         <div class="checkin-class-row">
           <i class="ti ti-clock-hour-4"></i>
@@ -1500,6 +1513,32 @@ async function renderCheckins() {
             ${classOptions}
           </select>
         </div>`;
+
+      const deleteBtn = card.querySelector('[data-checkin-delete]');
+      if (deleteBtn && canDelete) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const confirmed = window.confirm(
+            `¿Eliminar el check-in de ${name}?\n\nEsta acción elimina este registro de asistencia y no se puede deshacer.`
+          );
+          if (!confirmed) return;
+
+          deleteBtn.disabled = true;
+          deleteBtn.style.opacity = '0.55';
+
+          const ok = await CheckinAPI.delete(row.id);
+          if (ok) {
+            showToast(`✓ Check-in de ${name} eliminado`);
+            await load(date, search);
+          } else {
+            deleteBtn.disabled = false;
+            deleteBtn.style.opacity = '1';
+            showToast('No se pudo eliminar el check-in');
+          }
+        });
+      }
 
       if (isUnknown) {
         card.querySelector('.checkin-top')?.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));

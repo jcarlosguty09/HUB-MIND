@@ -252,6 +252,32 @@ const CheckinAPI = {
       return res.ok;
     } catch(e) { console.error('CheckinAPI.assignClass:', e); return false; }
   },
+
+  // Borrar un check-in. La autorización real la controla RLS en Postgres.
+  // Solo master_admin/admin deben tener permiso DELETE.
+  async delete(checkinId) {
+    try {
+      const token = Auth.getToken();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/checkins?id=eq.${encodeURIComponent(checkinId)}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': `Bearer ${token}`,
+          'Prefer': 'return=minimal',
+        },
+      });
+
+      if (!res.ok) {
+        console.error('CheckinAPI.delete ERROR:', res.status, await res.text());
+        return false;
+      }
+
+      return true;
+    } catch(e) {
+      console.error('CheckinAPI.delete:', e);
+      return false;
+    }
+  },
 // Check-in manual para gente nueva/sin perfil
   async createManual(name, phone, email) {
     try {
