@@ -47,6 +47,32 @@
 
 
 
+    .crm-sales-command-center{margin-bottom:18px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+    .crm-command-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:13px}
+    .crm-command-eyebrow{font-size:8px;letter-spacing:.12em;font-weight:800;color:var(--text3);margin-bottom:5px}
+    .crm-command-title{display:flex;align-items:center;gap:7px;font-size:18px;font-weight:800}
+    .crm-command-sub{font-size:10px;color:var(--text3);margin-top:4px}
+    .crm-command-summary{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .crm-command-summary span{font-size:9px;color:var(--text2);padding:6px 8px;border-radius:999px;background:var(--surface2);white-space:nowrap}
+    .crm-command-summary strong{color:var(--text);font-size:11px}
+    .crm-priority-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+    .crm-priority-card{appearance:none;text-align:left;color:var(--text);font:inherit;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:11px;cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+    .crm-priority-card:hover{transform:translateY(-1px)}
+    .crm-priority-card.level-hot{border-color:rgba(239,68,68,.48)}
+    .crm-priority-card.level-warm{border-color:rgba(245,158,11,.48)}
+    .crm-priority-card.level-attention{border-color:rgba(59,130,246,.42)}
+    .crm-priority-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+    .crm-priority-badge{display:flex;align-items:center;gap:4px;font-size:8px;font-weight:800;letter-spacing:.07em}
+    .crm-priority-score{font-size:10px;font-weight:800;color:var(--text3)}
+    .crm-priority-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .crm-priority-reason{font-size:10px;color:var(--text2);margin-top:4px;min-height:14px}
+    .crm-priority-action{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;margin-top:9px}
+    .crm-priority-owner{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--text3);margin-top:7px}
+    .crm-command-empty{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:14px;border:1px dashed var(--border);border-radius:11px;color:var(--text2)}
+    .crm-command-empty>i{font-size:22px}
+    .crm-command-empty strong,.crm-command-empty span{display:block}
+    .crm-command-empty strong{font-size:11px}.crm-command-empty span{font-size:9px;color:var(--text3);margin-top:2px}
+
     .crm-dashboard{margin-bottom:22px}
     .crm-dashboard-top{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:12px}
     .crm-dashboard-title{font-size:16px;font-weight:700}
@@ -214,7 +240,12 @@
     .crm-trial-title{font-weight:700;font-size:12px}.crm-trial-meta{font-size:10px;color:var(--text3);margin-top:3px}
     .crm-trial-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.crm-trial-actions button{font-size:10px;padding:6px 8px}
     @media(max-width:700px){.crm-trial-form{grid-template-columns:1fr}}
-</style>
+    @media(max-width:760px){
+      .crm-command-head{flex-direction:column}
+      .crm-command-summary{justify-content:flex-start}
+      .crm-priority-grid{grid-template-columns:1fr}
+    }
+  </style>
 
 </head>
 <body data-theme="dark">
@@ -441,6 +472,7 @@
           </div>
           <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
         </div>
+        <div id="crm-sales-command-center" class="crm-sales-command-center"></div>
         <div id="crm-dashboard" class="crm-dashboard"></div>
 
         <div class="crm-section-label">Pipeline operativo</div>

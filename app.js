@@ -1450,7 +1450,6 @@ async function renderCheckins() {
 
     const canAssign = ['master_admin','admin','coach'].includes(state.role);
     const canAudit = ['master_admin','admin'].includes(state.role);
-    const canDelete = ['master_admin','admin'].includes(state.role);
 
     function renderCheckinCard(row) {
       const profile = row.user_id ? profiles[row.user_id] : null;
@@ -1492,19 +1491,7 @@ async function renderCheckins() {
             </div>
             ${auditLine}
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="checkin-time">${time}</div>
-            ${canDelete ? `
-              <button
-                type="button"
-                class="checkin-delete-btn"
-                data-checkin-delete="${row.id}"
-                title="Eliminar check-in"
-                aria-label="Eliminar check-in"
-                style="width:32px;height:32px;border-radius:9px;border:1px solid rgba(239,68,68,.28);background:rgba(239,68,68,.08);color:#ef4444;display:grid;place-items:center;cursor:pointer;flex:0 0 auto"
-              ><i class="ti ti-trash"></i></button>
-            ` : ''}
-          </div>
+          <div class="checkin-time">${time}</div>
         </div>
         <div class="checkin-class-row">
           <i class="ti ti-clock-hour-4"></i>
@@ -1513,32 +1500,6 @@ async function renderCheckins() {
             ${classOptions}
           </select>
         </div>`;
-
-      const deleteBtn = card.querySelector('[data-checkin-delete]');
-      if (deleteBtn && canDelete) {
-        deleteBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const confirmed = window.confirm(
-            `¿Eliminar el check-in de ${name}?\n\nEsta acción elimina este registro de asistencia y no se puede deshacer.`
-          );
-          if (!confirmed) return;
-
-          deleteBtn.disabled = true;
-          deleteBtn.style.opacity = '0.55';
-
-          const ok = await CheckinAPI.delete(row.id);
-          if (ok) {
-            showToast(`✓ Check-in de ${name} eliminado`);
-            await load(date, search);
-          } else {
-            deleteBtn.disabled = false;
-            deleteBtn.style.opacity = '1';
-            showToast('No se pudo eliminar el check-in');
-          }
-        });
-      }
 
       if (isUnknown) {
         card.querySelector('.checkin-top')?.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
@@ -3031,6 +2992,68 @@ async function crmChangeLeadStage(lead, nextStage) {
   return true;
 }
 
+function crmPriorityMeta(level) {
+  const map = {
+    hot: { label: 'HOT', icon: 'ti-flame' },
+    warm: { label: 'WARM', icon: 'ti-bolt' },
+    attention: { label: 'ATTENTION', icon: 'ti-alert-triangle' },
+    normal: { label: 'ACTIVE', icon: 'ti-circle-check' }
+  };
+  return map[level] || map.normal;
+}
+
+function renderCRMSalesCommandCenter(queue, allLeads) {
+  const root = el('crm-sales-command-center');
+  if (!root) return;
+
+  const openQueue = (queue || []).filter(item => !['won','lost'].includes(item.stage));
+  const top = openQueue.slice(0, 6);
+  const hotCount = openQueue.filter(item => item.priority_level === 'hot').length;
+  const urgentCount = openQueue.filter(item => Number(item.priority_score || 0) >= 70).length;
+
+  root.innerHTML = `
+    <div class="crm-command-head">
+      <div>
+        <div class="crm-command-eyebrow">SALES COMMAND CENTER</div>
+        <div class="crm-command-title"><i class="ti ti-target-arrow"></i> Prioridad hoy</div>
+        <div class="crm-command-sub">Tu siguiente acción comercial, ordenada por urgencia.</div>
+      </div>
+      <div class="crm-command-summary">
+        <span><strong>${hotCount}</strong> hot</span>
+        <span><strong>${urgentCount}</strong> prioritarios</span>
+      </div>
+    </div>
+    <div class="crm-priority-grid">
+      ${top.length ? top.map(item => {
+        const meta = crmPriorityMeta(item.priority_level);
+        const owner = crmStaffName(item.assigned_to);
+        return `
+          <button class="crm-priority-card level-${escHtml(item.priority_level || 'normal')}" data-lead-id="${escHtml(item.lead_id)}">
+            <div class="crm-priority-top">
+              <span class="crm-priority-badge"><i class="ti ${meta.icon}"></i>${meta.label}</span>
+              <span class="crm-priority-score">${Number(item.priority_score || 0)}</span>
+            </div>
+            <div class="crm-priority-name">${escHtml(item.full_name || 'Lead')}</div>
+            <div class="crm-priority-reason">${escHtml(item.priority_reason || 'Seguimiento activo')}</div>
+            <div class="crm-priority-action"><i class="ti ti-arrow-right"></i>${escHtml(item.recommended_action || 'Continuar seguimiento')}</div>
+            <div class="crm-priority-owner"><i class="ti ti-user"></i>${escHtml(owner)}</div>
+          </button>`;
+      }).join('') : `
+        <div class="crm-command-empty">
+          <i class="ti ti-circle-check"></i>
+          <div><strong>Sin prioridades pendientes</strong><span>La cola comercial está limpia por ahora.</span></div>
+        </div>`}
+    </div>
+  `;
+
+  root.querySelectorAll('.crm-priority-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const lead = allLeads.find(l => l.id === card.dataset.leadId);
+      if (lead) openCRMLeadDetail(lead);
+    });
+  });
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -3038,13 +3061,15 @@ async function renderCRM() {
 
   board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
 
-  const [allLeads, tasks, staff] = await Promise.all([
+  const [allLeads, tasks, staff, salesQueue] = await Promise.all([
     CRMAPI.listLeads(),
     CRMAPI.listTasks({ status: 'pending' }),
-    CRMAPI.listStaff()
+    CRMAPI.listStaff(),
+    CRMAPI.listSalesQueue()
   ]);
 
   crmStaff = staff || [];
+  renderCRMSalesCommandCenter(salesQueue, allLeads);
 
   const currentUserId = Auth.getUser()?.id || null;
 
