@@ -3060,6 +3060,57 @@ function renderCRMSalesCommandCenter(queue, allLeads, autopilot = {}) {
   });
 }
 
+function renderCRMRevenueRecovery(data = {}) {
+  const root = el('crm-revenue-recovery');
+  if (!root) return;
+  const m = data.metrics || {};
+  const recovery = Array.isArray(data.recovery) ? data.recovery : [];
+  const sellers = Array.isArray(data.sellers) ? data.sellers : [];
+  const objections = Array.isArray(data.objections) ? data.objections : [];
+  const fmt = v => (v === null || v === undefined || Number.isNaN(Number(v))) ? '—' : Number(v).toFixed(Number(v) < 10 ? 1 : 0);
+
+  root.innerHTML = `
+    <div class="crm-recovery-head">
+      <div>
+        <div class="crm-command-eyebrow">REVENUE & RECOVERY ENGINE</div>
+        <div class="crm-command-title"><i class="ti ti-chart-arrows-vertical"></i> Conversión y recuperación</div>
+        <div class="crm-command-sub">Detecta fugas del pipeline y convierte señales comerciales en acciones.</div>
+      </div>
+      <span class="crm-engine-live"><i class="ti ti-activity-heartbeat"></i> Motor activo</span>
+    </div>
+    <div class="crm-recovery-kpis">
+      <div><span>1er contacto</span><strong>${fmt(m.avg_first_contact_hours)}h</strong><small>promedio · 30d</small></div>
+      <div><span>Prueba → venta</span><strong>${fmt(m.trial_to_won_pct)}%</strong><small>${Number(m.trials_won || 0)} cierres</small></div>
+      <div><span>No-shows</span><strong>${Number(m.no_shows_30d || 0)}</strong><small>últimos 30 días</small></div>
+      <div><span>Recuperables</span><strong>${Number(m.recoverable_now || 0)}</strong><small>requieren acción</small></div>
+    </div>
+    <div class="crm-recovery-columns">
+      <div class="crm-recovery-box">
+        <div class="crm-recovery-box-title"><i class="ti ti-lifebuoy"></i> Recuperar ahora</div>
+        ${recovery.length ? recovery.slice(0,5).map(x => `
+          <button class="crm-recovery-row" data-lead-id="${escHtml(x.lead_id)}">
+            <span><strong>${escHtml(x.full_name || 'Lead')}</strong><small>${escHtml(x.reason || 'Seguimiento pendiente')}</small></span>
+            <b>${escHtml(x.action || 'Contactar')}</b>
+          </button>`).join('') : '<div class="crm-mini-empty">Sin fugas críticas detectadas.</div>'}
+      </div>
+      <div class="crm-recovery-box">
+        <div class="crm-recovery-box-title"><i class="ti ti-users-group"></i> Carga comercial</div>
+        ${sellers.length ? sellers.slice(0,5).map(x => `
+          <div class="crm-seller-load"><span><strong>${escHtml(x.full_name || 'Ventas')}</strong><small>${Number(x.open_leads || 0)} leads · ${Number(x.overdue_tasks || 0)} vencidos</small></span><b>${Number(x.won_30d || 0)} ganados</b></div>`).join('') : '<div class="crm-mini-empty">Sin vendedores activos.</div>'}
+      </div>
+      <div class="crm-recovery-box">
+        <div class="crm-recovery-box-title"><i class="ti ti-message-exclamation"></i> Objeciones · 30d</div>
+        ${objections.length ? objections.slice(0,5).map(x => `
+          <div class="crm-objection-row"><span>${escHtml(crmObjectionLabel(x.objection))}</span><b>${Number(x.count || 0)}</b></div>`).join('') : '<div class="crm-mini-empty">Aún no hay objeciones registradas.</div>'}
+      </div>
+    </div>`;
+
+  root.querySelectorAll('.crm-recovery-row').forEach(row => row.addEventListener('click', () => {
+    const lead = (data.recovery_leads || []).find(l => l.id === row.dataset.leadId);
+    if (lead) openCRMLeadDetail(lead);
+  }));
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -3067,16 +3118,20 @@ async function renderCRM() {
 
   board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
 
-  const [allLeads, tasks, staff, salesQueue, autopilot] = await Promise.all([
+  await CRMAPI.runRecoveryEngine();
+
+  const [allLeads, tasks, staff, salesQueue, autopilot, revenueRecovery] = await Promise.all([
     CRMAPI.listLeads(),
     CRMAPI.listTasks({ status: 'pending' }),
     CRMAPI.listStaff(),
     CRMAPI.listSalesQueue(),
-    CRMAPI.getAutopilotSummary()
+    CRMAPI.getAutopilotSummary(),
+    CRMAPI.getRevenueRecoveryDashboard()
   ]);
 
   crmStaff = staff || [];
   renderCRMSalesCommandCenter(salesQueue, allLeads, autopilot);
+  renderCRMRevenueRecovery({ ...revenueRecovery, recovery_leads: allLeads });
 
   const currentUserId = Auth.getUser()?.id || null;
 
