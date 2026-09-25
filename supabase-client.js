@@ -907,6 +907,26 @@ const CRMAPI = {
     }
   },
 
+  async runRecoveryEngine() {
+    try {
+      const result = await sbReq('POST', 'rpc/crm_run_recovery_engine', {});
+      return result || {};
+    } catch (e) {
+      console.warn('CRMAPI.runRecoveryEngine:', e.message);
+      return {};
+    }
+  },
+
+  async getRevenueRecoveryDashboard() {
+    try {
+      const result = await sbReq('POST', 'rpc/crm_revenue_recovery_dashboard', {});
+      return Array.isArray(result) ? (result[0] || {}) : (result || {});
+    } catch (e) {
+      console.warn('CRMAPI.getRevenueRecoveryDashboard:', e.message);
+      return {};
+    }
+  },
+
   // Cola comercial inteligente calculada por PostgreSQL.
   // Si el RPC falla, regresamos [] para no romper el CRM operativo.
   async listSalesQueue() {
