@@ -2344,6 +2344,16 @@ const CRM_ACTIVITY_LABELS = {
   stage_change:'Cambio de etapa'
 };
 
+const CRM_OUTCOME_LABELS = {
+  no_answer:'No respondió', interested:'Interesado', trial_requested:'Quiere prueba',
+  follow_up:'Seguimiento', thinking:'Lo está pensando', not_interested:'No interesado', won:'Ganado',
+  price_objection:'Objeción de precio', schedule_objection:'Objeción de horario', location_objection:'Objeción de ubicación'
+};
+const CRM_OBJECTION_LABELS = {
+  price:'Precio', schedule:'Horario', location:'Ubicación', commitment:'Compromiso',
+  competition:'Competencia', needs_more_info:'Necesita información', other:'Otra'
+};
+
 let crmSelectedLead = null;
 let crmStaff = [];
 let crmLeadOwnerFilter = 'all';
@@ -3807,6 +3817,11 @@ async function renderCRMActivities(leadId) {
           <span>${escHtml(when)}</span>
         </div>
         ${activity.note ? `<div class="crm-activity-note">${escHtml(activity.note)}</div>` : ''}
+        ${(activity.outcome || activity.objection || activity.next_action_at) ? `<div class="crm-activity-meta">
+          ${activity.outcome ? `<span>Resultado: <b>${escHtml(CRM_OUTCOME_LABELS[activity.outcome] || activity.outcome)}</b></span>` : ''}
+          ${activity.objection ? `<span>Objeción: <b>${escHtml(CRM_OBJECTION_LABELS[activity.objection] || activity.objection)}</b></span>` : ''}
+          ${activity.next_action_at ? `<span>Siguiente: <b>${escHtml(crmFormatFollowUp(activity.next_action_at))}</b></span>` : ''}
+        </div>` : ''}
       </div>
       <button class="icon-btn crm-activity-delete" title="Eliminar actividad">
         <i class="ti ti-trash"></i>
@@ -3831,10 +3846,14 @@ async function saveCRMActivity() {
 
   const type = el('crm-activity-type').value;
   const note = el('crm-activity-note').value.trim();
+  const outcome = el('crm-activity-outcome').value || null;
+  const objection = el('crm-activity-objection').value || null;
+  const nextLocal = el('crm-activity-next-action').value;
+  const nextActionAt = nextLocal ? new Date(nextLocal).toISOString() : null;
   const btn = el('crm-activity-save');
 
-  if (!note && type !== 'visit' && type !== 'trial') {
-    showToast('Agrega una nota para esta actividad');
+  if (!note && !outcome && !objection && !nextActionAt && type !== 'visit' && type !== 'trial') {
+    showToast('Registra una nota, resultado o siguiente acción');
     return;
   }
 
@@ -3842,10 +3861,14 @@ async function saveCRMActivity() {
   btn.innerHTML = '<i class="ti ti-loader-2"></i> Guardando...';
 
   const result = await CRMAPI.createActivity(
-    crmSelectedLead.id,
-    type,
-    note || null
+    crmSelectedLead.id, type, note || null,
+    { outcome, objection, next_action_at: nextActionAt }
   );
+
+  if (result && nextActionAt) {
+    const updated = await CRMAPI.updateLead(crmSelectedLead.id, { next_follow_up_at: nextActionAt });
+    if (updated) crmSelectedLead = { ...crmSelectedLead, ...updated };
+  }
 
   btn.disabled = false;
   btn.innerHTML = '<i class="ti ti-plus"></i> Registrar actividad';
@@ -3856,8 +3879,12 @@ async function saveCRMActivity() {
   }
 
   el('crm-activity-note').value = '';
-  showToast('✓ Actividad registrada');
+  el('crm-activity-outcome').value = '';
+  el('crm-activity-objection').value = '';
+  el('crm-activity-next-action').value = '';
+  showToast(nextActionAt ? '✓ Actividad + seguimiento registrados' : '✓ Actividad registrada');
   await renderCRMActivities(crmSelectedLead.id);
+  await renderCRM();
 }
 
 async function saveCRMLeadDetail() {

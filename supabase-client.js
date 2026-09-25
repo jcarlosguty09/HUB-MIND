@@ -1036,7 +1036,7 @@ const CRMAPI = {
     }
   },
 
-  async createActivity(leadId, type, note = null) {
+  async createActivity(leadId, type, note = null, details = {}) {
     try {
       const rows = await sbReq(
         'POST',
@@ -1044,7 +1044,10 @@ const CRMAPI = {
         {
           lead_id: leadId,
           type,
-          note: note || null
+          note: note || null,
+          outcome: details.outcome || null,
+          objection: details.objection || null,
+          next_action_at: details.next_action_at || null
         }
       );
 
