@@ -3005,7 +3005,7 @@ function crmPriorityMeta(level) {
   return map[level] || map.normal;
 }
 
-function renderCRMSalesCommandCenter(queue, allLeads) {
+function renderCRMSalesCommandCenter(queue, allLeads, autopilot = {}) {
   const root = el('crm-sales-command-center');
   if (!root) return;
 
@@ -3024,6 +3024,9 @@ function renderCRMSalesCommandCenter(queue, allLeads) {
       <div class="crm-command-summary">
         <span><strong>${hotCount}</strong> hot</span>
         <span><strong>${urgentCount}</strong> prioritarios</span>
+        <span><strong>${Number(autopilot.overdue || 0)}</strong> vencidos</span>
+        <span><strong>${Number(autopilot.trials_next_7d || 0)}</strong> pruebas / 7d</span>
+        <span><strong>${Number(autopilot.unassigned || 0)}</strong> sin asignar</span>
       </div>
     </div>
     <div class="crm-priority-grid">
@@ -3064,15 +3067,16 @@ async function renderCRM() {
 
   board.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando CRM...</div>';
 
-  const [allLeads, tasks, staff, salesQueue] = await Promise.all([
+  const [allLeads, tasks, staff, salesQueue, autopilot] = await Promise.all([
     CRMAPI.listLeads(),
     CRMAPI.listTasks({ status: 'pending' }),
     CRMAPI.listStaff(),
-    CRMAPI.listSalesQueue()
+    CRMAPI.listSalesQueue(),
+    CRMAPI.getAutopilotSummary()
   ]);
 
   crmStaff = staff || [];
-  renderCRMSalesCommandCenter(salesQueue, allLeads);
+  renderCRMSalesCommandCenter(salesQueue, allLeads, autopilot);
 
   const currentUserId = Auth.getUser()?.id || null;
 

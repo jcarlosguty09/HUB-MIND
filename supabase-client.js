@@ -897,6 +897,16 @@ async setRole(userId, role) {
 // RLS en Supabase se encarga de limitar cada operación a la organización actual.
 const CRMAPI = {
 
+  async getAutopilotSummary() {
+    try {
+      const rows = await sbReq('POST', 'rpc/crm_autopilot_summary', {});
+      return Array.isArray(rows) ? (rows[0] || {}) : (rows || {});
+    } catch (e) {
+      console.warn('CRMAPI.getAutopilotSummary:', e.message);
+      return {};
+    }
+  },
+
   // Cola comercial inteligente calculada por PostgreSQL.
   // Si el RPC falla, regresamos [] para no romper el CRM operativo.
   async listSalesQueue() {
