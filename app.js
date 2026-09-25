@@ -132,10 +132,6 @@ function configureStaffNavigation(role) {
     createUserBtn.style.display = ['master_admin','admin','coach'].includes(role) ? '' : 'none';
   }
 
-  const quickLeadBtn = el('coach-quick-lead-btn');
-  if (quickLeadBtn) {
-    quickLeadBtn.style.display = ['master_admin','admin','coach'].includes(role) ? '' : 'none';
-  }
 }
 
 function defaultViewForRole(role) {
@@ -2069,9 +2065,6 @@ async function init() {
   el('crm-lead-save').addEventListener('click', saveCRMLead);
   el('crm-lead-modal').addEventListener('click', e => { if (e.target === el('crm-lead-modal')) closeCRMLeadModal(); });
   el('crm-detail-close').addEventListener('click', closeCRMLeadDetail);
-  el('coach-quick-lead-close')?.addEventListener('click', closeCoachQuickLeadModal);
-  el('coach-quick-lead-cancel')?.addEventListener('click', closeCoachQuickLeadModal);
-  el('coach-quick-lead-save')?.addEventListener('click', submitCoachQuickLead);
 
   el('crm-detail-stage').addEventListener('change', crmToggleLostReasonField);
   el('crm-detail-modal').addEventListener('click', e => { if (e.target === el('crm-detail-modal')) closeCRMLeadDetail(); });
@@ -2754,61 +2747,6 @@ function renderCRMDashboard(allLeads, tasks, staff) {
 }
 
 
-
-async function openCoachQuickLeadModal() {
-  if (!['coach','admin','master_admin'].includes(state.role)) return;
-
-  const modal = el('coach-quick-lead-modal');
-  if (!modal) return;
-
-  el('coach-quick-lead-name').value = '';
-  el('coach-quick-lead-phone').value = '';
-  el('coach-quick-lead-email').value = '';
-  el('coach-quick-lead-source').value = 'walk_in';
-  el('coach-quick-lead-note').value = '';
-  modal.classList.remove('hidden');
-}
-
-function closeCoachQuickLeadModal() {
-  el('coach-quick-lead-modal')?.classList.add('hidden');
-}
-
-async function submitCoachQuickLead() {
-  const name = el('coach-quick-lead-name')?.value.trim();
-  const phone = el('coach-quick-lead-phone')?.value.trim();
-  const email = el('coach-quick-lead-email')?.value.trim();
-  const source = el('coach-quick-lead-source')?.value || 'walk_in';
-  const note = el('coach-quick-lead-note')?.value.trim();
-
-  if (!name) {
-    showToast('El nombre es obligatorio');
-    return;
-  }
-
-  const btn = el('coach-quick-lead-save');
-  if (btn) btn.disabled = true;
-
-  try {
-    const created = await CRMAPI.createLead({
-      full_name: name,
-      phone: phone || null,
-      email: email || null,
-      source,
-      stage: 'new',
-      notes: note || null
-    });
-
-    if (!created) throw new Error('No se pudo crear el lead');
-
-    showToast('✓ Lead registrado');
-    closeCoachQuickLeadModal();
-  } catch (e) {
-    console.error('[CRM] quick lead error', e);
-    showToast(e.message || 'Error al registrar lead');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
 
 function crmNormalizeText(value) {
   return (value || '')
@@ -4068,7 +4006,7 @@ const ROLE_PERMISSIONS = {
   ],
   coach: [
     'Crear y editar WODs', 'Mover WODs entre días', 'Agregar scores de atletas',
-    'Editar/borrar scores', 'Ver check-ins', 'Proyectar WODs', 'Registrar leads',
+    'Editar/borrar scores', 'Ver check-ins', 'Proyectar WODs',
   ],
   atleta: [
     'Ver su WOD del día', 'Subir su propio score', 'Ver rankings',
