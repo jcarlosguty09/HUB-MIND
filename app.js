@@ -4103,11 +4103,56 @@ const ROLE_PERMISSIONS = {
 const ROLE_LABELS = { master_admin: 'Admin Maestro', admin: 'Admin', coach: 'Coach', sales: 'Ventas', atleta: 'Atleta', member: 'Atleta' };
 const ROLE_COLORS = { admin: 'purple', coach: 'blue', atleta: 'green' };
 
+function retentionRiskLabel(level) {
+  return ({critical:'Crítico',high:'Alto',medium:'Medio',low:'Bajo'})[level] || 'Estable';
+}
+function retentionReasonLabel(reason) {
+  return ({expired:'Membresía vencida',no_visit_14:'Sin visitas 14+ días',attendance_drop:'Asistencia cayó ≥50%',renew_7:'Renueva en ≤7 días',renew_14:'Renueva en ≤14 días',renew_30:'Renueva en ≤30 días',stable:'Estable'})[reason] || reason || 'Estable';
+}
+function showMember360(m) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  const last = m.last_checkin ? new Date(m.last_checkin).toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'}) : 'Sin check-ins';
+  const expiry = m.membership_expires || 'Sin fecha';
+  modal.innerHTML = `<div class="modal-box member360-modal">
+    <div class="modal-title"><i class="ti ti-user-circle"></i> Member 360</div>
+    <div class="member360-name">${escHtml(m.full_name || 'Miembro')}</div>
+    <div class="member360-email">${escHtml(m.email || '')}</div>
+    <div class="member360-grid">
+      <div><span>Riesgo</span><strong>${retentionRiskLabel(m.risk_level)}</strong><small>${escHtml(retentionReasonLabel(m.risk_reason))}</small></div>
+      <div><span>Membresía</span><strong>${escHtml(m.membership_channel || 'Sin asignar')}</strong><small>${escHtml(m.membership_subtype || '')}</small></div>
+      <div><span>Vencimiento</span><strong>${escHtml(expiry)}</strong><small>${m.days_to_expiry == null ? '—' : `${m.days_to_expiry} días`}</small></div>
+      <div><span>Último check-in</span><strong>${escHtml(last)}</strong><small>${m.days_since_checkin == null ? 'Sin historial' : `Hace ${m.days_since_checkin} días`}</small></div>
+      <div><span>Últimos 14 días</span><strong>${Number(m.visits_14d||0)}</strong><small>visitas</small></div>
+      <div><span>14 días anteriores</span><strong>${Number(m.visits_prev_14d||0)}</strong><small>visitas</small></div>
+    </div>
+    <div class="modal-actions"><button class="save-btn" id="m360-close">Cerrar</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#m360-close').onclick=()=>modal.remove();
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});
+}
+function renderRetentionDashboard(data) {
+  const host=el('retention-dashboard'); if(!host) return;
+  const metrics=data?.metrics||{}, rows=Array.isArray(data?.members)?data.members:[];
+  const attention=rows.filter(x=>['critical','high','medium'].includes(x.risk_level)).slice(0,8);
+  host.innerHTML=`<div class="retention-head"><div><div class="retention-title"><i class="ti ti-heart-rate-monitor"></i> Retention Engine</div><div class="retention-sub">Renovaciones, asistencia y riesgo de abandono</div></div><span class="retention-live">● ACTIVO</span></div>
+  <div class="retention-kpis">
+    <div><span>Renuevan ≤7d</span><strong>${Number(metrics.renew_7||0)}</strong><small>acción inmediata</small></div>
+    <div><span>Renuevan ≤30d</span><strong>${Number(metrics.renew_30||0)}</strong><small>incluye próximos 7d</small></div>
+    <div><span>En riesgo</span><strong>${Number(metrics.at_risk||0)}</strong><small>asistencia / vencimiento</small></div>
+    <div><span>Sin visita 14d+</span><strong>${Number(metrics.no_visit_14||0)}</strong><small>miembros activos</small></div>
+  </div>
+  <div class="retention-attention"><div class="retention-box-title">Prioridad de retención</div>${attention.length?attention.map(x=>`<button class="retention-row" data-id="${x.user_id}"><span><strong>${escHtml(x.full_name||x.email||'Miembro')}</strong><small>${escHtml(retentionReasonLabel(x.risk_reason))}</small></span><span class="retention-risk ${x.risk_level}">${retentionRiskLabel(x.risk_level)}</span></button>`).join(''):'<div class="retention-empty">No hay miembros que requieran atención ahora.</div>'}</div>`;
+  host.querySelectorAll('.retention-row').forEach(btn=>btn.onclick=()=>{const m=rows.find(x=>x.user_id===btn.dataset.id);if(m)showMember360(m)});
+}
+
 async function renderMembers() {
   const listEl = el('members-list');
   listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
-  const members = await MemberAPI.list();
+  const [members, retention] = await Promise.all([MemberAPI.list(), RetentionAPI.dashboard()]);
+  renderRetentionDashboard(retention);
 
   function render(search = '') {
     const filtered = members.filter(m => {

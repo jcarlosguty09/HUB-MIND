@@ -1272,6 +1272,19 @@ const CRMAPI = {
 };
 
 // ---- REPORTS (admin only) ----
+// ---- RETENTION ENGINE V1 (admin / master_admin) ----
+const RetentionAPI = {
+  async dashboard() {
+    try {
+      const result = await sbReq('POST', 'rpc/retention_dashboard_v1', {});
+      return result || { metrics:{}, members:[] };
+    } catch(e) {
+      console.warn('RetentionAPI.dashboard:', e.message);
+      return { metrics:{}, members:[] };
+    }
+  }
+};
+
 const ReportAPI = {
   // Check-ins en un rango de fechas (para gráficos de asistencia)
   async checkinsInRange(startDate, endDate) {
