@@ -75,7 +75,7 @@
     const btn = document.createElement('button');
     btn.className = 'secondary-btn wa-inbox-btn';
     btn.id = 'crm-whatsapp-inbox-btn';
-    btn.innerHTML = '<i class="ti ti-brand-whatsapp"></i> WhatsApp <span id="wa-header-count"></span>';
+    btn.innerHTML = '<i class="ti ti-brand-whatsapp"></i> WhatsApp <span id="wa-header-count" class="wa-header-count"></span>';
     actions.prepend(btn);
 
     const shell = document.createElement('div');
@@ -150,7 +150,7 @@
     const rows = await listConversations();
     const total = rows.reduce((n,c) => n + Number(c.unread_count || 0), 0);
     const badge = $('wa-header-count');
-    if (badge) badge.textContent = total ? '(' + total + ')' : '';
+    if (badge) { badge.textContent = total ? String(total) : ''; badge.classList.toggle('visible', total > 0); }
   }
 
   async function refreshConversations() {
