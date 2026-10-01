@@ -9,6 +9,9 @@
     activeConversation: null,
     poller: null,
     mounted: false,
+    activeMessages: [],
+    serviceWindowOpen: false,
+    serviceWindowUntil: null,
   };
 
   const $ = id => document.getElementById(id);
@@ -45,6 +48,48 @@
     }
     return '';
   };
+
+  const getServiceWindow = messages => {
+    const inbound = [...messages].reverse().find(m => m.direction === 'inbound');
+    if (!inbound) return { open:false, until:null };
+    const base = new Date(inbound.whatsapp_timestamp || inbound.created_at).getTime();
+    const until = base + 24 * 60 * 60 * 1000;
+    return { open: Date.now() < until, until };
+  };
+
+  const formatWindowUntil = value => value
+    ? new Date(value).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+    : '';
+
+  function updateComposerWindow(messages) {
+    const shell = $('wa-inbox-shell');
+    if (!shell) return;
+    const input = shell.querySelector('.wa-compose-input');
+    const button = shell.querySelector('.wa-compose .save-btn');
+    const note = shell.querySelector('.wa-compose-note');
+    const badge = $('wa-window-status');
+    const info = getServiceWindow(messages);
+    WA.serviceWindowOpen = info.open;
+    WA.serviceWindowUntil = info.until;
+
+    if (badge) {
+      badge.className = 'wa-window-status ' + (info.open ? 'open' : 'closed');
+      badge.innerHTML = info.open
+        ? '<i class="ti ti-clock-check"></i> Ventana 24 h abierta'
+        : '<i class="ti ti-clock-x"></i> Ventana 24 h cerrada';
+      badge.title = info.open && info.until ? 'Texto libre hasta ' + formatWindowUntil(info.until) : 'Se requiere plantilla aprobada para reiniciar la conversación.';
+    }
+    if (input && button) {
+      input.disabled = !info.open;
+      button.disabled = !info.open;
+      input.placeholder = info.open ? 'Escribe un mensaje...' : 'Ventana cerrada · usa una plantilla';
+    }
+    if (note) {
+      note.textContent = info.open
+        ? 'Texto libre disponible hasta ' + formatWindowUntil(info.until) + ' · Enter para enviar.'
+        : 'Han pasado más de 24 h desde el último mensaje del cliente. Para volver a contactar se necesita una plantilla aprobada.';
+    }
+  }
 
   async function listConversations() {
     try {
@@ -122,7 +167,8 @@
             <div class="wa-chat-head">
               <button class="icon-btn wa-mobile-back" id="wa-back"><i class="ti ti-chevron-left"></i></button>
               <div class="wa-avatar" id="wa-chat-avatar">?</div>
-              <div><div class="wa-chat-name" id="wa-chat-name"></div><div class="wa-chat-phone" id="wa-chat-phone"></div></div>
+              <div class="wa-chat-identity"><div class="wa-chat-name" id="wa-chat-name"></div><div class="wa-chat-phone" id="wa-chat-phone"></div></div>
+              <div id="wa-window-status" class="wa-window-status closed"><i class="ti ti-clock-x"></i> Ventana 24 h cerrada</div>
             </div>
             <div class="wa-messages" id="wa-messages"></div>
             <div class="wa-compose">
@@ -204,7 +250,7 @@
     filter($('wa-search')?.value || '');
     await refreshBadge();
     const after = WA.conversations.find(c => c.id === WA.activeId)?.last_message_at;
-    if (WA.activeId && after && after !== before) await renderActiveMessages(false);
+    if (WA.activeId) await renderActiveMessages(after !== before);
   }
 
   function filter(query) {
@@ -277,6 +323,10 @@
     const body = String(input?.value || '').trim();
 
     if (!conversationId || !body || !input || !button) return;
+    if (!WA.serviceWindowOpen) {
+      alert('La ventana de atención de 24 horas está cerrada. Para contactar de nuevo a este lead necesitamos usar una plantilla aprobada de WhatsApp.');
+      return;
+    }
     if (body.length > 4096) {
       alert('El mensaje no puede superar 4096 caracteres.');
       return;
@@ -319,16 +369,17 @@
       console.error('WhatsAppInbox.sendActiveMessage:', e);
       alert('No se pudo enviar el WhatsApp: ' + e.message);
     } finally {
-      input.disabled = false;
-      button.disabled = false;
       button.innerHTML = previousHtml;
-      input.focus();
+      updateComposerWindow(WA.activeMessages);
+      if (WA.serviceWindowOpen) input.focus();
     }
   }
 
   async function renderActiveMessages(scrollBottom = true) {
     if (!WA.activeId) return;
     const messages = await listMessages(WA.activeId);
+    WA.activeMessages = messages;
+    updateComposerWindow(messages);
     const root = $('wa-messages');
     if (!root) return;
     if (!messages.length) {
