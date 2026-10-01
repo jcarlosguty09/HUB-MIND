@@ -23,6 +23,28 @@
   };
   const fmtDateTime = value => value ? new Date(value).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
   const stageLabel = stage => ({new:'Nuevo',contacted:'Contactado',trial_scheduled:'Prueba agendada',trial_completed:'Prueba realizada',negotiating:'Negociación',won:'Ganado',lost:'Perdido'})[stage] || stage || '—';
+  const statusIndicator = message => {
+    if (message.direction !== 'outbound') return '';
+    const status = String(message.status || '').toLowerCase();
+    const title = status === 'read' ? 'Leído' :
+      status === 'delivered' ? 'Entregado' :
+      status === 'sent' ? 'Enviado' :
+      status === 'failed' ? ('Error al enviar' + (message.error_message ? ': ' + message.error_message : '')) :
+      status || 'Estado pendiente';
+    if (status === 'failed') {
+      return '<span class="wa-msg-status failed" title="' + esc(title) + '">⚠</span>';
+    }
+    if (status === 'read') {
+      return '<span class="wa-msg-status read" title="' + esc(title) + '">✓✓</span>';
+    }
+    if (status === 'delivered') {
+      return '<span class="wa-msg-status delivered" title="' + esc(title) + '">✓✓</span>';
+    }
+    if (status === 'sent') {
+      return '<span class="wa-msg-status sent" title="' + esc(title) + '">✓</span>';
+    }
+    return '';
+  };
 
   async function listConversations() {
     try {
@@ -316,7 +338,7 @@
     root.innerHTML = messages.map(m => `
       <div class="wa-bubble ${m.direction === 'outbound' ? 'outbound' : 'inbound'}">
         <div class="wa-bubble-body">${esc(m.body || '[' + (m.message_type || 'mensaje') + ']')}</div>
-        <div class="wa-bubble-meta"><span>${esc(fmtDateTime(m.whatsapp_timestamp || m.created_at))}</span>${m.direction === 'outbound' && m.status ? '<span>· ' + esc(m.status) + '</span>' : ''}</div>
+        <div class="wa-bubble-meta"><span>${esc(fmtDateTime(m.whatsapp_timestamp || m.created_at))}</span>${statusIndicator(m)}</div>
       </div>`).join('');
     if (scrollBottom) requestAnimationFrame(() => { root.scrollTop = root.scrollHeight; });
   }
