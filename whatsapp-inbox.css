@@ -45,3 +45,16 @@
 .wa-mobile-back{display:none}
 @media(max-width:980px){.wa-inbox-main{grid-template-columns:300px 1fr}.wa-lead-panel{display:none}}
 @media(max-width:699px){.wa-inbox-topbar{height:58px;flex-basis:58px;padding:0 12px}.wa-inbox-main{display:block;position:relative}.wa-list-panel,.wa-chat-panel{position:absolute;inset:0}.wa-chat-panel{display:none}.wa-inbox-shell.wa-chat-open .wa-list-panel{display:none}.wa-inbox-shell.wa-chat-open .wa-chat-panel{display:flex}.wa-mobile-back{display:inline-flex}.wa-messages{padding:12px}.wa-bubble{max-width:86%}.wa-inbox-sub{display:none}}
+
+/* WhatsApp Inbox V3 — service window + delivery states */
+.wa-chat-identity{min-width:0}
+.wa-window-status{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border-radius:999px;font-size:8px;font-weight:800;white-space:nowrap;border:1px solid var(--border)}
+.wa-window-status.open{background:color-mix(in srgb,#25D366 10%,var(--surface));border-color:color-mix(in srgb,#25D366 32%,var(--border));color:#169447}
+.wa-window-status.closed{background:color-mix(in srgb,#f59e0b 9%,var(--surface));border-color:color-mix(in srgb,#f59e0b 30%,var(--border));color:#b36b00}
+.wa-msg-status{font-weight:900;letter-spacing:-1px;margin-left:1px}
+.wa-msg-status.sent,.wa-msg-status.delivered{color:var(--text3)}
+.wa-msg-status.read{color:#2f80ed}
+.wa-msg-status.failed{color:#d64545;letter-spacing:0;cursor:help}
+.wa-compose-input:disabled{cursor:not-allowed;opacity:.55}
+.wa-compose .save-btn:disabled{cursor:not-allowed;opacity:.45}
+@media(max-width:699px){.wa-window-status{font-size:0;padding:6px}.wa-window-status i{font-size:14px}}
