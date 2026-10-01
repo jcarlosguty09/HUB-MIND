@@ -105,10 +105,10 @@
             <div class="wa-messages" id="wa-messages"></div>
             <div class="wa-compose">
               <div class="wa-compose-box">
-                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." disabled>
-                <button class="save-btn" disabled title="Envío se activa en WhatsApp V2"><i class="ti ti-send"></i></button>
+                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off">
+                <button class="save-btn" title="Enviar mensaje"><i class="ti ti-send"></i></button>
               </div>
-              <div class="wa-compose-note">Lectura activa. El envío desde CRM se habilita en la siguiente fase.</div>
+              <div class="wa-compose-note">Enter para enviar · Los mensajes salen desde el WhatsApp de Hub Mind.</div>
             </div>
           </div>
         </main>
@@ -123,6 +123,21 @@
     $('wa-back').addEventListener('click', () => shell.classList.remove('wa-chat-open'));
     $('wa-search').addEventListener('input', e => filter(e.target.value));
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !shell.classList.contains('hidden')) close(); });
+
+    const composeInput = shell.querySelector('.wa-compose-input');
+    const composeButton = shell.querySelector('.wa-compose .save-btn');
+    if (composeInput && composeButton) {
+      composeInput.disabled = false;
+      composeButton.disabled = false;
+      composeButton.title = 'Enviar mensaje';
+      composeInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendActiveMessage();
+        }
+      });
+      composeButton.addEventListener('click', sendActiveMessage);
+    }
 
     WA.mounted = true;
     refreshBadge();
@@ -230,6 +245,62 @@
         renderList();
         refreshBadge();
       }
+    }
+  }
+
+  async function sendActiveMessage() {
+    const conversationId = WA.activeId;
+    const input = document.querySelector('#wa-inbox-shell .wa-compose-input');
+    const button = document.querySelector('#wa-inbox-shell .wa-compose .save-btn');
+    const body = String(input?.value || '').trim();
+
+    if (!conversationId || !body || !input || !button) return;
+    if (body.length > 4096) {
+      alert('El mensaje no puede superar 4096 caracteres.');
+      return;
+    }
+
+    const token = Auth.getToken();
+    if (!token) {
+      alert('Tu sesión expiró. Inicia sesión nuevamente.');
+      return;
+    }
+
+    input.disabled = true;
+    button.disabled = true;
+    const previousHtml = button.innerHTML;
+    button.innerHTML = '<i class="ti ti-loader-2"></i>';
+
+    try {
+      const res = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-send', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          body,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.meta_error || data.error || 'No se pudo enviar el mensaje');
+      }
+
+      input.value = '';
+      await renderActiveMessages(true);
+      await refreshConversations();
+    } catch (e) {
+      console.error('WhatsAppInbox.sendActiveMessage:', e);
+      alert('No se pudo enviar el WhatsApp: ' + e.message);
+    } finally {
+      input.disabled = false;
+      button.disabled = false;
+      button.innerHTML = previousHtml;
+      input.focus();
     }
   }
 
