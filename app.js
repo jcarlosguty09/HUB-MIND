@@ -37,6 +37,25 @@ const state = {
 const today    = new Date();
 const todayKey = fmtKey(today.getFullYear(), today.getMonth(), today.getDate());
 
+// ---- SESSION HARDENING ----
+// Supabase rota el refresh token. Si timer + foreground + interacción intentan
+// renovarlo al mismo tiempo, una petición puede invalidar a la otra.
+// Serializamos todos los refresh para mantener una sola sesión estable.
+{
+  const originalRefreshSession = Auth.refreshSession.bind(Auth);
+  let refreshInFlight = null;
+
+  Auth.refreshSession = async function() {
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = originalRefreshSession();
+    try {
+      return await refreshInFlight;
+    } finally {
+      refreshInFlight = null;
+    }
+  };
+}
+
 // ---- UTILS ----
 function autoResize(textarea) {
   textarea.style.height = 'auto';
@@ -2118,12 +2137,13 @@ async function init() {
     }
   }, 20 * 60 * 1000);
 
-  // Refresh when app comes back to foreground
+  // Refresh when app comes back to foreground.
+  // A temporary network failure must not throw the user back to login.
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible' && Auth.isLoggedIn()) {
       const refreshed = await Auth.refreshSession();
       if (!refreshed) {
-        showLogin();
+        console.warn('[Auth] Foreground refresh failed; keeping saved session for retry');
       }
     }
   });
@@ -2304,10 +2324,15 @@ async function init() {
 
   const session = Auth.loadSession();
   if (session && Auth.isLoggedIn()) {
-    // Refresh token if expired
+    // If the access token expired while the app was closed, renew it first.
+    // Only show login when there is no usable saved session.
     if (Auth.isTokenExpired()) {
       const refreshed = await Auth.refreshSession();
-      if (!refreshed) { showLogin(); return; }
+      if (!refreshed) {
+        console.warn('[Auth] Startup refresh failed');
+        showLogin();
+        return;
+      }
     }
     const role = await RoleAPI.getRole();
     if (role === 'atleta') await showAtleta();
