@@ -630,6 +630,29 @@ const ScheduleAPI = {
 
   clearCache() { this._cache = null; },
 };
+// ---- MEMBERSHIP ENGINE V2 ----
+const MembershipEngineAPI = {
+  async listPlans() {
+    try {
+      const rows = await sbReq('GET', 'membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,is_active&is_active=eq.true&order=name.asc');
+      return rows || [];
+    } catch (e) {
+      console.warn('MembershipEngineAPI.listPlans:', e.message);
+      return [];
+    }
+  },
+
+  async listMemberships() {
+    try {
+      const rows = await sbReq('GET', 'member_memberships?select=id,user_id,plan_id,starts_at,expires_at,status,amount_paid,source_label,created_at&order=created_at.desc');
+      return rows || [];
+    } catch (e) {
+      console.warn('MembershipEngineAPI.listMemberships:', e.message);
+      return [];
+    }
+  },
+};
+
 // ---- MEMBERS (admin only) ----
 const MemberAPI = {
   async list() {
