@@ -4176,169 +4176,207 @@ async function renderMembers() {
   const listEl = el('members-list');
   listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
-  const [members, retention] = await Promise.all([MemberAPI.list(), RetentionAPI.dashboard()]);
+  const [members, retention, plans, memberships] = await Promise.all([
+    MemberAPI.list(),
+    RetentionAPI.dashboard(),
+    MembershipEngineAPI.listPlans(),
+    MembershipEngineAPI.listMemberships(),
+  ]);
   renderRetentionDashboard(retention);
 
-  function render(search = '') {
-    const filtered = members.filter(m => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (m.full_name || '').toLowerCase().includes(q)
-          || (m.email || '').toLowerCase().includes(q)
-          || (ROLE_LABELS[m.role] || m.role).toLowerCase().includes(q);
+  const planMap = Object.fromEntries(plans.map(p => [p.id, p]));
+  const membershipsByUser = {};
+  memberships.forEach(mm => {
+    if (!membershipsByUser[mm.user_id]) membershipsByUser[mm.user_id] = [];
+    membershipsByUser[mm.user_id].push(mm);
+  });
+
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    return Math.round((new Date(dateStr + 'T00:00:00') - todayDate) / 86400000);
+  }
+
+  function currentMembership(userId) {
+    const rows = membershipsByUser[userId] || [];
+    if (!rows.length) return null;
+    return [...rows].sort((a, b) => {
+      const aActive = a.status === 'active' ? 1 : 0;
+      const bActive = b.status === 'active' ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      return String(b.expires_at || '9999-12-31').localeCompare(String(a.expires_at || '9999-12-31'));
+    })[0];
+  }
+
+  function membershipState(mm) {
+    if (!mm) return 'none';
+    const days = daysUntil(mm.expires_at);
+    if (mm.status === 'expired' || (days !== null && days < 0)) return 'expired';
+    if (days !== null && days <= 7) return 'soon';
+    return 'active';
+  }
+
+  function legacyExternalChannel(m) {
+    const channel = (m.membership_channel || '').toLowerCase();
+    return ['wellhub','totalpass','fitpass'].includes(channel) ? channel : null;
+  }
+
+  const planFilter = el('members-plan-filter');
+  planFilter.innerHTML = '<option value="all">Todos los planes</option>' +
+    plans.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`).join('');
+
+  function render() {
+    const search = (el('members-search')?.value || '').trim().toLowerCase();
+    const selectedPlan = planFilter?.value || 'all';
+    const selectedStatus = el('members-status-filter')?.value || 'all';
+    const selectedAccess = el('members-access-filter')?.value || 'all';
+
+    const enriched = members.map(m => {
+      const mm = currentMembership(m.id);
+      const plan = mm ? planMap[mm.plan_id] || null : null;
+      const external = legacyExternalChannel(m);
+      return { ...m, _membership: mm, _plan: plan, _external: external, _state: membershipState(mm) };
     });
 
-    // Stats por rol
-    const counts = { admin: 0, coach: 0, atleta: 0 };
-    members.forEach(m => { counts[m.role] = (counts[m.role] || 0) + 1; });
+    const filtered = enriched.filter(m => {
+      const planName = m._plan?.name || '';
+      const haystack = [m.full_name, m.email, ROLE_LABELS[m.role] || m.role, planName, m._external]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (search && !haystack.includes(search)) return false;
+      if (selectedPlan !== 'all' && m._plan?.id !== selectedPlan) return false;
+      if (selectedStatus !== 'all' && m._state !== selectedStatus) return false;
+      if (selectedAccess !== 'all') {
+        if (selectedAccess === 'external') {
+          if (!m._external) return false;
+        } else if (m._plan?.access_type !== selectedAccess) return false;
+      }
+      return true;
+    });
+
+    const activeCount = enriched.filter(m => m._state === 'active' || m._state === 'soon').length;
+    const soonCount = enriched.filter(m => m._state === 'soon').length;
+    const expiredCount = enriched.filter(m => m._state === 'expired').length;
+    const noMembershipCount = enriched.filter(m => !m._membership && !m._external).length;
     el('members-stats').innerHTML = `
-      <div class="checkin-stat"><span class="checkin-stat-num">${counts.admin}</span><span class="checkin-stat-label">Admins</span></div>
-      <div class="checkin-stat"><span class="checkin-stat-num">${counts.coach}</span><span class="checkin-stat-label">Coaches</span></div>
-      <div class="checkin-stat"><span class="checkin-stat-num">${counts.atleta}</span><span class="checkin-stat-label">Atletas</span></div>`;
+      <div class="checkin-stat"><span class="checkin-stat-num">${activeCount}</span><span class="checkin-stat-label">Vigentes</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${soonCount}</span><span class="checkin-stat-label">Por vencer</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${expiredCount}</span><span class="checkin-stat-label">Vencidas</span></div>
+      <div class="checkin-stat"><span class="checkin-stat-num">${noMembershipCount}</span><span class="checkin-stat-label">Sin plan</span></div>`;
 
     if (!filtered.length) {
-      listEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin miembros que coincidan.</div>';
+      listEl.innerHTML = '<div class="lb-empty" style="padding:32px;text-align:center">Sin miembros que coincidan con los filtros.</div>';
       return;
     }
 
     listEl.innerHTML = '';
     filtered.forEach(m => {
-      const name     = m.full_name || m.email?.split('@')[0] || '—';
+      const name = m.full_name || m.email?.split('@')[0] || '—';
       const initials = ProfileAPI.getInitials(m.full_name, m.email);
       const avatarHTML = m.avatar_url
         ? `<img src="${m.avatar_url}" class="checkin-avatar-img" />`
         : `<div class="checkin-avatar-placeholder">${escHtml(initials)}</div>`;
       const perms = (ROLE_PERMISSIONS[m.role] || []).map(p =>
         `<span class="member-perm"><i class="ti ti-check"></i> ${escHtml(p)}</span>`).join('');
-    const zkBadge = `
+
+      const zkBadge = `
         <div class="member-zk-edit">
           <input class="member-zk-input" type="text" inputmode="numeric"
                  value="${escHtml(m.zk_user_id || '')}" placeholder="ZK ID"
                  data-user="${m.id}" data-name="${escHtml(m.full_name || '')}" />
           <button class="member-zk-save" data-user="${m.id}"><i class="ti ti-device-floppy"></i></button>
         </div>`;
-      const CHANNELS = [
-        { v: '', label: 'Sin asignar' },
-        { v: 'membresia', label: 'Membresía' },
-        { v: 'wellhub', label: 'WellHub' },
-        { v: 'totalpass', label: 'Total Pass' },
-        { v: 'fitpass', label: 'FitPass' },
-      ];
-      const SUBTYPES = ['Ilimitada','Parejas','Kids','Estudiante','Trimestral','3 días x semana','Central 3D (L-V)','Cortesía','Drop In'];
 
-      const channelOpts = CHANNELS.map(c =>
-        `<option value="${c.v}"${(m.membership_channel || '') === c.v ? ' selected' : ''}>${c.label}</option>`).join('');
-      const subtypeOpts = ['<option value="">Subtipo...</option>'].concat(
-        SUBTYPES.map(s => `<option value="${s}"${m.membership_subtype === s ? ' selected' : ''}>${s}</option>`)).join('');
+      let membershipHTML = '';
+      if (m._membership && m._plan) {
+        const days = daysUntil(m._membership.expires_at);
+        let statusText = 'Vigente';
+        if (m._state === 'expired') statusText = days === null ? 'Vencida' : `Vencida hace ${Math.abs(days)}d`;
+        else if (m._state === 'soon') statusText = days === 0 ? 'Vence hoy' : `Vence en ${days}d`;
 
-      // Estado de vencimiento
-      let expiryTag = '';
-      if (m.membership_expires) {
-        const exp = new Date(m.membership_expires + 'T00:00:00');
-        const today = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) + 'T00:00:00');
-        const days = Math.round((exp - today) / 86400000);
-        if (days < 0)       expiryTag = `<span class="mem-expiry-tag expired">Vencida hace ${-days}d</span>`;
-        else if (days <= 7) expiryTag = `<span class="mem-expiry-tag soon">Vence en ${days}d</span>`;
-        else                expiryTag = `<span class="mem-expiry-tag ok">Vigente</span>`;
+        const accessText = m._plan.access_type === 'weekly_frequency'
+          ? `${m._plan.weekly_limit || '—'} días por semana`
+          : m._plan.access_type === 'class_pack'
+            ? `${m._plan.included_classes || '—'} clases`
+            : 'Acceso ilimitado';
+
+        membershipHTML = `
+          <div class="member-v2-membership">
+            <div class="member-v2-plan">
+              <i class="ti ti-id-badge-2"></i>
+              <div><strong>${escHtml(m._plan.name)}</strong><span>${escHtml(accessText)}</span></div>
+            </div>
+            <div class="member-v2-expiry">
+              <span class="mem-expiry-tag ${m._state === 'expired' ? 'expired' : m._state === 'soon' ? 'soon' : 'ok'}">${statusText}</span>
+              <small>${m._membership.expires_at ? 'Vence ' + new Date(m._membership.expires_at + 'T12:00:00').toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' }) : 'Sin vencimiento registrado'}</small>
+            </div>
+          </div>`;
+      } else if (m._external) {
+        const labels = { wellhub:'WellHub', totalpass:'Total Pass', fitpass:'FitPass' };
+        membershipHTML = `
+          <div class="member-v2-membership external">
+            <div class="member-v2-plan"><i class="ti ti-building-community"></i><div><strong>${labels[m._external]}</strong><span>Convenio externo</span></div></div>
+            <span class="member-v2-external-badge">Externo</span>
+          </div>`;
+      } else {
+        membershipHTML = `
+          <div class="member-v2-membership empty">
+            <div class="member-v2-plan"><i class="ti ti-alert-circle"></i><div><strong>Sin membresía V2</strong><span>Pendiente de asignar o vincular</span></div></div>
+          </div>`;
       }
 
-     const card = document.createElement('div');
+      const card = document.createElement('div');
       card.className = 'member-card' + (m.is_active === false ? ' member-inactive' : '');
       card.innerHTML = `
         <div class="member-head">
           <div class="checkin-avatar">${avatarHTML}</div>
           <div class="member-info">
-           <div class="member-name">${escHtml(name)}
+            <div class="member-name">${escHtml(name)}
               <span class="member-role-badge ${ROLE_COLORS[m.role] || 'green'}">${ROLE_LABELS[m.role] || m.role}</span>
               ${m.is_active === false ? '<span class="member-inactive-badge">Inactivo</span>' : ''}
             </div>
-          <div class="member-email">${escHtml(m.email || '')}</div>
+            <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
           <button class="member-edit-btn" data-user="${m.id}" title="Editar"><i class="ti ti-dots-vertical"></i></button>
           ${zkBadge}
         </div>
-        <div class="member-membership">
-          <select class="mem-channel" data-user="${m.id}">${channelOpts}</select>
-          <select class="mem-subtype" data-user="${m.id}"${(m.membership_channel !== 'membresia') ? ' style="display:none"' : ''}>${subtypeOpts}</select>
-          <input class="mem-expires" type="date" data-user="${m.id}" value="${m.membership_expires || ''}" />
-          <button class="mem-save" data-user="${m.id}"><i class="ti ti-device-floppy"></i></button>
-          ${expiryTag}
-        </div>
+        ${membershipHTML}
         <div class="member-perms">${perms}</div>`;
       listEl.appendChild(card);
     });
-    // Mostrar/ocultar subtipo según canal
-    listEl.querySelectorAll('.mem-channel').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const userId = sel.dataset.user;
-        const subtypeSel = listEl.querySelector(`.mem-subtype[data-user="${userId}"]`);
-        if (subtypeSel) subtypeSel.style.display = sel.value === 'membresia' ? '' : 'none';
-      });
-    });
 
-    // Guardar membresía
-    listEl.querySelectorAll('.mem-save').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const userId  = btn.dataset.user;
-        const channel = listEl.querySelector(`.mem-channel[data-user="${userId}"]`).value;
-        const subtype = channel === 'membresia' ? listEl.querySelector(`.mem-subtype[data-user="${userId}"]`).value : '';
-        const expires = listEl.querySelector(`.mem-expires[data-user="${userId}"]`).value;
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ti ti-loader-2"></i>';
-        const ok = await MemberAPI.setMembership(userId, channel, subtype, expires);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
-
-        if (ok) { showToast('✓ Membresía actualizada'); renderMembers(); }
-        else showToast('Error al guardar membresía');
-      });
-    });
-    // Activar guardado de ZK IDs
     listEl.querySelectorAll('.member-zk-save').forEach(btn => {
       btn.addEventListener('click', async () => {
         const userId = btn.dataset.user;
-        const input  = listEl.querySelector(`.member-zk-input[data-user="${userId}"]`);
-        const zkId   = input.value.trim();
-        const name   = input.dataset.name;
-
+        const input = listEl.querySelector(`.member-zk-input[data-user="${userId}"]`);
+        const zkId = input.value.trim();
+        const name = input.dataset.name;
         if (!zkId) { showToast('Escribe un ZK ID'); return; }
-
-        // Botón de editar miembro
-    listEl.querySelectorAll('.member-edit-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const m = members.find(x => x.id === btn.dataset.user);
-        if (m) showEditMemberModal(m, renderMembers);
-      });
-    });
-
-        // Avisar si ya está en uso (pero permitir el cambio)
         const inUseBy = await MemberAPI.zkIdInUse(zkId, userId);
-        if (inUseBy) {
-          if (!confirm(`El ZK ID ${zkId} ya está asignado a ${inUseBy}. ¿Reasignarlo a ${name || 'este miembro'}?`)) return;
-        }
-
+        if (inUseBy && !confirm(`El ZK ID ${zkId} ya está asignado a ${inUseBy}. ¿Reasignarlo a ${name || 'este miembro'}?`)) return;
         btn.disabled = true;
         btn.innerHTML = '<i class="ti ti-loader-2"></i>';
         const ok = await MemberAPI.setZkId(userId, zkId, name);
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
-
         if (ok) {
           showToast(`✓ ZK#${zkId} asignado a ${name || 'miembro'}`);
           AthleteAPI.clearCache();
-        } else {
-          showToast('Error al asignar ZK ID');
-        }
+        } else showToast('Error al asignar ZK ID');
       });
     });
   }
 
-render();
+  render();
 
-  el('members-search').oninput = (e) => render(e.target.value);
+  ['members-search','members-plan-filter','members-status-filter','members-access-filter'].forEach(id => {
+    const node = el(id);
+    if (!node) return;
+    node.oninput = render;
+    node.onchange = render;
+  });
 
-  // Botón de editar (delegación — funciona aunque se redibuje la lista)
   listEl.onclick = (e) => {
     const btn = e.target.closest('.member-edit-btn');
     if (!btn) return;
@@ -4346,6 +4384,7 @@ render();
     if (m) showEditMemberModal(m, renderMembers);
   };
 }
+
 // ---- CLASSES SCHEDULE VIEW ----
 const CLASS_TYPE_INFO = {
   crossfit: { label: 'HUB X',        color: 'blue'   },

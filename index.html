@@ -497,8 +497,25 @@
             </div>
             <div class="checkins-stats" id="members-stats"></div>
           </div>
-          <div class="checkins-filters">
-            <input type="text" class="field-input" id="members-search" placeholder="Buscar por nombre, email o rol..." style="flex:1" />
+          <div class="checkins-filters members-v2-filters">
+            <input type="text" class="field-input" id="members-search" placeholder="Buscar por nombre, email, rol o plan..." />
+            <select class="field-input" id="members-plan-filter">
+              <option value="all">Todos los planes</option>
+            </select>
+            <select class="field-input" id="members-status-filter">
+              <option value="all">Todos los estados</option>
+              <option value="active">Vigentes</option>
+              <option value="soon">Por vencer (7 días)</option>
+              <option value="expired">Vencidas</option>
+              <option value="none">Sin membresía</option>
+            </select>
+            <select class="field-input" id="members-access-filter">
+              <option value="all">Todo acceso</option>
+              <option value="unlimited">Ilimitado</option>
+              <option value="weekly_frequency">Frecuencia semanal</option>
+              <option value="class_pack">Paquete de clases</option>
+              <option value="external">Convenios externos</option>
+            </select>
           </div>
         </div>
         <div id="retention-dashboard" class="retention-dashboard"></div>
