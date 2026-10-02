@@ -58,3 +58,13 @@
 .wa-compose-input:disabled{cursor:not-allowed;opacity:.55}
 .wa-compose .save-btn:disabled{cursor:not-allowed;opacity:.45}
 @media(max-width:699px){.wa-window-status{font-size:0;padding:6px}.wa-window-status i{font-size:14px}}
+
+/* WhatsApp Inbox V3.1 — approved templates */
+.wa-template-panel{display:none;padding:12px 14px;border-top:1px solid var(--border);background:color-mix(in srgb,#f59e0b 5%,var(--surface))}
+.wa-template-panel.visible{display:block}
+.wa-template-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.wa-template-head>div{display:flex;flex-direction:column;gap:2px}.wa-template-head strong{font-size:11px}.wa-template-head span{font-size:8px;color:var(--text3)}.wa-template-head>i{font-size:18px;color:#b36b00}
+.wa-template-controls{display:flex;gap:8px;align-items:center}.wa-template-select{min-width:0;flex:1;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);padding:9px 10px;font:inherit;font-size:11px;outline:none}
+.wa-template-send{white-space:nowrap!important}.wa-template-send:disabled{cursor:not-allowed;opacity:.45}
+.wa-template-preview{margin-top:8px;padding:10px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:10px;line-height:1.45;color:var(--text2);white-space:pre-wrap}
+@media(max-width:699px){.wa-template-controls{align-items:stretch;flex-direction:column}.wa-template-send{width:100%}}
