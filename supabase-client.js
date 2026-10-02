@@ -6,6 +6,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // ---- AUTH ----
 const Auth = {
   _session: null,
+  _refreshPromise: null,
 
   async signIn(email, password, remember = true) {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -46,25 +47,42 @@ const Auth = {
     return this._session;
   },
 
-  // Refresh the access token using the refresh token
+  // Refresh the access token using the refresh token.
+  // Single-flight: if several requests detect expiry at the same time,
+  // they all wait for ONE refresh instead of rotating the refresh token concurrently.
   async refreshSession() {
+    if (this._refreshPromise) return this._refreshPromise;
+
     const refreshToken = this._session?.refresh_token;
     if (!refreshToken) return false;
-    try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      this._session = data;
-      localStorage.setItem('hm-session', JSON.stringify(data));
-      return true;
-    } catch { return false; }
+
+    this._refreshPromise = (async () => {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (!res.ok) return false;
+
+        const data = await res.json();
+        if (!data?.access_token || !data?.refresh_token) return false;
+
+        this._session = data;
+        localStorage.setItem('hm-session', JSON.stringify(data));
+        return true;
+      } catch (e) {
+        console.warn('[Auth] refresh failed:', e?.message || e);
+        return false;
+      } finally {
+        this._refreshPromise = null;
+      }
+    })();
+
+    return this._refreshPromise;
   },
 
   // Check if access token is expired (with 60s buffer)
@@ -89,24 +107,43 @@ const Auth = {
 
 // ---- DB REQUEST (authenticated) ----
 async function sbReq(method, path, body = null, prefer = 'return=representation') {
-  const token = Auth.getToken();
-  if (!token) throw new Error('No autenticado');
-  const opts = {
-    method,
-    headers: {
-      'apikey':        SUPABASE_ANON,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type':  'application/json',
-      'Prefer':        prefer,
-    },
+  if (!Auth.getToken()) throw new Error('No autenticado');
+
+  const request = async () => {
+    const token = Auth.getToken();
+    const opts = {
+      method,
+      headers: {
+        'apikey':        SUPABASE_ANON,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type':  'application/json',
+        'Prefer':        prefer,
+      },
+    };
+    if (body !== null && body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
   };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
+
+  // Normal request first. If the access token expired between checks,
+  // refresh once and replay the exact request with the new token.
+  let res = await request();
+
   if (res.status === 401) {
-    Auth.signOut();
-    window.location.reload();
-    throw new Error('Sesión expirada');
+    console.warn('[Auth] REST 401; refreshing session and retrying once...');
+    const refreshed = await Auth.refreshSession();
+
+    if (refreshed) {
+      res = await request();
+    }
+
+    // Only end the local session after refresh failed, or the retried
+    // request is still unauthorized. A transient first 401 no longer logs the user out.
+    if (!refreshed || res.status === 401) {
+      await Auth.signOut();
+      throw new Error('Sesión expirada');
+    }
   }
+
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));
     throw new Error(e.message || `HTTP ${res.status}`);
