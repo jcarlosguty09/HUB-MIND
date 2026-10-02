@@ -12,6 +12,8 @@
     activeMessages: [],
     serviceWindowOpen: false,
     serviceWindowUntil: null,
+    templates: [],
+    activeLead: null,
   };
 
   const $ = id => document.getElementById(id);
@@ -88,6 +90,106 @@
       note.textContent = info.open
         ? 'Texto libre disponible hasta ' + formatWindowUntil(info.until) + ' · Enter para enviar.'
         : 'Han pasado más de 24 h desde el último mensaje del cliente. Para volver a contactar se necesita una plantilla aprobada.';
+    }
+    renderTemplatePanel();
+  }
+
+  async function listTemplates() {
+    try {
+      return await sbReq('GET',
+        'crm_whatsapp_templates?select=*&is_active=eq.true&order=display_name.asc'
+      ) || [];
+    } catch (e) {
+      console.warn('WhatsAppInbox.listTemplates:', e.message);
+      return [];
+    }
+  }
+
+  function resolveTemplateValue(key) {
+    const lead = WA.activeLead || {};
+    const conversation = WA.activeConversation || {};
+    if (key === 'lead_name') return String(lead.full_name || conversation.contact_name || '').trim();
+    if (key === 'lead_phone') return String(lead.phone || conversation.contact_phone || '').trim();
+    if (key === 'lead_email') return String(lead.email || '').trim();
+    return '';
+  }
+
+  function templatePreview(template) {
+    let body = String(template?.body_template || '');
+    const variables = Array.isArray(template?.variables) ? [...template.variables].sort((a,b) => Number(a.position)-Number(b.position)) : [];
+    variables.forEach(v => { body = body.replaceAll('{{' + Number(v.position) + '}}', resolveTemplateValue(v.key) || '—'); });
+    return body;
+  }
+
+  function renderTemplatePanel() {
+    const panel = $('wa-template-panel');
+    const select = $('wa-template-select');
+    const preview = $('wa-template-preview');
+    const send = $('wa-template-send');
+    if (!panel || !select || !preview || !send) return;
+
+    panel.classList.toggle('visible', !WA.serviceWindowOpen);
+    if (WA.serviceWindowOpen) return;
+
+    const approved = WA.templates.filter(t => t.status === 'approved' && t.is_active !== false);
+    const pending = WA.templates.filter(t => t.status !== 'approved' && t.is_active !== false);
+    select.innerHTML = '<option value="">Selecciona una plantilla...</option>' +
+      approved.map(t => '<option value="' + esc(t.id) + '">' + esc(t.display_name || t.name) + '</option>').join('') +
+      pending.map(t => '<option value="' + esc(t.id) + '" disabled>' + esc(t.display_name || t.name) + ' · ' + esc(t.status) + '</option>').join('');
+    select.disabled = approved.length === 0;
+    send.disabled = true;
+    preview.textContent = approved.length ? 'Selecciona una plantilla para ver la vista previa.' : 'No hay plantillas aprobadas todavía. Las plantillas en revisión se habilitarán cuando Meta las apruebe.';
+  }
+
+  function updateTemplatePreview() {
+    const select = $('wa-template-select');
+    const preview = $('wa-template-preview');
+    const send = $('wa-template-send');
+    if (!select || !preview || !send) return;
+    const template = WA.templates.find(t => t.id === select.value);
+    if (!template || template.status !== 'approved') {
+      preview.textContent = 'Selecciona una plantilla para ver la vista previa.';
+      send.disabled = true;
+      return;
+    }
+    preview.textContent = templatePreview(template);
+    send.disabled = false;
+  }
+
+  async function sendActiveTemplate() {
+    const select = $('wa-template-select');
+    const button = $('wa-template-send');
+    const template = WA.templates.find(t => t.id === select?.value);
+    if (!WA.activeId || !template || !button || template.status !== 'approved') return;
+
+    const token = Auth.getToken();
+    if (!token) { alert('Tu sesión expiró. Inicia sesión nuevamente.'); return; }
+
+    button.disabled = true;
+    const previous = button.innerHTML;
+    button.innerHTML = '<i class="ti ti-loader-2"></i> Enviando...';
+    try {
+      const res = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-send-template', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON,
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversation_id: WA.activeId, template_id: template.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.meta_error || data.error || 'No se pudo enviar la plantilla');
+      select.value = '';
+      await renderActiveMessages(true);
+      await refreshConversations();
+      updateTemplatePreview();
+    } catch (e) {
+      console.error('WhatsAppInbox.sendActiveTemplate:', e);
+      alert('No se pudo enviar la plantilla: ' + e.message);
+    } finally {
+      button.innerHTML = previous;
+      updateTemplatePreview();
     }
   }
 
@@ -171,6 +273,14 @@
               <div id="wa-window-status" class="wa-window-status closed"><i class="ti ti-clock-x"></i> Ventana 24 h cerrada</div>
             </div>
             <div class="wa-messages" id="wa-messages"></div>
+            <div id="wa-template-panel" class="wa-template-panel">
+              <div class="wa-template-head"><div><strong>Reabrir conversación</strong><span>Envía una plantilla aprobada por Meta</span></div><i class="ti ti-template"></i></div>
+              <div class="wa-template-controls">
+                <select id="wa-template-select" class="wa-template-select"><option value="">Selecciona una plantilla...</option></select>
+                <button id="wa-template-send" class="secondary-btn wa-template-send" disabled><i class="ti ti-send"></i> Enviar plantilla</button>
+              </div>
+              <div id="wa-template-preview" class="wa-template-preview">Selecciona una plantilla para ver la vista previa.</div>
+            </div>
             <div class="wa-compose">
               <div class="wa-compose-box">
                 <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off">
@@ -194,6 +304,11 @@
 
     const composeInput = shell.querySelector('.wa-compose-input');
     const composeButton = shell.querySelector('.wa-compose .save-btn');
+    const templateSelect = $('wa-template-select');
+    const templateSend = $('wa-template-send');
+    if (templateSelect) templateSelect.addEventListener('change', updateTemplatePreview);
+    if (templateSend) templateSend.addEventListener('click', sendActiveTemplate);
+
     if (composeInput && composeButton) {
       composeInput.disabled = false;
       composeButton.disabled = false;
@@ -216,6 +331,7 @@
     if (!shell) return;
     shell.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    WA.templates = await listTemplates();
     await refreshConversations();
     clearInterval(WA.poller);
     WA.poller = setInterval(refreshQuietly, 8000);
@@ -290,6 +406,7 @@
     if (!conversation) return;
     WA.activeId = id;
     WA.activeConversation = conversation;
+    WA.activeLead = null;
     renderList();
     $('wa-inbox-shell')?.classList.add('wa-chat-open');
 
@@ -398,6 +515,8 @@
     const root = $('wa-lead-panel');
     if (!root) return;
     const lead = await getLead(leadId);
+    WA.activeLead = lead;
+    renderTemplatePanel();
     if (!lead) {
       root.innerHTML = `
         <div class="wa-lead-label">CRM</div>
