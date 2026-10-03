@@ -3212,3 +3212,11 @@ body {
 .member-v2-membership.empty .member-v2-plan>.ti{color:#EAB308}
 @media(max-width:900px){.members-v2-filters{grid-template-columns:1fr 1fr}.members-v2-filters #members-search{grid-column:1/-1}}
 @media(max-width:560px){.members-v2-filters{grid-template-columns:1fr}.members-v2-filters #members-search{grid-column:auto}.member-v2-membership{align-items:flex-start;flex-direction:column}.member-v2-expiry{text-align:left}}
+
+/* ---- MEMBERSHIP ENGINE V2.1 MANAGEMENT ---- */
+.member-membership-btn{border:1px solid var(--border);background:var(--surface2);color:var(--blue);border-radius:9px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer;flex-shrink:0}
+.member-membership-btn:hover{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 8%,var(--surface2))}
+.membership-manage-modal{max-width:500px}
+.membership-manage-member{padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
+.membership-manage-member strong,.membership-manage-member span{display:block}.membership-manage-member span{font-size:10px;color:var(--text3);margin-top:2px}
+.membership-manage-note{font-size:10px;line-height:1.5;color:var(--text3);padding:9px 10px;border-radius:9px;background:var(--surface2)}

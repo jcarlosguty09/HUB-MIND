@@ -651,6 +651,48 @@ const MembershipEngineAPI = {
       return [];
     }
   },
+
+  async assignMembership({ userId, planId, startsAt, expiresAt, amountPaid }) {
+    try {
+      const payload = {
+        organization_id: currentOrganizationId(),
+        user_id: userId,
+        plan_id: planId,
+        starts_at: startsAt,
+        expires_at: expiresAt || null,
+        status: 'active',
+        amount_paid: amountPaid === '' || amountPaid == null ? null : Number(amountPaid),
+        source_label: 'Hub Mind CRM',
+      };
+      const rows = await sbReq('POST', 'member_memberships?select=*', payload, {
+        Prefer: 'return=representation',
+      });
+      return Array.isArray(rows) ? rows[0] : rows;
+    } catch (e) {
+      console.error('MembershipEngineAPI.assignMembership:', e);
+      throw e;
+    }
+  },
+
+  async renewMembership(membershipId, { planId, startsAt, expiresAt, amountPaid }) {
+    try {
+      const payload = {
+        plan_id: planId,
+        starts_at: startsAt,
+        expires_at: expiresAt || null,
+        status: 'active',
+        amount_paid: amountPaid === '' || amountPaid == null ? null : Number(amountPaid),
+        source_label: 'Hub Mind CRM · Renovación',
+      };
+      const rows = await sbReq('PATCH', `member_memberships?id=eq.${encodeURIComponent(membershipId)}&select=*`, payload, {
+        Prefer: 'return=representation',
+      });
+      return Array.isArray(rows) ? rows[0] : rows;
+    } catch (e) {
+      console.error('MembershipEngineAPI.renewMembership:', e);
+      throw e;
+    }
+  },
 };
 
 // ---- MEMBERS (admin only) ----

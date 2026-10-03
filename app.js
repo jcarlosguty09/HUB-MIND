@@ -4338,6 +4338,7 @@ async function renderMembers() {
             </div>
             <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
+          <button class="member-membership-btn" data-user="${m.id}" title="${m._membership ? 'Renovar membresía' : 'Asignar membresía'}"><i class="ti ti-id-badge-2"></i></button>
           <button class="member-edit-btn" data-user="${m.id}" title="Editar"><i class="ti ti-dots-vertical"></i></button>
           ${zkBadge}
         </div>
@@ -4378,10 +4379,91 @@ async function renderMembers() {
   });
 
   listEl.onclick = (e) => {
+    const membershipBtn = e.target.closest('.member-membership-btn');
+    if (membershipBtn) {
+      const m = members.find(x => x.id === membershipBtn.dataset.user);
+      if (m) showMembershipModal(m, currentMembership(m.id), plans, renderMembers);
+      return;
+    }
     const btn = e.target.closest('.member-edit-btn');
     if (!btn) return;
     const m = members.find(x => x.id === btn.dataset.user);
     if (m) showEditMemberModal(m, renderMembers);
+  };
+}
+
+function showMembershipModal(member, membership, plans, onSaved) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+  const selectedPlanId = membership?.plan_id || plans[0]?.id || '';
+
+  modal.innerHTML = `
+    <div class="modal-box membership-manage-modal">
+      <div class="modal-title"><i class="ti ti-id-badge-2" style="color:var(--blue)"></i> ${membership ? 'Renovar membresía' : 'Asignar membresía'}</div>
+      <div class="membership-manage-member">
+        <strong>${escHtml(member.full_name || member.email || 'Miembro')}</strong>
+        <span>${escHtml(member.email || '')}</span>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Plan</label>
+        <select class="field-input" id="mm-plan">
+          ${plans.map(p => `<option value="${p.id}"${p.id === selectedPlanId ? ' selected' : ''} data-days="${p.duration_days || ''}">${escHtml(p.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="em-row-2">
+        <div class="field-group">
+          <label class="field-label">Inicio</label>
+          <input class="field-input" type="date" id="mm-start" value="${membership?.starts_at || today}" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Vencimiento</label>
+          <input class="field-input" type="date" id="mm-expiry" value="${membership?.expires_at || ''}" />
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Monto pagado</label>
+        <input class="field-input" type="number" min="0" step="0.01" id="mm-amount" value="${membership?.amount_paid ?? ''}" placeholder="0.00" />
+      </div>
+      <div class="membership-manage-note">El vencimiento se captura explícitamente para respetar la fecha real del ciclo. No se calcula automáticamente todavía.</div>
+      <div class="login-error hidden" id="mm-error"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="mm-cancel">Cancelar</button>
+        <button class="save-btn" id="mm-save"><i class="ti ti-check"></i> ${membership ? 'Renovar' : 'Asignar'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const errorEl = modal.querySelector('#mm-error');
+  const showError = msg => { errorEl.textContent = msg; errorEl.classList.remove('hidden'); };
+  modal.querySelector('#mm-cancel').onclick = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#mm-save').onclick = async () => {
+    const planId = modal.querySelector('#mm-plan').value;
+    const startsAt = modal.querySelector('#mm-start').value;
+    const expiresAt = modal.querySelector('#mm-expiry').value;
+    const amountPaid = modal.querySelector('#mm-amount').value;
+    if (!planId || !startsAt) { showError('Selecciona un plan y una fecha de inicio'); return; }
+    if (expiresAt && expiresAt < startsAt) { showError('El vencimiento no puede ser anterior al inicio'); return; }
+
+    const btn = modal.querySelector('#mm-save');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    errorEl.classList.add('hidden');
+    try {
+      if (membership) {
+        await MembershipEngineAPI.renewMembership(membership.id, { planId, startsAt, expiresAt, amountPaid });
+      } else {
+        await MembershipEngineAPI.assignMembership({ userId: member.id, planId, startsAt, expiresAt, amountPaid });
+      }
+      showToast(`✓ Membresía ${membership ? 'renovada' : 'asignada'}`);
+      modal.remove();
+      if (onSaved) await onSaved();
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
+      showError(err.message || 'No se pudo guardar la membresía');
+    }
   };
 }
 
