@@ -350,6 +350,15 @@ const CheckinAPI = {
       return res.ok;
     } catch(e) { console.error('CheckinAPI.createForUser:', e); return false; }
   },
+  async deleteCheckin(checkinId) {
+    try {
+      return await sbReq('POST', 'rpc/delete_checkin_v23', { p_checkin_id: checkinId });
+    } catch (e) {
+      console.error('CheckinAPI.deleteCheckin:', e);
+      throw e;
+    }
+  },
+
   async subscribeToNew(callback) {
     return setInterval(async () => {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
@@ -634,77 +643,62 @@ const ScheduleAPI = {
 const MembershipEngineAPI = {
   async listPlans() {
     try {
-      const rows = await sbReq('GET', 'membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,is_active&is_active=eq.true&order=name.asc');
+      const rows = await sbReq('GET', 'membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,duration_days,is_active&is_active=eq.true&order=name.asc');
       return rows || [];
-    } catch (e) {
-      console.warn('MembershipEngineAPI.listPlans:', e.message);
-      return [];
-    }
+    } catch (e) { console.warn('MembershipEngineAPI.listPlans:', e.message); return []; }
   },
 
   async listMemberships() {
     try {
-      const rows = await sbReq('GET', 'member_memberships?select=id,user_id,plan_id,starts_at,expires_at,status,amount_paid,source_label,created_at&order=created_at.desc');
-      return rows || [];
-    } catch (e) {
-      console.warn('MembershipEngineAPI.listMemberships:', e.message);
-      return [];
-    }
+      const [rows, balances] = await Promise.all([
+        sbReq('GET', 'member_memberships?select=id,user_id,plan_id,channel,starts_at,expires_at,status,amount_paid,source_label,created_at&order=created_at.desc'),
+        sbReq('GET', 'membership_credit_balances?select=membership_id,balance'),
+      ]);
+      const balanceMap = Object.fromEntries((balances || []).map(x => [x.membership_id, Number(x.balance || 0)]));
+      return (rows || []).map(x => ({ ...x, credit_balance: balanceMap[x.id] ?? 0 }));
+    } catch (e) { console.warn('MembershipEngineAPI.listMemberships:', e.message); return []; }
   },
 
-  async assignMembership({ userId, planId, startsAt, expiresAt, amountPaid }) {
+  async getMineV2() {
     try {
-      // Resolve the active organization server-side. Do not rely on a
-      // browser global: the tenant boundary is owned by Postgres.
-      // RPC returns a scalar response without a JSON body in this setup, so
-      // resolve the active tenant from organization_members instead.
-      const userIdCurrent = Auth.getUser()?.id;
-      if (!userIdCurrent) throw new Error('No autenticado');
-      const orgRows = await sbReq(
-        'GET',
-        `organization_members?select=organization_id&user_id=eq.${encodeURIComponent(userIdCurrent)}&is_active=eq.true&limit=1`
-      );
-      const organizationId = orgRows?.[0]?.organization_id;
-      if (!organizationId) throw new Error('No se encontró la organización actual');
-
-      const payload = {
-        organization_id: organizationId,
-        user_id: userId,
-        plan_id: planId,
-        starts_at: startsAt,
-        expires_at: expiresAt || null,
-        status: 'active',
-        amount_paid: amountPaid === '' || amountPaid == null ? null : Number(amountPaid),
-        source_label: 'Hub Mind CRM',
-      };
-      const rows = await sbReq('POST', 'member_memberships?select=*', payload, {
-        Prefer: 'return=representation',
-      });
-      return Array.isArray(rows) ? rows[0] : rows;
-    } catch (e) {
-      console.error('MembershipEngineAPI.assignMembership:', e);
-      throw e;
-    }
+      const userId = Auth.getUser()?.id;
+      if (!userId) return null;
+      const rows = await sbReq('GET', `member_memberships?select=id,user_id,plan_id,channel,starts_at,expires_at,status,amount_paid,source_label,created_at&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=1`);
+      const mm = rows?.[0] || null;
+      if (!mm) return null;
+      let plan = null;
+      if (mm.plan_id) {
+        const plans = await sbReq('GET', `membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,duration_days&id=eq.${encodeURIComponent(mm.plan_id)}&limit=1`);
+        plan = plans?.[0] || null;
+      }
+      let creditBalance = 0;
+      if (plan?.access_type === 'class_pack') {
+        const balances = await sbReq('GET', `membership_credit_balances?select=balance&membership_id=eq.${encodeURIComponent(mm.id)}&limit=1`);
+        creditBalance = Number(balances?.[0]?.balance || 0);
+      }
+      return { ...mm, plan, credit_balance: creditBalance };
+    } catch (e) { console.warn('MembershipEngineAPI.getMineV2:', e.message); return null; }
   },
 
-  async renewMembership(membershipId, { planId, startsAt, expiresAt, amountPaid }) {
-    try {
-      const payload = {
-        plan_id: planId,
-        starts_at: startsAt,
-        expires_at: expiresAt || null,
-        status: 'active',
-        amount_paid: amountPaid === '' || amountPaid == null ? null : Number(amountPaid),
-        source_label: 'Hub Mind CRM · Renovación',
-      };
-      const rows = await sbReq('PATCH', `member_memberships?id=eq.${encodeURIComponent(membershipId)}&select=*`, payload, {
-        Prefer: 'return=representation',
-      });
-      return Array.isArray(rows) ? rows[0] : rows;
-    } catch (e) {
-      console.error('MembershipEngineAPI.renewMembership:', e);
-      throw e;
-    }
+  async saveAccess({ userId, channel, planId, startsAt, expiresAt, amountPaid }) {
+    const payload = {
+      p_user_id: userId,
+      p_channel: channel,
+      p_plan_id: channel === 'hubmind' ? planId : null,
+      p_starts_at: startsAt,
+      p_expires_at: expiresAt || null,
+      p_amount_paid: amountPaid === '' || amountPaid == null ? null : Number(amountPaid),
+    };
+    return sbReq('POST', 'rpc/set_member_access_v23', payload);
+  },
+
+  async assignMembership({ userId, planId, startsAt, expiresAt, amountPaid, channel = 'hubmind' }) {
+    return this.saveAccess({ userId, channel, planId, startsAt, expiresAt, amountPaid });
+  },
+
+  async renewMembership(membershipId, { userId, planId, startsAt, expiresAt, amountPaid, channel = 'hubmind' }) {
+    if (!userId) throw new Error('Falta el usuario de la membresía');
+    return this.saveAccess({ userId, channel, planId, startsAt, expiresAt, amountPaid });
   },
 };
 
