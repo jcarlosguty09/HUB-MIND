@@ -3220,3 +3220,12 @@ body {
 .membership-manage-member{padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
 .membership-manage-member strong,.membership-manage-member span{display:block}.membership-manage-member span{font-size:10px;color:var(--text3);margin-top:2px}
 .membership-manage-note{font-size:10px;line-height:1.5;color:var(--text3);padding:9px 10px;border-radius:9px;background:var(--surface2)}
+
+/* ---- MEMBERSHIP ENGINE V2.3 ---- */
+.dash-mem-source { font-size:11px; color:var(--text3); margin:-4px 0 8px; }
+.dash-mem-balance { font-size:13px; color:var(--text2); margin-bottom:8px; }
+.dash-mem-balance strong { font-family:'Space Grotesk',sans-serif; font-size:22px; color:var(--text); margin-right:4px; }
+.checkin-top { display:flex; align-items:center; gap:10px; }
+.checkin-delete-btn { border:0; background:transparent; color:#EF4444; width:34px; height:34px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.checkin-delete-btn:hover { background:color-mix(in srgb,#EF4444 12%,transparent); }
+.checkin-delete-btn:disabled { opacity:.45; cursor:wait; }
