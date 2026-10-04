@@ -656,7 +656,15 @@ const MembershipEngineAPI = {
     try {
       // Resolve the active organization server-side. Do not rely on a
       // browser global: the tenant boundary is owned by Postgres.
-      const organizationId = await sbReq('POST', 'rpc/current_organization_id', {});
+      // RPC returns a scalar response without a JSON body in this setup, so
+      // resolve the active tenant from organization_members instead.
+      const userIdCurrent = Auth.getUser()?.id;
+      if (!userIdCurrent) throw new Error('No autenticado');
+      const orgRows = await sbReq(
+        'GET',
+        `organization_members?select=organization_id&user_id=eq.${encodeURIComponent(userIdCurrent)}&is_active=eq.true&limit=1`
+      );
+      const organizationId = orgRows?.[0]?.organization_id;
       if (!organizationId) throw new Error('No se encontró la organización actual');
 
       const payload = {
