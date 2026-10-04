@@ -650,11 +650,19 @@ const MembershipEngineAPI = {
 
   async listMemberships() {
     try {
-      const [rows, balances] = await Promise.all([
-        sbReq('GET', 'member_memberships?select=id,user_id,plan_id,channel,starts_at,expires_at,status,amount_paid,source_label,created_at&order=created_at.desc'),
-        sbReq('GET', 'membership_credit_balances?select=membership_id,balance'),
-      ]);
-      const balanceMap = Object.fromEntries((balances || []).map(x => [x.membership_id, Number(x.balance || 0)]));
+      // Memberships are the primary dataset. Read the ledger directly so a
+      // balance-view permission/schema issue can never hide every membership.
+      const rows = await sbReq('GET', 'member_memberships?select=id,user_id,plan_id,channel,starts_at,expires_at,status,amount_paid,source_label,created_at&order=created_at.desc');
+      let ledger = [];
+      try {
+        ledger = await sbReq('GET', 'membership_credit_ledger?select=membership_id,quantity');
+      } catch (balanceError) {
+        console.warn('MembershipEngineAPI.listMemberships ledger:', balanceError.message);
+      }
+      const balanceMap = {};
+      (ledger || []).forEach(x => {
+        balanceMap[x.membership_id] = (balanceMap[x.membership_id] || 0) + Number(x.quantity || 0);
+      });
       return (rows || []).map(x => ({ ...x, credit_balance: balanceMap[x.id] ?? 0 }));
     } catch (e) { console.warn('MembershipEngineAPI.listMemberships:', e.message); return []; }
   },
@@ -673,8 +681,8 @@ const MembershipEngineAPI = {
       }
       let creditBalance = 0;
       if (plan?.access_type === 'class_pack') {
-        const balances = await sbReq('GET', `membership_credit_balances?select=balance&membership_id=eq.${encodeURIComponent(mm.id)}&limit=1`);
-        creditBalance = Number(balances?.[0]?.balance || 0);
+        const ledger = await sbReq('GET', `membership_credit_ledger?select=quantity&membership_id=eq.${encodeURIComponent(mm.id)}`);
+        creditBalance = (ledger || []).reduce((sum, x) => sum + Number(x.quantity || 0), 0);
       }
       return { ...mm, plan, credit_balance: creditBalance };
     } catch (e) { console.warn('MembershipEngineAPI.getMineV2:', e.message); return null; }
