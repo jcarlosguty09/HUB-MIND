@@ -654,8 +654,13 @@ const MembershipEngineAPI = {
 
   async assignMembership({ userId, planId, startsAt, expiresAt, amountPaid }) {
     try {
+      // Resolve the active organization server-side. Do not rely on a
+      // browser global: the tenant boundary is owned by Postgres.
+      const organizationId = await sbReq('POST', 'rpc/current_organization_id', {});
+      if (!organizationId) throw new Error('No se encontró la organización actual');
+
       const payload = {
-        organization_id: currentOrganizationId(),
+        organization_id: organizationId,
         user_id: userId,
         plan_id: planId,
         starts_at: startsAt,
