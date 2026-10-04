@@ -916,10 +916,11 @@ async function renderAthleteDashboard() {
   if (!dashEl) return;
   dashEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
-  const [podiums, recentScores, profile, membership] = await Promise.all([
+  const [podiums, recentScores, profile, membershipV2, membershipLegacy] = await Promise.all([
     PodiumAPI.getForUser(userId),
     PodiumAPI.getRecentScores(userId, 10),
     ProfileAPI.get(userId),
+    MembershipEngineAPI.getMineV2(),
     OrganizationMemberAPI.getMine(),
   ]);
 
@@ -932,30 +933,31 @@ async function renderAthleteDashboard() {
 
 const total = podiums.gold + podiums.silver + podiums.bronze;
 
-  // Estado de membresía
+  // Estado de membresía V2. Legacy queda solo como fallback durante la migración.
   let membershipHTML = '';
-  const ch = membership?.membership_channel;
-  if (ch) {
-    const channelLabels = { membresia: 'Membresía', wellhub: 'WellHub', totalpass: 'Total Pass', fitpass: 'FitPass' };
-    const chLabel = channelLabels[ch] || ch;
-    const subLabel = (ch === 'membresia' && membership?.membership_subtype) ? ` · ${escHtml(membership.membership_subtype)}` : '';
-
+  const channelLabels = { hubmind:'Hub Mind', membresia:'Hub Mind', wellhub:'WellHub', totalpass:'Total Pass', fitpass:'FitPass' };
+  if (membershipV2) {
+    const ch = membershipV2.channel || 'hubmind';
+    const plan = membershipV2.plan;
+    const title = ch === 'hubmind' && plan ? plan.name : (channelLabels[ch] || ch);
+    const subtitle = ch === 'hubmind' ? 'Membresía Hub Mind' : 'Convenio externo';
+    let extra = '';
+    if (ch === 'hubmind' && plan?.access_type === 'class_pack') extra = `<div class="dash-mem-balance"><strong>${Number(membershipV2.credit_balance || 0)}</strong> clases restantes</div>`;
+    else if (ch === 'hubmind' && plan?.access_type === 'weekly_frequency') extra = `<div class="dash-mem-balance">${plan.weekly_limit || '—'} días por semana</div>`;
     let statusTag = '';
-    if (membership?.membership_expires) {
-      const exp = new Date(membership.membership_expires + 'T00:00:00');
-      const now = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) + 'T00:00:00');
+    if (membershipV2.expires_at) {
+      const exp = new Date(membershipV2.expires_at + 'T00:00:00');
+      const now = new Date(new Date().toLocaleDateString('en-CA', { timeZone:'America/Mexico_City' }) + 'T00:00:00');
       const days = Math.round((exp - now) / 86400000);
-      const fmtExp = exp.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-      if (days < 0)       statusTag = `<div class="dash-mem-status expired"><i class="ti ti-alert-circle"></i> Vencida hace ${-days} día${-days === 1 ? '' : 's'} · ${fmtExp}</div>`;
-      else if (days <= 7) statusTag = `<div class="dash-mem-status soon"><i class="ti ti-clock"></i> Vence en ${days} día${days === 1 ? '' : 's'} · ${fmtExp}</div>`;
-      else                statusTag = `<div class="dash-mem-status ok"><i class="ti ti-circle-check"></i> Vigente hasta ${fmtExp}</div>`;
+      const fmtExp = exp.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+      if (days < 0) statusTag = `<div class="dash-mem-status expired"><i class="ti ti-alert-circle"></i> Vencida hace ${-days} día${-days===1?'':'s'} · ${fmtExp}</div>`;
+      else if (days <= 7) statusTag = `<div class="dash-mem-status soon"><i class="ti ti-clock"></i> Vence en ${days} día${days===1?'':'s'} · ${fmtExp}</div>`;
+      else statusTag = `<div class="dash-mem-status ok"><i class="ti ti-circle-check"></i> Vigente hasta ${fmtExp}</div>`;
     }
-
-    membershipHTML = `
-      <div class="dash-membership-card">
-        <div class="dash-mem-channel">${chLabel}${subLabel}</div>
-        ${statusTag}
-      </div>`;
+    membershipHTML = `<div class="dash-membership-card"><div class="dash-mem-channel">${escHtml(title)}</div><div class="dash-mem-source">${escHtml(subtitle)}</div>${extra}${statusTag}</div>`;
+  } else {
+    const ch = membershipLegacy?.membership_channel;
+    if (ch) membershipHTML = `<div class="dash-membership-card"><div class="dash-mem-channel">${escHtml(channelLabels[ch] || ch)}</div><div class="dash-mem-source">Registro anterior · pendiente de migrar</div></div>`;
   }
 
   dashEl.innerHTML = `
@@ -1465,6 +1467,7 @@ async function renderCheckins() {
 
     const canAssign = ['master_admin','admin','coach'].includes(state.role);
     const canAudit = ['master_admin','admin'].includes(state.role);
+    const canDelete = ['master_admin','admin'].includes(state.role);
 
     function renderCheckinCard(row) {
       const profile = row.user_id ? profiles[row.user_id] : null;
@@ -1507,6 +1510,7 @@ async function renderCheckins() {
             ${auditLine}
           </div>
           <div class="checkin-time">${time}</div>
+          ${canDelete ? `<button class="checkin-delete-btn" data-checkin="${row.id}" title="Eliminar check-in"><i class="ti ti-trash"></i></button>` : ''}
         </div>
         <div class="checkin-class-row">
           <i class="ti ti-clock-hour-4"></i>
@@ -1518,6 +1522,23 @@ async function renderCheckins() {
 
       if (isUnknown) {
         card.querySelector('.checkin-top')?.addEventListener('click', () => showLinkModal(row.zk_user_id, listEl, date, search, load));
+      }
+
+      const deleteBtn = card.querySelector('.checkin-delete-btn');
+      if (deleteBtn && canDelete) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm(`¿Eliminar el check-in de ${name}? Si consumió una clase, el crédito se devolverá automáticamente.`)) return;
+          deleteBtn.disabled = true;
+          try {
+            const result = await CheckinAPI.deleteCheckin(row.id);
+            showToast(result?.refunded ? '✓ Check-in eliminado · clase devuelta' : '✓ Check-in eliminado');
+            await load(date, search);
+          } catch (err) {
+            deleteBtn.disabled = false;
+            showToast(err.message || 'No se pudo eliminar el check-in');
+          }
+        });
       }
 
       const classSelect = card.querySelector('.checkin-class-select');
@@ -4235,8 +4256,8 @@ async function renderMembers() {
 
     const enriched = members.map(m => {
       const mm = currentMembership(m.id);
-      const plan = mm ? planMap[mm.plan_id] || null : null;
-      const external = legacyExternalChannel(m);
+      const plan = mm?.plan_id ? planMap[mm.plan_id] || null : null;
+      const external = mm && ['wellhub','totalpass','fitpass'].includes(mm.channel) ? mm.channel : (!mm ? legacyExternalChannel(m) : null);
       return { ...m, _membership: mm, _plan: plan, _external: external, _state: membershipState(mm) };
     });
 
@@ -4298,7 +4319,7 @@ async function renderMembers() {
         const accessText = m._plan.access_type === 'weekly_frequency'
           ? `${m._plan.weekly_limit || '—'} días por semana`
           : m._plan.access_type === 'class_pack'
-            ? `${m._plan.included_classes || '—'} clases`
+            ? `${Number(m._membership.credit_balance || 0)} clases restantes`
             : 'Acceso ilimitado';
 
         membershipHTML = `
@@ -4396,73 +4417,71 @@ function showMembershipModal(member, membership, plans, onSaved) {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+  const legacyChannel = (member.membership_channel || '').toLowerCase();
+  const initialChannel = membership?.channel || (['wellhub','totalpass','fitpass'].includes(legacyChannel) ? legacyChannel : 'hubmind');
   const selectedPlanId = membership?.plan_id || plans[0]?.id || '';
+  const channelLabels = { hubmind:'Hub Mind', wellhub:'WellHub', totalpass:'Total Pass', fitpass:'FitPass' };
 
   modal.innerHTML = `
     <div class="modal-box membership-manage-modal">
-      <div class="modal-title"><i class="ti ti-id-badge-2" style="color:var(--blue)"></i> ${membership ? 'Renovar membresía' : 'Asignar membresía'}</div>
-      <div class="membership-manage-member">
-        <strong>${escHtml(member.full_name || member.email || 'Miembro')}</strong>
-        <span>${escHtml(member.email || '')}</span>
-      </div>
+      <div class="modal-title"><i class="ti ti-id-badge-2" style="color:var(--blue)"></i> Gestionar acceso</div>
+      <div class="membership-manage-member"><strong>${escHtml(member.full_name || member.email || 'Miembro')}</strong><span>${escHtml(member.email || '')}</span></div>
       <div class="field-group">
-        <label class="field-label">Plan</label>
+        <label class="field-label">Origen / canal</label>
+        <select class="field-input" id="mm-channel">
+          ${Object.entries(channelLabels).map(([v,l]) => `<option value="${v}"${v === initialChannel ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group" id="mm-plan-group">
+        <label class="field-label">Plan Hub Mind</label>
         <select class="field-input" id="mm-plan">
-          ${plans.map(p => `<option value="${p.id}"${p.id === selectedPlanId ? ' selected' : ''} data-days="${p.duration_days || ''}">${escHtml(p.name)}</option>`).join('')}
+          ${plans.map(p => `<option value="${p.id}"${p.id === selectedPlanId ? ' selected' : ''}>${escHtml(p.name)}</option>`).join('')}
         </select>
       </div>
       <div class="em-row-2">
-        <div class="field-group">
-          <label class="field-label">Inicio</label>
-          <input class="field-input" type="date" id="mm-start" value="${membership?.starts_at || today}" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Vencimiento</label>
-          <input class="field-input" type="date" id="mm-expiry" value="${membership?.expires_at || ''}" />
-        </div>
+        <div class="field-group"><label class="field-label">Inicio</label><input class="field-input" type="date" id="mm-start" value="${membership?.starts_at || today}" /></div>
+        <div class="field-group"><label class="field-label">Vencimiento</label><input class="field-input" type="date" id="mm-expiry" value="${membership?.expires_at || ''}" /></div>
       </div>
-      <div class="field-group">
-        <label class="field-label">Monto pagado</label>
-        <input class="field-input" type="number" min="0" step="0.01" id="mm-amount" value="${membership?.amount_paid ?? ''}" placeholder="0.00" />
-      </div>
-      <div class="membership-manage-note">El vencimiento se captura explícitamente para respetar la fecha real del ciclo. No se calcula automáticamente todavía.</div>
+      <div class="field-group" id="mm-amount-group"><label class="field-label">Monto pagado</label><input class="field-input" type="number" min="0" step="0.01" id="mm-amount" value="${membership?.amount_paid ?? ''}" placeholder="0.00" /></div>
+      <div class="membership-manage-note" id="mm-note"></div>
       <div class="login-error hidden" id="mm-error"></div>
-      <div class="modal-actions">
-        <button class="btn-secondary" id="mm-cancel">Cancelar</button>
-        <button class="save-btn" id="mm-save"><i class="ti ti-check"></i> ${membership ? 'Renovar' : 'Asignar'}</button>
-      </div>
+      <div class="modal-actions"><button class="btn-secondary" id="mm-cancel">Cancelar</button><button class="save-btn" id="mm-save"><i class="ti ti-check"></i> Guardar acceso</button></div>
     </div>`;
   document.body.appendChild(modal);
 
   const errorEl = modal.querySelector('#mm-error');
   const showError = msg => { errorEl.textContent = msg; errorEl.classList.remove('hidden'); };
+  const syncChannel = () => {
+    const isHub = modal.querySelector('#mm-channel').value === 'hubmind';
+    modal.querySelector('#mm-plan-group').classList.toggle('hidden', !isHub);
+    modal.querySelector('#mm-amount-group').classList.toggle('hidden', !isHub);
+    modal.querySelector('#mm-note').textContent = isHub
+      ? 'Los planes y paquetes son exclusivos de Hub Mind. Un paquete nuevo carga sus créditos reales en el ledger.'
+      : 'Los convenios externos no usan subtipos ni créditos de Hub Mind.';
+  };
+  modal.querySelector('#mm-channel').onchange = syncChannel;
+  syncChannel();
   modal.querySelector('#mm-cancel').onclick = () => modal.remove();
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
   modal.querySelector('#mm-save').onclick = async () => {
-    const planId = modal.querySelector('#mm-plan').value;
+    const channel = modal.querySelector('#mm-channel').value;
+    const planId = channel === 'hubmind' ? modal.querySelector('#mm-plan').value : null;
     const startsAt = modal.querySelector('#mm-start').value;
     const expiresAt = modal.querySelector('#mm-expiry').value;
-    const amountPaid = modal.querySelector('#mm-amount').value;
-    if (!planId || !startsAt) { showError('Selecciona un plan y una fecha de inicio'); return; }
+    const amountPaid = channel === 'hubmind' ? modal.querySelector('#mm-amount').value : '';
+    if (!startsAt || (channel === 'hubmind' && !planId)) { showError('Completa el canal, plan y fecha de inicio'); return; }
     if (expiresAt && expiresAt < startsAt) { showError('El vencimiento no puede ser anterior al inicio'); return; }
-
     const btn = modal.querySelector('#mm-save');
-    btn.disabled = true; btn.textContent = 'Guardando...';
-    errorEl.classList.add('hidden');
+    btn.disabled = true; btn.textContent = 'Guardando...'; errorEl.classList.add('hidden');
     try {
-      if (membership) {
-        await MembershipEngineAPI.renewMembership(membership.id, { planId, startsAt, expiresAt, amountPaid });
-      } else {
-        await MembershipEngineAPI.assignMembership({ userId: member.id, planId, startsAt, expiresAt, amountPaid });
-      }
-      showToast(`✓ Membresía ${membership ? 'renovada' : 'asignada'}`);
+      await MembershipEngineAPI.saveAccess({ userId: member.id, channel, planId, startsAt, expiresAt, amountPaid });
+      showToast('✓ Acceso actualizado');
       modal.remove();
       if (onSaved) await onSaved();
     } catch (err) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-check"></i> Guardar';
-      showError(err.message || 'No se pudo guardar la membresía');
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Guardar acceso';
+      showError(err.message || 'No se pudo guardar el acceso');
     }
   };
 }
