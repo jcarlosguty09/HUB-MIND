@@ -1455,9 +1455,43 @@ async profilesWithMembership() {
 };
 
 // ---- WOD API ----
+
+// Normaliza sections para que el frontend siempre trabaje con:
+// { crossfit:[...], hyrox:[...], strength:[...], ... }
+// También recupera formatos legacy guardados como strings JSON o arrays.
+function normalizeWodSections(value) {
+  if (value == null) return {};
+
+  if (typeof value === 'string') {
+    try {
+      return normalizeWodSections(JSON.parse(value));
+    } catch (e) {
+      console.warn('normalizeWodSections: invalid JSON string');
+      return {};
+    }
+  }
+
+  if (!Array.isArray(value) && typeof value === 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const merged = {};
+    for (const item of value) {
+      const normalized = normalizeWodSections(item);
+      if (normalized && typeof normalized === 'object' && !Array.isArray(normalized)) {
+        Object.assign(merged, normalized);
+      }
+    }
+    return merged;
+  }
+
+  return {};
+}
+
 const WodAPI = {
   // data model: wod_days.sections = { crossfit:[...], hyrox:[...], ... }
- async getMonth(yearMonth) {
+  async getMonth(yearMonth) {
     const start = `${yearMonth}-01`;
     // Calcular primer día del mes siguiente sin desfase de timezone
     const [y, m] = yearMonth.split('-').map(Number);
@@ -1467,18 +1501,22 @@ const WodAPI = {
     try {
       const rows = await sbReq('GET', `wod_days?select=*&date=gte.${start}&date=lt.${end}&order=date.asc`);
       const map = {};
-      for (const row of rows) {
-        const raw = typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections || {});
-        map[row.date] = Array.isArray(raw) ? {} : raw;
+      for (const row of rows || []) {
+        map[row.date] = normalizeWodSections(row.sections);
       }
       return map;
-    } catch (e) { console.warn('getMonth:', e.message); return {}; }
+    } catch (e) { console.warn('WodAPI.getMonth:', e.message); return {}; }
   },
 
   async saveDay(date, dayData) {
     try {
       const token = Auth.getToken();
-      const body = { date, sections: JSON.stringify(dayData), updated_at: new Date().toISOString() };
+      // sections es JSONB: mandamos el objeto, no un JSON.stringify interno.
+      const body = {
+        date,
+        sections: normalizeWodSections(dayData),
+        updated_at: new Date().toISOString()
+      };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/wod_days?on_conflict=organization_id,date`, {
         method: 'POST',
         headers: {
@@ -1489,18 +1527,22 @@ const WodAPI = {
         },
         body: JSON.stringify(body),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); console.error('saveDay:', res.status, err); return false; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('WodAPI.saveDay:', res.status, err);
+        return false;
+      }
       return true;
-    } catch (e) { console.error('saveDay exception:', e.message); return false; }
+    } catch (e) { console.error('WodAPI.saveDay exception:', e.message); return false; }
   },
 
   async getHistory(limit = 60) {
     try {
       const rows = await sbReq('GET', `wod_days?select=*&order=date.desc&limit=${limit}`);
-      return rows.map(r => {
-        const raw = typeof r.sections === 'string' ? JSON.parse(r.sections) : (r.sections || {});
-        return { date: r.date, data: Array.isArray(raw) ? {} : raw };
-      });
-    } catch (e) { console.warn('getHistory:', e.message); return []; }
+      return (rows || []).map(r => ({
+        date: r.date,
+        data: normalizeWodSections(r.sections)
+      }));
+    } catch (e) { console.warn('WodAPI.getHistory:', e.message); return []; }
   },
 };
