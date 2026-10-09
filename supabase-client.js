@@ -1013,6 +1013,13 @@ async setRole(userId, role) {
 // Capa de acceso del frontend al CRM de leads.
 // RLS en Supabase se encarga de limitar cada operación a la organización actual.
 const CRMAPI = {
+  async getTrialsDashboard(startDate = null, endDate = null) {
+    return await sbReq('POST', 'rpc/crm_trials_dashboard_v2', {
+      p_start_date: startDate,
+      p_end_date: endDate
+    });
+  },
+
 
   async getAutopilotSummary() {
     try {

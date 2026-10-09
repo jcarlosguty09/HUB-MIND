@@ -231,6 +231,17 @@
       .crm-task-create button{grid-column:auto}
     }
   
+    .crm-trials-command-center{margin:0 0 22px;border:1px solid var(--border);border-radius:15px;padding:16px;background:var(--surface)}
+    .ctcc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .ctcc-head h3{font-size:16px;margin:0}.ctcc-head p{font-size:11px;color:var(--text3);margin:4px 0 0}
+    .ctcc-filters{display:flex;gap:6px;flex-wrap:wrap}.ctcc-filters button{border:1px solid var(--border);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px}
+    .ctcc-filters button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .ctcc-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+    .ctcc-metric{border:1px solid var(--border);border-radius:10px;padding:12px}.ctcc-metric strong{font-size:22px;display:block}.ctcc-metric span{font-size:10px;color:var(--text3)}
+    .ctcc-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}.ctcc-columns h4{font-size:12px;margin:0 0 8px}.ctcc-list{display:flex;flex-direction:column;gap:7px}
+    .ctcc-item{width:100%;text-align:left;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);padding:10px;cursor:pointer}
+    .ctcc-item strong{display:block;font-size:12px}.ctcc-item small{display:block;color:var(--text3);margin-top:4px;font-size:10px}.ctcc-empty{color:var(--text3);font-size:11px;padding:12px}
+    @media(max-width:700px){.ctcc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ctcc-columns{grid-template-columns:1fr}}
     .crm-trials-panel{margin-bottom:18px;border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--surface)}
     .crm-trial-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
     .crm-trial-form .full{grid-column:1/-1}
@@ -565,6 +576,7 @@
         <div id="crm-sales-command-center" class="crm-sales-command-center"></div>
         <div id="crm-revenue-recovery" class="crm-revenue-recovery"></div>
         <div id="crm-dashboard" class="crm-dashboard"></div>
+        <section id="crm-trials-command-center" class="crm-trials-command-center" aria-label="Centro de pruebas"></section>
 
         <div class="crm-section-label">Pipeline operativo</div>
         <div class="crm-stats" id="crm-stats"></div>

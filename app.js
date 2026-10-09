@@ -3157,6 +3157,49 @@ function renderCRMRevenueRecovery(data = {}) {
   }));
 }
 
+
+let crmTrialsPeriod = 'month';
+async function renderCRMTrialsCommandCenter(leads) {
+  const root = el('crm-trials-command-center');
+  if (!root) return;
+  root.innerHTML = '<div class="ctcc-empty">Cargando clases de prueba...</div>';
+  const now = new Date();
+  const localDate = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+  let start = null, end = null;
+  if (crmTrialsPeriod === 'today') { start = localDate(now); end = start; }
+  if (crmTrialsPeriod === 'week') {
+    const first = new Date(now); first.setDate(now.getDate() - ((now.getDay()+6)%7));
+    const last = new Date(first); last.setDate(first.getDate()+6);
+    start = localDate(first); end = localDate(last);
+  }
+  try {
+    const data = await CRMAPI.getTrialsDashboard(start, end);
+    const m = data?.metrics || {};
+    const safe = v => escHtml(String(v ?? ''));
+    const fmt = date => date ? new Date(date).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+    const metrics = [
+      ['Pruebas',m.total_trials],['Agendadas',m.scheduled],['Asistieron',m.attended],
+      ['No-shows',m.no_shows],['Canceladas',m.cancelled],['Show rate', (m.show_rate ?? 0)+'%'],
+      ['Conversiones registradas',m.converted],['Conversión registrada',(m.conversion_rate ?? 0)+'%']
+    ];
+    const items = (rows, empty) => rows?.length ? rows.map(x => {
+      const label = x.status === 'no_show' ? 'No-show' : x.status === 'attended' ? 'Asistió · pendiente de cierre' : x.status === 'scheduled' ? 'Prueba pendiente' : x.status;
+      return '<button class="ctcc-item" data-lead-id="'+safe(x.lead_id)+'"><strong>'+safe(x.lead_name || 'Sin nombre')+'</strong><small>'+safe(label)+' · '+safe(fmt(x.scheduled_at))+(x.class_name ? ' · '+safe(x.class_name) : '')+'</small></button>';
+    }).join('') : '<div class="ctcc-empty">'+empty+'</div>';
+    root.innerHTML = '<div class="ctcc-head"><div><h3>Trial Command Center</h3><p>Agenda y seguimiento comercial · '+safe(data?.period?.start || '')+' a '+safe(data?.period?.end || '')+'</p></div><div class="ctcc-filters">'+
+      [['today','Hoy'],['week','Semana'],['month','Mes']].map(([key,label])=>'<button data-trials-period="'+key+'" class="'+(crmTrialsPeriod===key?'active':'')+'">'+label+'</button>').join('')+
+      '</div></div><div class="ctcc-metrics">'+metrics.map(([label,value])=>'<div class="ctcc-metric"><strong>'+safe(value ?? 0)+'</strong><span>'+label+'</span></div>').join('')+
+      '</div><p class="checkins-subtitle">Conversiones: solo las registradas en Trials; aún no vinculadas automáticamente a membresías.</p>'+
+      '<div class="ctcc-columns"><div><h4>Próximas pruebas</h4><div class="ctcc-list">'+items(data?.upcoming,'No hay próximas pruebas en este periodo.')+
+      '</div></div><div><h4>Requieren acción</h4><div class="ctcc-list">'+items(data?.action_required,'No hay acciones pendientes en este periodo.')+'</div></div></div>';
+    root.querySelectorAll('[data-trials-period]').forEach(btn=>btn.addEventListener('click',()=>{crmTrialsPeriod=btn.dataset.trialsPeriod;renderCRMTrialsCommandCenter(leads);}));
+    root.querySelectorAll('[data-lead-id]').forEach(btn=>btn.addEventListener('click',()=>{const lead=leads.find(l=>l.id===btn.dataset.leadId);if(lead)openCRMLeadDetail(lead);else showToast('No se encontró el lead');}));
+  } catch (e) {
+    console.error('Trials Command Center:',e);
+    root.innerHTML='<div class="ctcc-empty">No se pudo cargar el dashboard de pruebas. Revisa los permisos o la conexión.</div>';
+  }
+}
+
 async function renderCRM() {
   const board = el('crm-board');
   const stats = el('crm-stats');
@@ -3195,6 +3238,7 @@ async function renderCRM() {
   const overdueTasks = tasks.filter(crmTaskIsOverdue);
 
   renderCRMDashboard(allLeads, tasks, crmStaff);
+  renderCRMTrialsCommandCenter(allLeads);
   renderCRMAdvancedFilters(allLeads);
   renderCRMOwnerFilters(allLeads, currentUserId);
 
