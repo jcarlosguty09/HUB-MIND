@@ -862,31 +862,35 @@
 
           <div class="field-group">
             <label class="field-label">Contraseña inicial</label>
-            <input class="field-input" type="text" id="crm-convert-password" value="HubMindAtleta" />
+            <input class="field-input" type="password" autocomplete="new-password" id="crm-convert-password" placeholder="Mínimo 8 caracteres" />
           </div>
-
           <div class="field-group">
             <label class="field-label">Canal de membresía</label>
             <select class="field-input" id="crm-convert-channel">
-              <option value="">Sin asignar</option>
-              <option value="direct">Directa</option>
+              <option value="">Solo crear cuenta (sin membresía)</option>
+              <option value="hubmind">Directa · Hub Mind</option>
               <option value="wellhub">Wellhub</option>
               <option value="totalpass">TotalPass</option>
-              <option value="classpass">ClassPass</option>
-              <option value="other">Otro</option>
+              <option value="fitpass">Fitpass</option>
             </select>
           </div>
-
-          <div class="field-group">
-            <label class="field-label">Tipo / plan</label>
-            <input class="field-input" id="crm-convert-subtype" placeholder="Ej: Mensual, 12 clases, Unlimited..." />
+          <div class="field-group" id="crm-convert-plan-group" style="display:none">
+            <label class="field-label">Plan del catálogo</label>
+            <select class="field-input" id="crm-convert-plan"></select>
+            <div id="crm-convert-plan-details" style="font-size:12px;opacity:.75;margin-top:5px"></div>
           </div>
-
           <div class="field-group">
-            <label class="field-label">Vencimiento</label>
+            <label class="field-label">Inicio de acceso</label>
+            <input class="field-input" type="date" id="crm-convert-start" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Vencimiento (opcional)</label>
             <input class="field-input" type="date" id="crm-convert-expires" />
           </div>
-
+          <div class="field-group" id="crm-convert-amount-group" style="display:none">
+            <label class="field-label">Importe registrado (opcional, MXN)</label>
+            <input class="field-input" type="number" min="0" step="0.01" id="crm-convert-amount" placeholder="No equivale a pago confirmado" />
+          </div>
           <div class="login-error hidden" id="crm-convert-error"></div>
 
           <div class="modal-actions">
