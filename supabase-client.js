@@ -641,6 +641,10 @@ const ScheduleAPI = {
 };
 // ---- MEMBERSHIP ENGINE V2 ----
 const MembershipEngineAPI = {
+  async listPlansStrict() {
+    return sbReq('GET', 'membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,duration_days&is_active=eq.true&order=name.asc');
+  },
+
   async listPlans() {
     try {
       const rows = await sbReq('GET', 'membership_plans?select=id,name,code,access_type,weekly_limit,included_classes,duration_days,is_active&is_active=eq.true&order=name.asc');
