@@ -3656,24 +3656,64 @@ async function createCRMTaskForSelectedLead() {
 }
 
 
-function openCRMConvertModal(lead) {
-  if (!lead) return;
+let crmConvertPlans = [];
 
+async function openCRMConvertModal(lead) {
+  if (!lead) return;
   if (!lead.email) {
     showToast('Agrega un email al lead antes de convertirlo');
     return;
   }
-
   crmSelectedLead = lead;
-
+  crmConvertPlans = [];
   el('crm-convert-name').textContent = lead.full_name || 'Lead';
   el('crm-convert-email').textContent = lead.email || '';
-  el('crm-convert-password').value = 'HubMindAtleta';
+  el('crm-convert-password').value = '';
   el('crm-convert-channel').value = '';
-  el('crm-convert-subtype').value = '';
+  el('crm-convert-plan').innerHTML = '<option value="">Selecciona un canal primero</option>';
+  el('crm-convert-start').value = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
   el('crm-convert-expires').value = '';
+  el('crm-convert-amount').value = '';
   el('crm-convert-error').classList.add('hidden');
   el('crm-convert-modal').classList.remove('hidden');
+  el('crm-convert-channel').onchange = refreshCRMConvertPlan;
+  el('crm-convert-plan').onchange = refreshCRMConvertPlanDetails;
+  el('crm-convert-save').disabled = true;
+  try {
+    // Fail closed: do not offer a misleading plan picker if catalog cannot load.
+    crmConvertPlans = await MembershipEngineAPI.listPlansStrict();
+    refreshCRMConvertPlan();
+    el('crm-convert-save').disabled = false;
+  } catch (error) {
+    el('crm-convert-error').textContent = 'No se pudo cargar el catálogo de planes: ' + error.message;
+    el('crm-convert-error').classList.remove('hidden');
+  }
+}
+
+function refreshCRMConvertPlan() {
+  const channel = el('crm-convert-channel').value;
+  const select = el('crm-convert-plan');
+  const isDirect = channel === 'hubmind';
+  el('crm-convert-plan-group').style.display = isDirect ? '' : 'none';
+  el('crm-convert-amount-group').style.display = isDirect ? '' : 'none';
+  select.innerHTML = '<option value="">Seleccionar plan real</option>' +
+    crmConvertPlans.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`).join('');
+  refreshCRMConvertPlanDetails();
+}
+
+function refreshCRMConvertPlanDetails() {
+  const plan = crmConvertPlans.find(p => p.id === el('crm-convert-plan').value);
+  const detail = el('crm-convert-plan-details');
+  detail.textContent = plan
+    ? [plan.access_type === 'class_pack' ? `${plan.included_classes ?? '—'} clases` : (plan.access_type || 'Acceso'),
+       plan.duration_days ? `${plan.duration_days} días` : null,
+       plan.weekly_limit ? `${plan.weekly_limit} clases/semana` : null].filter(Boolean).join(' · ')
+    : 'Selecciona un plan del catálogo de membresías.';
+  if (plan?.duration_days && el('crm-convert-start').value) {
+    const date = new Date(el('crm-convert-start').value + 'T12:00:00Z');
+    date.setUTCDate(date.getUTCDate() + Number(plan.duration_days) - 1);
+    el('crm-convert-expires').value = date.toISOString().slice(0, 10);
+  }
 }
 
 function closeCRMConvertModal() {
@@ -3683,75 +3723,61 @@ function closeCRMConvertModal() {
 async function convertSelectedLeadToMember() {
   const lead = crmSelectedLead;
   if (!lead) return;
-
-  const password = el('crm-convert-password').value.trim();
-  const channel = el('crm-convert-channel').value || null;
-  const subtype = el('crm-convert-subtype').value.trim() || null;
-  const expires = el('crm-convert-expires').value || null;
-
+  const password = el('crm-convert-password').value;
+  const channel = el('crm-convert-channel').value;
+  const planId = el('crm-convert-plan').value;
+  const startsAt = el('crm-convert-start').value;
+  const expiresAt = el('crm-convert-expires').value || null;
+  const amountPaid = el('crm-convert-amount').value;
   const err = el('crm-convert-error');
   err.classList.add('hidden');
 
-  if (!lead.email) {
-    err.textContent = 'El lead necesita un email para crear su acceso.';
-    err.classList.remove('hidden');
-    return;
-  }
-
-  if (password.length < 6) {
-    err.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-    err.classList.remove('hidden');
-    return;
-  }
+  const fail = message => { err.textContent = message; err.classList.remove('hidden'); };
+  if (!lead.email) return fail('El lead necesita un email.');
+  if (password.length < 8) return fail('Usa una contraseña inicial de al menos 8 caracteres.');
+  if (channel && !startsAt) return fail('Selecciona la fecha de inicio.');
+  if (channel === 'hubmind' && !crmConvertPlans.some(p => p.id === planId)) return fail('Selecciona un plan válido del catálogo.');
+  if (expiresAt && expiresAt < startsAt) return fail('El vencimiento no puede ser anterior al inicio.');
+  if (amountPaid && (!Number.isFinite(Number(amountPaid)) || Number(amountPaid) < 0)) return fail('El importe no es válido.');
 
   const btn = el('crm-convert-save');
   btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2"></i> Convirtiendo...';
-
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Creando...';
+  let createdUserId = null;
   try {
     const created = await AdminAPI.createUser(
-      lead.email,
-      password,
-      'atleta',
-      lead.full_name,
-      {
-        phone: lead.phone || null,
-        lead_id: lead.id
-      }
+      lead.email, password, 'atleta', lead.full_name,
+      { phone: lead.phone || null, lead_id: lead.id }
     );
+    if (!created?.id) throw new Error('La función no devolvió el usuario creado');
+    createdUserId = created.id;
 
-    if (!created?.id) {
-      throw new Error('La función no devolvió el usuario creado');
+    if (channel) {
+      await MembershipEngineAPI.saveAccess({
+        userId: created.id, channel, planId: channel === 'hubmind' ? planId : null,
+        startsAt, expiresAt, amountPaid: channel === 'hubmind' ? amountPaid : null
+      });
     }
-
-    if (channel || subtype || expires) {
-      const membershipOk = await MemberAPI.setMembership(
-        created.id,
-        channel,
-        subtype,
-        expires
-      );
-
-      if (!membershipOk) {
-        showToast('Miembro creado, pero revisa la membresía');
-      }
-    }
-
     AthleteAPI.clearCache();
     ProfileAPI.clearCache();
-
     closeCRMConvertModal();
     closeCRMLeadDetail();
-    showToast('✓ Lead convertido a miembro');
+    showToast(channel ? '✓ Miembro y acceso registrados' : '✓ Cuenta creada sin membresía');
     await renderCRM();
-
   } catch (e) {
     console.error('convertSelectedLeadToMember:', e);
-    err.textContent = e.message || 'No se pudo convertir el lead.';
-    err.classList.remove('hidden');
+    fail(createdUserId
+      ? 'La cuenta se creó, pero NO se pudo activar la membresía. No vuelvas a crear el usuario. Asígnale el acceso desde Miembros. Detalle: ' + (e.message || 'Error')
+      : (e.message || 'No se pudo crear el miembro.'));
+    if (createdUserId) {
+      btn.disabled = true;
+      btn.textContent = 'Cuenta creada · revisar acceso';
+    }
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-user-check"></i> Crear miembro';
+    if (!createdUserId) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-user-check"></i> Crear miembro';
+    }
   }
 }
 
