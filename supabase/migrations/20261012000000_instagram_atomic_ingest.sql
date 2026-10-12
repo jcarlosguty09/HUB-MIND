@@ -57,13 +57,18 @@ BEGIN
 
   IF v_message_id IS NOT NULL THEN
     UPDATE public.crm_instagram_conversations
-    SET last_message_at = v_sent_at,
-        last_message_preview = coalesce(p_body, '[Adjunto]'),
-        last_message_direction = 'inbound',
+    SET last_message_at = CASE
+          WHEN last_message_at IS NULL OR last_message_at <= v_sent_at
+          THEN v_sent_at ELSE last_message_at END,
+        last_message_preview = CASE
+          WHEN last_message_at IS NULL OR last_message_at <= v_sent_at
+          THEN coalesce(p_body, '[Adjunto]') ELSE last_message_preview END,
+        last_message_direction = CASE
+          WHEN last_message_at IS NULL OR last_message_at <= v_sent_at
+          THEN 'inbound' ELSE last_message_direction END,
         unread_count = unread_count + 1,
         updated_at = now()
-    WHERE organization_id = v_account.organization_id AND id = v_conversation_id
-      AND (last_message_at IS NULL OR last_message_at <= v_sent_at);
+    WHERE organization_id = v_account.organization_id AND id = v_conversation_id;
   END IF;
 
   RETURN jsonb_build_object(
