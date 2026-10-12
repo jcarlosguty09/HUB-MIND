@@ -65,74 +65,21 @@ async function storeMessage(entry: Json, event: Json): Promise<void> {
   const mid = str(message?.mid);
   const senderId = str(sender?.id);
   const recipientId = str(recipient?.id);
-  if (!mid || !senderId || !recipientId) return; // Non-message event.
-
-  // Inbound only for V2. Outbound echo and unsupported events are not stored.
-  if (message?.is_echo === true) return;
-
-  const accounts = await db(
-    "organization_instagram_accounts?select=id,organization_id&is_active=eq.true&instagram_user_id=eq." +
-    encodeURIComponent(recipientId) + "&limit=2"
-  ) as Json[];
-  if (accounts.length !== 1) throw new Error("Instagram account not uniquely mapped");
-  const account = accounts[0];
-  const organizationId = str(account.organization_id);
-  const accountId = str(account.id);
-  if (!organizationId || !accountId) throw new Error("Invalid account mapping");
-
-  const query = "crm_instagram_conversations?select=id&organization_id=eq." +
-    encodeURIComponent(organizationId) + "&account_id=eq." +
-    encodeURIComponent(accountId) + "&instagram_sender_id=eq." +
-    encodeURIComponent(senderId) + "&limit=1";
-  let conversations = await db(query) as Json[];
-  if (conversations.length === 0) {
-    await db("crm_instagram_conversations?on_conflict=organization_id,account_id,instagram_sender_id", {
-      method: "POST",
-      body: JSON.stringify([{
-        organization_id: organizationId, account_id: accountId,
-        instagram_sender_id: senderId, status: "open",
-      }]),
-    });
-    conversations = await db(query) as Json[];
-  }
-  const conversationId = str(conversations[0]?.id);
-  if (!conversationId) throw new Error("Conversation unavailable");
-
+  if (!mid || !senderId || !recipientId || message?.is_echo === true) return;
   const messageType = str(message?.text) ? "text" :
     Array.isArray(message?.attachments) ? "attachment" : "unsupported";
-  const sentAt = timestamp(event.timestamp ?? entry.time);
-  const inserted = await db("crm_instagram_messages?on_conflict=organization_id,instagram_message_id", {
+  await db("rpc/crm_instagram_ingest_inbound", {
     method: "POST",
-    body: JSON.stringify([{
-      organization_id: organizationId, conversation_id: conversationId,
-      instagram_message_id: mid, direction: "inbound",
-      message_type: messageType, body: str(message?.text),
-      instagram_timestamp: sentAt, raw_payload: event,
-    }]),
-  }) as Json[];
-
-  // Update preview only for newly inserted messages; duplicates are idempotent.
-  if (inserted.length > 0) {
-    const existing = await db(
-      "crm_instagram_conversations?select=last_message_at,unread_count&organization_id=eq." +
-      encodeURIComponent(organizationId) + "&id=eq." +
-      encodeURIComponent(conversationId)
-    ) as Json[];
-    const last = str(existing[0]?.last_message_at);
-    if (!last || !sentAt || new Date(sentAt) >= new Date(last)) {
-      const patch: Json = {
-        last_message_preview: str(message?.text) ?? "[Adjunto]",
-        last_message_direction: "inbound",
-        last_message_at: sentAt ?? new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      // unread_count increments require atomic SQL/RPC; deliberately not incremented here.
-      await db("crm_instagram_conversations?organization_id=eq." +
-        encodeURIComponent(organizationId) + "&id=eq." + encodeURIComponent(conversationId), {
-        method: "PATCH", body: JSON.stringify(patch),
-      });
-    }
-  }
+    body: JSON.stringify({
+      p_recipient_id: recipientId,
+      p_sender_id: senderId,
+      p_message_id: mid,
+      p_message_type: messageType,
+      p_body: str(message?.text),
+      p_timestamp: timestamp(event.timestamp ?? entry.time),
+      p_payload: event,
+    }),
+  });
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
