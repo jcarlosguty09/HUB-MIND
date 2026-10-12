@@ -53,7 +53,9 @@ async function db(path: string, init: RequestInit = {}): Promise<unknown> {
     },
   });
   if (!response.ok) throw new Error("Database request failed: " + response.status);
-  return response.json();
+  // PATCH can return 204 with no body; do not treat successful empty responses as errors.
+  const body = await response.text();
+  return body ? JSON.parse(body) : [];
 }
 
 async function storeMessage(entry: Json, event: Json): Promise<void> {
@@ -112,7 +114,8 @@ async function storeMessage(entry: Json, event: Json): Promise<void> {
   // Update preview only for newly inserted messages; duplicates are idempotent.
   if (inserted.length > 0) {
     const existing = await db(
-      "crm_instagram_conversations?select=last_message_at,unread_count&id=eq." +
+      "crm_instagram_conversations?select=last_message_at,unread_count&organization_id=eq." +
+      encodeURIComponent(organizationId) + "&id=eq." +
       encodeURIComponent(conversationId)
     ) as Json[];
     const last = str(existing[0]?.last_message_at);
@@ -124,7 +127,8 @@ async function storeMessage(entry: Json, event: Json): Promise<void> {
         updated_at: new Date().toISOString(),
       };
       // unread_count increments require atomic SQL/RPC; deliberately not incremented here.
-      await db("crm_instagram_conversations?id=eq." + encodeURIComponent(conversationId), {
+      await db("crm_instagram_conversations?organization_id=eq." +
+        encodeURIComponent(organizationId) + "&id=eq." + encodeURIComponent(conversationId), {
         method: "PATCH", body: JSON.stringify(patch),
       });
     }
