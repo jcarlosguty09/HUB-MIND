@@ -100,9 +100,20 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (!secret) return reply("Webhook not configured", 503);
   const raw = new Uint8Array(await request.arrayBuffer());
   if (raw.length > 1024 * 1024) return reply("Payload too large", 413);
-  if (!(await verifySignature(raw, request.headers.get("x-hub-signature-256"), secret))) {
+  const signature = request.headers.get("x-hub-signature-256");
+  if (!signature || !/^sha256=[0-9a-f]{64}$/i.test(signature)) {
+    console.warn("instagram_webhook_signature", {
+      result: "missing_signature",
+      signature_header_present: signature !== null,
+      // Never log signature values, secrets, request bodies, or message contents.
+    });
     return reply("Invalid signature", 403);
   }
+  if (!(await verifySignature(raw, signature, secret))) {
+    console.warn("instagram_webhook_signature", { result: "invalid_signature" });
+    return reply("Invalid signature", 403);
+  }
+  console.info("instagram_webhook_signature", { result: "valid_signature" });
   // Fail closed until account mapping and ingestion tests are completed.
   if (Deno.env.get("INSTAGRAM_WEBHOOK_INGEST_ENABLED") !== "true") {
     return reply("Ingestion not enabled", 503);
