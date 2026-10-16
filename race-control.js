@@ -6,6 +6,7 @@ const RaceControl = (() => {
   const time = ms => { if(ms == null) return '—'; const s=Math.max(0,Math.floor(ms/1000));return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };
   const dt = x => x ? new Date(x).toLocaleString('es-MX',{timeZone:'America/Mexico_City',dateStyle:'medium',timeStyle:'short'}) : '—';
   let selected = null, tick = null, refresh = null, container = null;
+  let lastSnapshot = null, loading = false, generation = 0;
   async function api(path, method='GET', data=null) { return sbReq(method,path,data); }
   async function rpc(name,args) { const rows=await api(`rpc/${name}`,'POST',args); return rows; }
   async function events(){return api('race_events?select=*&order=event_date.desc');}
@@ -13,16 +14,24 @@ const RaceControl = (() => {
   async function entries(event){return api(`race_entries?select=*&event_id=eq.${encodeURIComponent(event)}&order=created_at.asc`);}
   function notice(msg){ if(typeof showToast==='function')showToast(msg);else alert(msg); }
   async function action(fn){try{await fn();await render(container);}catch(e){notice('Race Control: '+e.message);}}
-  async function render(id){
+  async function render(id, silent=false){
     container=id || container; const root=el(container); if(!root)return;
-    if(tick)clearInterval(tick); if(refresh)clearInterval(refresh);
-    root.innerHTML='<div class="race-panel">Cargando Race Control…</div>';
+    if(loading) return;
+    loading = true;
+    const requestGeneration = ++generation;
+    // Never clear a visible race dashboard during background synchronization.
+    if(!silent && !root.querySelector('.race-header')) root.innerHTML='<div class="race-panel">Cargando Race Control…</div>';
     try{
       const all=await events();if(!selected || !all.some(e=>e.id===selected))selected=all[0]?.id||null;
       const event=all.find(e=>e.id===selected);
       const [hs,es]=event?await Promise.all([heats(event.id),entries(event.id)]):[[],[]];
       es.forEach(e=>{e.heat_name=hs.find(h=>h.id===e.heat_id)?.name||null;});
       const me=Auth.getUser()?.id;
+      // Exclude elapsed display time; clocks update in place, not by rebuilding the DOM.
+      const snapshot = JSON.stringify({all, selected, hs, es});
+      if(silent && lastSnapshot === snapshot) return;
+      if(requestGeneration !== generation) return;
+      lastSnapshot = snapshot;
       root.innerHTML=`<div class="race-header"><div><div class="race-kicker">HUB MIND / COMPETITION</div><h2>HYROX <span>RACE CONTROL</span></h2><p>Individual + heats · cronometraje en vivo</p></div>${admin()?'<button class="race-primary" data-act="create">+ Nuevo evento</button>':''}</div>
       <div class="race-toolbar"><select id="race-event-select">${all.map(e=>`<option value="${e.id}" ${e.id===selected?'selected':''}>${esc(e.name)} · ${esc(e.event_date)}</option>`).join('')}</select><span>${event?esc(event.status.toUpperCase()):'SIN EVENTOS'}</span></div>
       ${!event?'<div class="race-panel">No hay eventos todavía. Un administrador puede crear el primero.</div>':`
@@ -33,9 +42,16 @@ const RaceControl = (() => {
       <section class="race-panel"><h3>Atletas y clasificación</h3><div class="race-table-wrap"><table class="race-table"><thead><tr><th>#</th><th>Atleta</th><th>División</th><th>Heat</th><th>Estado</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>${[...es].sort((a,b)=>a.finished_at&&b.finished_at?(a.elapsed_ms??Infinity)-(b.elapsed_ms??Infinity):a.finished_at?-1:b.finished_at?1:0).map((e,i)=>`<tr><td>${e.finished_at?i+1:'—'}</td><td><b>${esc(e.display_name)}</b></td><td>${esc(e.division)}</td><td>${esc(e.heat_name||'Individual')}</td><td>${e.finished_at?'Finalizado':e.started_at?'EN VIVO':'Pendiente'}</td><td>${e.finished_at?time(e.elapsed_ms):e.started_at?`<span class="race-clock" data-start="${esc(e.started_at)}"></span>`:'—'}</td><td>${admin()&&!e.started_at?`<button data-act="start" data-id="${e.id}">Start</button>`:''}${admin()&&e.started_at&&!e.finished_at?`<button data-act="finish" data-id="${e.id}">Finish</button>`:''}</td></tr>`).join('')}</tbody></table></div></section>`}`;
       root.querySelector('#race-event-select')?.addEventListener('change',e=>{selected=e.target.value;render(container);});
       root.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>handle(b.dataset.act,b.dataset.id,event,hs,es));
-      tick=setInterval(()=>root.querySelectorAll('.race-clock[data-start]').forEach(n=>n.textContent=time(Date.now()-new Date(n.dataset.start).getTime())),250);
-      refresh=setInterval(()=>{if(root.offsetParent!==null)render(container);},12000);
-    }catch(e){root.innerHTML=`<div class="race-panel">No se pudo cargar Race Control: ${esc(e.message)}. Verifica que se ejecutó race-control.sql en Supabase.</div>`;}
+      if(tick) clearInterval(tick);
+      const updateClocks=()=>root.querySelectorAll('.race-clock[data-start]').forEach(n=>{const ms=Date.now()-new Date(n.dataset.start).getTime();const label=time(ms);if(n.textContent!==label)n.textContent=label;});
+      updateClocks();
+      tick=setInterval(updateClocks,250);
+      if(refresh) clearInterval(refresh);
+      refresh=setInterval(()=>{if(root.offsetParent!==null && !loading)render(container,true);},12000);
+    }catch(e){
+      if(!silent) root.innerHTML=`<div class="race-panel">No se pudo cargar Race Control: ${esc(e.message)}. Verifica la conexión con Supabase.</div>`;
+      else console.warn('Race Control: sincronización fallida',e);
+    }finally{loading=false;}
   }
   function ask(label,def=''){const v=prompt(label,def);return v===null?null:v.trim();}
   async function handle(act,id,event,hs,es){
