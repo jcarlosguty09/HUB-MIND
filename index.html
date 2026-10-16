@@ -14,7 +14,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
-  <link rel="stylesheet" href="/style.css?v=desktop-v4" />\n  <link rel="stylesheet" href="/whatsapp-inbox.css?v=wa-inbox-v1" />
+  <link rel="stylesheet" href="/style.css?v=desktop-v4" />
+  <link rel="stylesheet" href="/race-control.css?v=1" />
+  <link rel="stylesheet" href="/whatsapp-inbox.css?v=wa-inbox-v1" />
 
   <style>
     .crm-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
@@ -392,6 +394,7 @@
       <button class="nav-tab" data-view="members" id="nav-tab-members" style="display:none"><i class="ti ti-users"></i><span>Miembros</span></button>
       <button class="nav-tab" data-view="reports" id="nav-tab-reports" style="display:none"><i class="ti ti-chart-bar"></i><span>Reportes</span></button>
       <button class="nav-tab" data-view="crm" id="nav-tab-crm" style="display:none"><i class="ti ti-address-book"></i><span>CRM</span></button>
+      <button class="nav-tab" data-view="hyrox-race"><i class="ti ti-flag-checkered"></i><span>HYROX Race</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
     </nav>
@@ -903,6 +906,7 @@
       </div>
 
       <!-- LEADERBOARD VIEW (admin/coach) -->
+      <section id="view-hyrox-race" class="view"><div id="race-control-admin"></div></section>
       <section id="view-leaderboard-admin" class="view">
       </section>
 
@@ -934,6 +938,7 @@
       <button class="nav-tab active" data-aview="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-aview="tomorrow"><i class="ti ti-calendar-event"></i><span>Mañana</span></button>
       <button class="nav-tab" data-aview="classes"><i class="ti ti-clock"></i><span>Clases</span></button>
+      <button class="nav-tab" data-aview="hyrox-race"><i class="ti ti-flag-checkered"></i><span>HYROX Race</span></button>
       <button class="nav-tab" data-aview="leaderboard"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-aview="dashboard"><i class="ti ti-user"></i><span>Mi Perfil</span></button>
     </nav>
@@ -953,6 +958,7 @@
         </div>
         <div id="aclasses-list" class="classes-list"></div>
       </section>
+      <section id="aview-hyrox-race" class="view"><div id="race-control-athlete"></div></section>
       <section id="aview-leaderboard" class="view">
         <!-- Injected by renderGlobalLeaderboard('atleta') -->
       </section>
@@ -1105,7 +1111,9 @@
   <div class="toast" id="toast"></div>
   <script src="/supabase-client.js"></script>
   <script src="/timer.js"></script>
-  <script src="/app.js"></script>\n  <script src="/whatsapp-inbox.js?v=wa-inbox-v1"></script>
+  <script src="/race-control.js?v=1"></script>
+  <script src="/app.js"></script>
+  <script src="/whatsapp-inbox.js?v=wa-inbox-v1"></script>
 
 <!-- Membership Engine V2 deploy refresh: 2026-10-02 -->
 </body>

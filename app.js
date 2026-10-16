@@ -122,13 +122,13 @@ const STAFF_ROLE_LABELS = {
 
 const ROLE_ALLOWED_VIEWS = {
   // Admin Maestro: acceso total de operación de la organización.
-  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history']),
+  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race']),
 
   // Admin: entrenamiento + operación + CRM. No es el rol máximo.
-  admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history']),
+  admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race']),
 
   // Coach: entrenamiento y operación deportiva. NO ve CRM.
-  coach: new Set(['calendar','today','classes','checkins','leaderboard-admin','history']),
+  coach: new Set(['calendar','today','classes','checkins','leaderboard-admin','history','hyrox-race']),
 
   // Sales: solamente CRM.
   sales: new Set(['crm']),
@@ -183,6 +183,7 @@ function showView(v) {
   if (v === 'members') renderMembers();
   if (v === 'reports') renderReports();
   if (v === 'crm') renderCRM();
+  if (v === 'hyrox-race') RaceControl.render('race-control-admin');
 }
 
 // ---- SUPABASE LOAD ----
@@ -2295,6 +2296,7 @@ async function init() {
       if (btn.dataset.aview === 'dashboard')   renderAthleteDashboard();
       if (btn.dataset.aview === 'leaderboard') renderGlobalLeaderboard('aview-leaderboard');
       if (btn.dataset.aview === 'classes')     renderClasses('aclasses-list', 'aclasses-date-label');
+      if (btn.dataset.aview === 'hyrox-race') RaceControl.render('race-control-athlete');
     });
   });
 
