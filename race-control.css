@@ -31,3 +31,6 @@
 .race-station-picker{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .race-station-picker select{min-width:185px;max-width:260px;border:1px solid var(--border,#ccc);background:var(--surface2,#fff);color:var(--text,#111);border-radius:8px;padding:10px}
 .race-station-picker option:disabled{color:#888}
+
+/* V6: destructive actions */
+.race-danger{color:#b42318!important;border:1px solid #f3c7c2!important;background:#fff7f6!important;margin-left:8px}.race-danger:hover{background:#ffe6e2!important}
