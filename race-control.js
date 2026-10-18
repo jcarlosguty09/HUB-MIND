@@ -18,6 +18,7 @@ const RaceControl = (() => {
   function notice(msg){ if(typeof showToast==='function')showToast(msg);else alert(msg); }
   async function action(fn){try{await fn();await render(container);}catch(e){notice('Race Control: '+e.message);}}
   async function render(id, silent=false){
+    if (!admin()) return renderAthletePortal(id, silent);
     container=id || container; const root=el(container); if(!root)return;
     if(loading) return;
     loading = true;
@@ -29,10 +30,13 @@ const RaceControl = (() => {
       const event=all.find(e=>e.id===selected);
       const [hs,es,caps]=event?await Promise.all([heats(event.id),entries(event.id),capacities(event.id)]):[[],[],[]];
       const capMap=Object.fromEntries(caps.map(c=>[c.station_no,c.capacity]));
+      capMap[2]=3;capMap[3]=3;
       const occupancy=Object.fromEntries(stageNames.map((_,i)=>[i+1,es.filter(e=>e.started_at&&!e.finished_at).filter(e=>false).length]));
       const vs=await visits(es.map(e=>e.id));
+      const sledUsed=vs.filter(v=>!v.exited_at && [2,3].includes(v.station_no)).length;
+      occupancy[2]=sledUsed;occupancy[3]=sledUsed;
       es.forEach(e=>{e.visits=vs.filter(v=>v.entry_id===e.id);e.heat_name=hs.find(h=>h.id===e.heat_id)?.name||null;});
-      vs.filter(v=>!v.exited_at).forEach(v=>{occupancy[v.station_no]=(occupancy[v.station_no]||0)+1;});
+      vs.filter(v=>!v.exited_at && ![2,3].includes(v.station_no)).forEach(v=>{occupancy[v.station_no]=(occupancy[v.station_no]||0)+1;});
       const me=Auth.getUser()?.id;
       // Exclude elapsed display time; clocks update in place, not by rebuilding the DOM.
       const snapshot = JSON.stringify({all, selected, hs, es, caps});
@@ -46,7 +50,7 @@ const RaceControl = (() => {
       <div class="race-grid"><section class="race-panel"><h3>${esc(event.name)}</h3><p>${esc(event.description||'Simulación HYROX')} · ${esc(event.event_date)}</p><div class="race-actions">${admin()?'<button data-act="heat">+ Crear heat</button><button data-act="register">+ Inscribir atleta</button>':`<button data-act="join">${es.some(e=>e.user_id===me)?'Ya estás inscrito':'Inscribirme'}</button>`}</div>
       <h3>Salidas</h3>${hs.length?hs.map(h=>`<div class="race-heat"><div><b>${esc(h.name)}</b><small>${dt(h.starts_at)} · ${esc(h.status)}</small></div>${admin()&&h.status==='scheduled'?`<button data-act="startheat" data-id="${h.id}">Iniciar heat</button>`:''}</div>`).join(''):'<p>Aún no hay heats. También puedes iniciar atletas individualmente.</p>'}</section>
       <section class="race-panel"><h3>Race Director · Live</h3><div class="race-live">${es.filter(e=>e.started_at&&!e.finished_at).map(e=>`<div class="race-live-row"><div><b>${esc(e.display_name)}</b><small>${esc(e.division)} · ${esc(e.heat_name||'Individual')} · ${stationStatus(e)}</small></div><strong class="race-clock" data-start="${esc(e.started_at)}">${time(Date.now()-new Date(e.started_at).getTime())}</strong>${admin()?`${stationButton(e,capMap,occupancy)}<button data-act="finish" data-id="${e.id}">Meta</button>`:''}</div>`).join('')||'<p>Sin atletas en carrera.</p>'}</div></section></div>
-      <section class="race-panel"><h3>Ocupación de estaciones · Orden libre</h3><p>El Race Director puede asignar cualquier estación pendiente. Cupos compartidos entre todos los heats del evento.</p><div class="race-station-board">${stageNames.map((name,i)=>{const n=i+1,used=occupancy[n]||0,cap=capMap[n]||1;return `<div class="race-station-card"><b>${esc(name)}</b><span class="${used>=cap?'race-full':'race-free'}">${used}/${cap} ocupados</span>${admin()?`<button data-act="capacity" data-station="${n}">Cupo: ${cap} · editar</button>`:''}<small>${es.filter(e=>e.visits?.some(v=>v.station_no===n&&!v.exited_at)).map(e=>esc(e.display_name)).join(', ')||'Libre'}</small></div>`;}).join('')}</div></section>
+      <section class="race-panel"><h3>Ocupación de estaciones · Orden libre</h3><p>El Race Director puede asignar cualquier estación pendiente. Cupos compartidos entre todos los heats del evento.</p><div class="race-station-board">${stageNames.map((name,i)=>{const n=i+1,used=occupancy[n]||0,cap=capMap[n]||1;return `<div class="race-station-card"><b>${esc(name)}</b><span class="${used>=cap?'race-full':'race-free'}">${used}/${cap} ocupados</span>${admin()?(n===2||n===3?'<small>3 sleds compartidos</small>':`<button data-act="capacity" data-station="${n}">Cupo: ${cap} · editar</button>`):''}<small>${es.filter(e=>e.visits?.some(v=>v.station_no===n&&!v.exited_at)).map(e=>esc(e.display_name)).join(', ')||'Libre'}</small></div>`;}).join('')}</div></section>
       <section class="race-panel"><h3>Parciales por estación</h3>${es.map(e=>stationHistory(e)).join('')}</section>
       <section class="race-panel"><h3>Atletas y clasificación</h3><div class="race-table-wrap"><table class="race-table"><thead><tr><th>#</th><th>Atleta</th><th>División</th><th>Heat</th><th>Estado</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>${[...es].sort((a,b)=>a.finished_at&&b.finished_at?(a.elapsed_ms??Infinity)-(b.elapsed_ms??Infinity):a.finished_at?-1:b.finished_at?1:0).map((e,i)=>`<tr><td>${e.finished_at?i+1:'—'}</td><td><b>${esc(e.display_name)}</b><small class="race-profile-tag">${e.user_id?'● Perfil HUB MIND':'○ Invitado'}</small></td><td>${esc(e.division)}</td><td>${esc(e.heat_name||'Individual')}</td><td>${e.finished_at?'Finalizado':e.started_at?'EN VIVO':'Pendiente'}</td><td>${e.finished_at?time(e.elapsed_ms):e.started_at?`<span class="race-clock" data-start="${esc(e.started_at)}"></span>`:'—'}</td><td>${admin()&&!e.started_at?`<button data-act="start" data-id="${e.id}">Start</button>`:''}${admin()&&e.started_at&&!e.finished_at?`<button data-act="finish" data-id="${e.id}">Finish</button>`:''}</td></tr>`).join('')}</tbody></table></div></section>`}`;
       root.querySelector('#race-event-select')?.addEventListener('change',e=>{selected=e.target.value;render(container);});
@@ -145,6 +149,7 @@ const RaceControl = (() => {
     if(act==='join'){if(es.some(e=>e.user_id===Auth.getUser()?.id))return notice('Ya estás inscrito');const name=ask('Nombre para el ranking',state.profile?.full_name||'');if(!name)return;const division=ask('División (Open / Pro / Doubles)','Open')||'Open';return action(async()=>{await api('race_entries','POST',{event_id:event.id,user_id:Auth.getUser().id,display_name:name,division});});}
     if(act==='register')return registerAthlete(event,hs,es);
     if(act==='capacity')return action(async()=>{
+      if([2,3].includes(Number(station)))return notice('Sled Push y Pull comparten exactamente 3 sleds.');
       const n=Number(station);const raw=ask(`Cupo simultáneo para ${stageNames[n-1]} (1–100)`,String(1));
       if(raw===null)return;
       if(!/^[0-9]+$/.test(raw)||Number(raw)<1||Number(raw)>100)return notice('Cupo inválido (1–100)');
@@ -166,6 +171,41 @@ const RaceControl = (() => {
       if(act==='finish'){if(!confirm('¿Confirmar llegada a meta?'))return;await rpc('race_finish_entry',{p_entry:id});}
       if(act==='checkpoint'){const entry=es.find(e=>e.id===id);const n=(entry?.checkpoint_count||0)+1;if(n>16)return notice('Todos los checkpoints registrados');if(!confirm(`Registrar checkpoint ${n}/16: ${n%2?`Run ${Math.ceil(n/2)}`:stations[n/2-1]}?`))return;await rpc('race_add_checkpoint',{p_entry:id});}
     });
+  }
+
+  let athleteTimer=null, athleteRefresh=null, athleteBusy=false, athleteSnapshot='';
+  async function renderAthletePortal(id, silent=false){
+    const root=el(id);if(!root || athleteBusy)return;
+    const userId=Auth.getUser()?.id;
+    if(!userId){root.innerHTML='<section class="race-panel">Inicia sesión para ver tu carrera.</section>';return;}
+    athleteBusy=true;
+    try {
+      const [all, mine, occupancyRows]=await Promise.all([
+        events(),
+        api('race_entries?select=id,event_id,display_name,division,started_at,finished_at,elapsed_ms,user_id&user_id=eq.'+encodeURIComponent(userId)),
+        rpc('race_station_public_status',{})
+      ]);
+      const entry=[...mine].sort((a,b)=>new Date(b.started_at||0)-new Date(a.started_at||0))[0];
+      const event=all.find(e=>e.id===entry?.event_id);
+      const v=entry?await api('race_station_visits?select=station_no,entered_at,exited_at&entry_id=eq.'+encodeURIComponent(entry.id)):[];
+      const current=v.find(x=>!x.exited_at);
+      const occupied=new Map((occupancyRows||[]).filter(x=>x.event_id===entry?.event_id).map(x=>[Number(x.station_no),x]));
+      const snapshot=JSON.stringify({entry,event,v,occupied:[...occupied]});
+      if(silent&&snapshot===athleteSnapshot)return;
+      athleteSnapshot=snapshot;
+      const done=v.filter(x=>x.exited_at).length;
+      const ms=entry?.finished_at?Number(entry.elapsed_ms):entry?.started_at?Date.now()-new Date(entry.started_at).getTime():null;
+      root.innerHTML=`<div class="race-header"><div><div class="race-kicker">HUB MIND / MI COMPETENCIA</div><h2>MI <span>HYROX</span></h2><p>Portal de atleta · consulta en vivo</p></div></div>
+      ${!entry?'<section class="race-panel"><h3>Aún no estás inscrito</h3><p>Pide al Race Director que vincule tu perfil HUB MIND al evento.</p></section>':`
+      <section class="race-panel race-athlete-summary"><h3>${esc(entry.display_name)}</h3><p>${esc(event?.name||'Competencia')} · ${esc(entry.division)}</p><strong class="race-athlete-clock" ${entry.started_at&&!entry.finished_at?`data-start="${esc(entry.started_at)}"`:''}>${time(ms)}</strong><p>${entry.finished_at?'Finalizado':!entry.started_at?'Esperando salida':current?'En '+esc(stageNames[current.station_no-1]):'En carrera · esperando estación'} · ${done}/8 completadas</p></section>
+      <section class="race-panel"><h3>Estaciones disponibles</h3><p>La disponibilidad puede cambiar mientras llegas a una estación. El Race Director confirma la entrada.</p><div class="race-station-board">${stageNames.map((name,i)=>{const n=i+1;const row=occupied.get(n);const used=Number(row?.occupied||0),cap=Number(row?.capacity||1);const finished=v.some(x=>x.station_no===n&&x.exited_at);const inside=current?.station_no===n;const status=finished?'Completada':inside?'En esta estación':used>=cap?'Ocupada':'Disponible';return `<div class="race-station-card"><b>${esc(name)}</b><span class="${finished||inside?'race-free':used>=cap?'race-full':'race-free'}">${status}</span><small>${used}/${cap} ocupados${n===2||n===3?' · 3 sleds compartidos':''}</small></div>`;}).join('')}</div></section>
+      <section class="race-panel"><h3>Mis parciales</h3>${v.length?'<div class="race-stage-list">'+[...v].sort((a,b)=>new Date(a.entered_at)-new Date(b.entered_at)).map(x=>`<div class="race-stage-line"><span>${esc(stageNames[x.station_no-1])}</span><span>${x.exited_at?'Completada':'En curso'}</span><strong>${x.exited_at?time(new Date(x.exited_at)-new Date(x.entered_at)):'—'}</strong></div>`).join('')+'</div>':'<p>Todavía no hay parciales registrados.</p>'}</section>`}`;
+      if(athleteTimer)clearInterval(athleteTimer);
+      athleteTimer=setInterval(()=>{root.querySelectorAll('.race-athlete-clock[data-start]').forEach(n=>{n.textContent=time(Date.now()-new Date(n.dataset.start).getTime());});},500);
+      if(athleteRefresh)clearInterval(athleteRefresh);
+      athleteRefresh=setInterval(()=>{if(root.offsetParent!==null&&!athleteBusy)renderAthletePortal(id,true);},12000);
+    }catch(e){if(!silent)root.innerHTML='<section class="race-panel">No se pudo cargar tu portal: '+esc(e.message)+'</section>';}
+    finally{athleteBusy=false;}
   }
   return {render};
 })();
