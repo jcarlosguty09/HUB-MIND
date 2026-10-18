@@ -34,3 +34,38 @@
 
 /* V6: destructive actions */
 .race-danger{color:#b42318!important;border:1px solid #f3c7c2!important;background:#fff7f6!important;margin-left:8px}.race-danger:hover{background:#ffe6e2!important}
+
+/* V7: polished Race Director design, scoped to race module */
+#view-hyrox-race, #aview-hyrox-race { --race-gold:#e7b935; --race-ink:#18202c; --race-muted:#657183; }
+#view-hyrox-race .race-header, #aview-hyrox-race .race-header {padding:24px 28px; border-radius:20px; background:linear-gradient(118deg,#17212f 0%,#233347 72%,#2b3441 100%);color:#fff;box-shadow:0 12px 32px rgba(12,21,36,.13);}
+#view-hyrox-race .race-header h2, #aview-hyrox-race .race-header h2{font-size:clamp(25px,3.4vw,40px);line-height:1.06;letter-spacing:-1.5px;margin:7px 0;}
+#view-hyrox-race .race-header p, #aview-hyrox-race .race-header p{color:#d4dae2;opacity:1;margin:0}
+#view-hyrox-race .race-kicker{color:#f1cc69}
+#view-hyrox-race button, #aview-hyrox-race button{font-family:inherit;transition:background .16s ease,box-shadow .16s ease,transform .16s ease,border-color .16s ease;}
+#view-hyrox-race button:focus-visible, #aview-hyrox-race button:focus-visible{outline:3px solid #e7b935;outline-offset:2px;}
+#view-hyrox-race button:not(:disabled):active{transform:translateY(1px)}
+#view-hyrox-race .race-primary,#view-hyrox-race .race-btn-accent,#view-hyrox-race .race-stage-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#e7b935!important;border:1px solid #d5a627!important;color:#1b2028!important;font-weight:750!important;border-radius:11px;padding:11px 16px;box-shadow:0 3px 9px #00000012;cursor:pointer;}
+#view-hyrox-race .race-primary:hover,#view-hyrox-race .race-btn-accent:hover,#view-hyrox-race .race-stage-button:hover{background:#f4cb57!important;box-shadow:0 6px 14px #0000001b;}
+#view-hyrox-race .race-btn-secondary,#view-hyrox-race .race-panel button:not(.race-primary):not(.race-btn-accent):not(.race-stage-button):not(.race-danger){display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2,#f0f3f7);border:1px solid var(--border,#dce2e8);border-radius:11px;color:var(--text,#1a2430);font-weight:650;padding:10px 14px;cursor:pointer;}
+#view-hyrox-race .race-btn-secondary:hover,#view-hyrox-race .race-panel button:not(.race-primary):not(.race-btn-accent):not(.race-stage-button):not(.race-danger):hover{background:var(--surface,#fff);border-color:#c6a24e;}
+#view-hyrox-race .race-danger{display:inline-flex;align-items:center;justify-content:center;border:1px solid #f4c5c5!important;background:#fff2f2!important;color:#a52b2b!important;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-left:0;}
+#view-hyrox-race .race-danger:hover{background:#ffe4e4!important;border-color:#e99b9b!important}
+#view-hyrox-race .race-toolbar{padding:2px 0 8px;flex-wrap:wrap;}
+#view-hyrox-race .race-toolbar select{min-width:min(100%,310px);border-radius:12px;font-weight:650;}
+#view-hyrox-race .race-toolbar>span{margin-left:auto;border-radius:999px;background:var(--surface2,#f2f5f7);padding:8px 13px;letter-spacing:1px;font-size:10px;font-weight:800;}
+#view-hyrox-race .race-metrics>div{border-radius:16px;padding:21px 23px;box-shadow:0 3px 14px #00000007;border:1px solid var(--border,#e0e5ec);}
+#view-hyrox-race .race-metrics strong{font-size:33px;letter-spacing:-1px;line-height:1.1}
+#view-hyrox-race .race-metrics small{font-size:12px;letter-spacing:.15px;}
+#view-hyrox-race .race-panel{border-radius:17px;padding:22px;box-shadow:0 3px 14px #00000006;}
+#view-hyrox-race .race-panel h3{font-size:16px;letter-spacing:-.3px;}
+#view-hyrox-race .race-station-card{border-radius:13px;background:var(--surface2,#f7f9fb);padding:15px;}
+#view-hyrox-race .race-heat{gap:12px}
+#view-hyrox-race .race-table tbody tr:hover{background:var(--surface2,#f6f8fa)}
+#view-hyrox-race .race-table th{letter-spacing:.7px}
+#view-hyrox-race .race-clock{font-weight:800;letter-spacing:.2px}
+#view-hyrox-race .race-panel button:disabled{opacity:.45;cursor:not-allowed;}
+.race-modal{border:1px solid #e8eaf0;box-shadow:0 25px 85px #0005;}
+.race-modal .race-primary{background:#e7b935!important;color:#171717!important;border-color:#d4a82d!important;font-weight:800!important}
+.race-modal .race-mode-tabs button.selected{background:#fff1bd;border-color:#e7b935;}
+.race-modal .race-athlete-results button{border-radius:7px;}
+@media(max-width:680px){#view-hyrox-race .race-header{padding:20px}#view-hyrox-race .race-toolbar>span{margin-left:0}#view-hyrox-race .race-panel{padding:16px}#view-hyrox-race .race-metrics>div{padding:16px}}
