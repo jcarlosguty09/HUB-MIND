@@ -53,6 +53,7 @@ const RaceControl = (() => {
       <h3>Salidas</h3>${hs.length?hs.map(h=>`<div class="race-heat"><div><b>${esc(h.name)}</b><small>${dt(h.starts_at)} · ${esc(h.status)}</small></div>${admin()&&h.status==='scheduled'?`<button class="race-btn-accent" data-act="startheat" data-id="${h.id}">▶ Iniciar heat</button><button class="race-danger" data-act="delete-heat" data-id="${h.id}">Eliminar</button>`:''}</div>`).join(''):'<p>Aún no hay heats. También puedes iniciar atletas individualmente.</p>'}</section>
       <section class="race-panel"><h3>Race Director · Live</h3><div class="race-live">${es.filter(e=>e.started_at&&!e.finished_at).map(e=>`<div class="race-live-row"><div><b>${esc(e.display_name)}</b><small>${esc(e.division)} · ${esc(e.heat_name||'Individual')} · ${stationStatus(e)}</small></div><strong class="race-clock" data-start="${esc(e.started_at)}">${time(Date.now()-new Date(e.started_at).getTime())}</strong>${admin()?`${stationButton(e,capMap,occupancy)}<button data-act="finish" data-id="${e.id}">✓ Meta</button>`:''}</div>`).join('')||'<p>Sin atletas en carrera.</p>'}</div></section></div>
       <section class="race-panel"><h3>Ocupación de estaciones · Orden libre</h3><p>El Race Director puede asignar cualquier estación pendiente. Cupos compartidos entre todos los heats del evento.</p><div class="race-station-board">${stageNames.map((name,i)=>{const n=i+1,used=occupancy[n]||0,cap=capMap[n]||1;return `<div class="race-station-card"><b>${esc(name)}</b><span class="${used>=cap?'race-full':'race-free'}">${used}/${cap} ocupados</span>${admin()?(n===2||n===3?'<small>3 sleds compartidos</small>':`<button data-act="capacity" data-station="${n}">Cupo: ${cap} · editar</button>`):''}<small>${es.filter(e=>e.visits?.some(v=>v.station_no===n&&!v.exited_at)).map(e=>esc(e.display_name)).join(', ')||'Libre'}</small></div>`;}).join('')}</div></section>
+      <section class="race-panel"><h3>Running Splits · Automáticos</h3><p>Tramos calculados por transiciones, sin marcaje adicional. El orden sigue las estaciones realmente visitadas.</p>${es.map(e=>`<details class="race-stage-history"><summary><b>${esc(e.display_name)}</b> · ${runningSegments(e,e.visits).filter(r=>r.kind==='transition').length}/8 tramos</summary>${runningHistory(e,e.visits)}</details>`).join('')||'<p>Sin participantes todavía.</p>'}</section>
       <section class="race-panel"><h3>Parciales por estación</h3>${es.map(e=>stationHistory(e)).join('')}</section>
       <section class="race-panel"><h3>Atletas y clasificación</h3><div class="race-table-wrap"><table class="race-table"><thead><tr><th>#</th><th>Atleta</th><th>División</th><th>Heat</th><th>Estado</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>${[...es].sort((a,b)=>a.finished_at&&b.finished_at?(a.elapsed_ms??Infinity)-(b.elapsed_ms??Infinity):a.finished_at?-1:b.finished_at?1:0).map((e,i)=>`<tr><td>${e.finished_at?i+1:'—'}</td><td><b>${esc(e.display_name)}</b><small class="race-profile-tag">${e.user_id?'● Perfil HUB MIND':'○ Invitado'}</small></td><td>${esc(e.division)}</td><td>${esc(e.heat_name||'Individual')}</td><td>${e.finished_at?'Finalizado':e.started_at?'EN VIVO':'Pendiente'}</td><td>${e.finished_at?time(e.elapsed_ms):e.started_at?`<span class="race-clock" data-start="${esc(e.started_at)}"></span>`:'—'}</td><td>${admin()&&!e.started_at?`<button data-act="start" data-id="${e.id}">▶ Iniciar</button>`:''}${admin()&&e.started_at&&!e.finished_at?`<button data-act="finish" data-id="${e.id}">✓ Meta</button>`:''}${admin()&&(!e.started_at||e.finished_at)?`<button class="race-danger" data-act="delete-entry" data-id="${e.id}">Eliminar</button>`:''}</td></tr>`).join('')}</tbody></table></div></section>`}`;
       root.querySelector('#race-event-select')?.addEventListener('change',e=>{selected=e.target.value;render(container);});
@@ -85,6 +86,37 @@ const RaceControl = (() => {
       return `<option value="${n}" ${done||used>=cap?'disabled':''}>${esc(name)} · ${done?'Completada':used>=cap?'OCUPADA':`${used}/${cap} ocupados`}</option>`;
     }).join('');
     return `<div class="race-station-picker"><select aria-label="Estación para ${esc(e.display_name)}" data-entry="${e.id}"><option value="">Elegir estación…</option>${options}</select><button class="race-stage-button" data-act="station-enter" data-id="${e.id}">Entrar</button></div>`;
+  }
+  // V8: derived movement intervals from server timestamps. These are NOT measured 1 km laps.
+  // With free station order, a transition can include running, queueing and walking.
+  function runningSegments(entry, visitsList){
+    if(!entry?.started_at)return [];
+    const sorted=[...(visitsList||[])].filter(v=>v.entered_at).sort((a,b)=>new Date(a.entered_at)-new Date(b.entered_at));
+    const segments=[];
+    let previous=entry.started_at;
+    for(let i=0;i<sorted.length;i++){
+      const visit=sorted[i];
+      if(!previous)break; // no segment while previous station remains open
+      const from=new Date(previous).getTime(),to=new Date(visit.entered_at).getTime();
+      if(Number.isFinite(from)&&Number.isFinite(to)&&to>=from){
+        segments.push({index:i+1,from:previous,to:visit.entered_at,ms:to-from,toStation:stageNames[visit.station_no-1],kind:'transition'});
+      }
+      previous=visit.exited_at||null;
+    }
+    // The post-last-station trip to finish is tracked separately, not an invented 9th kilometer.
+    if(sorted.length && previous && entry.finished_at){
+      const from=new Date(previous).getTime(),to=new Date(entry.finished_at).getTime();
+      if(Number.isFinite(from)&&Number.isFinite(to)&&to>=from)segments.push({index:segments.length+1,from:previous,to:entry.finished_at,ms:to-from,toStation:'Meta',kind:'finish'});
+    }
+    return segments;
+  }
+  function runningHistory(entry, visitsList){
+    const rows=runningSegments(entry,visitsList);
+    if(!entry.started_at)return '<p>Los tramos se calculan cuando inicia la carrera.</p>';
+    if(!rows.length)return '<p>El primer tramo aparecerá al entrar a la primera estación.</p>';
+    const movement=rows.filter(r=>r.kind==='transition');
+    const total=movement.reduce((sum,r)=>sum+r.ms,0);
+    return `<div class="race-run-summary"><strong>${movement.length}/8</strong><span>Tramos entre salida y entradas a estaciones</span><strong>${time(total)}</strong><span>Tiempo acumulado en tramos registrados</span></div><div class="race-run-list">${rows.map(r=>`<div class="race-run-line"><span class="race-run-number">${r.kind==='finish'?'META':`RUN ${r.index}`}</span><span>${r.kind==='finish'?'Última estación → Meta':`Hacia ${esc(r.toStation)}`}</span><strong>${time(r.ms)}</strong></div>`).join('')}</div><p class="race-run-disclaimer">Estimaciones automáticas a partir de las entradas y salidas registradas. Incluyen posibles esperas y desplazamientos; no equivalen necesariamente a kilómetros ni a ritmos oficiales.</p>`;
   }
   function stationHistory(e){
     const v=e.visits||[];
@@ -229,6 +261,7 @@ const RaceControl = (() => {
       ${!entry?'<section class="race-panel"><h3>Aún no estás inscrito</h3><p>Pide al Race Director que vincule tu perfil HUB MIND al evento.</p></section>':`
       <section class="race-panel race-athlete-summary"><h3>${esc(entry.display_name)}</h3><p>${esc(event?.name||'Competencia')} · ${esc(entry.division)}</p><strong class="race-athlete-clock" ${entry.started_at&&!entry.finished_at?`data-start="${esc(entry.started_at)}"`:''}>${time(ms)}</strong><p>${entry.finished_at?'Finalizado':!entry.started_at?'Esperando salida':current?'En '+esc(stageNames[current.station_no-1]):'En carrera · esperando estación'} · ${done}/8 completadas</p></section>
       <section class="race-panel"><h3>Estaciones disponibles</h3><p>La disponibilidad puede cambiar mientras llegas a una estación. El Race Director confirma la entrada.</p><div class="race-station-board">${stageNames.map((name,i)=>{const n=i+1;const row=occupied.get(n);const used=Number(row?.occupied||0),cap=Number(row?.capacity||1);const finished=v.some(x=>x.station_no===n&&x.exited_at);const inside=current?.station_no===n;const status=finished?'Completada':inside?'En esta estación':used>=cap?'Ocupada':'Disponible';return `<div class="race-station-card"><b>${esc(name)}</b><span class="${finished||inside?'race-free':used>=cap?'race-full':'race-free'}">${status}</span><small>${used}/${cap} ocupados${n===2||n===3?' · 3 sleds compartidos':''}</small></div>`;}).join('')}</div></section>
+      <section class="race-panel"><h3>Mis running splits</h3>${runningHistory(entry,v)}</section>
       <section class="race-panel"><h3>Mis parciales</h3>${v.length?'<div class="race-stage-list">'+[...v].sort((a,b)=>new Date(a.entered_at)-new Date(b.entered_at)).map(x=>`<div class="race-stage-line"><span>${esc(stageNames[x.station_no-1])}</span><span>${x.exited_at?'Completada':'En curso'}</span><strong>${x.exited_at?time(new Date(x.exited_at)-new Date(x.entered_at)):'—'}</strong></div>`).join('')+'</div>':'<p>Todavía no hay parciales registrados.</p>'}</section>`}`;
       if(athleteTimer)clearInterval(athleteTimer);
       athleteTimer=setInterval(()=>{root.querySelectorAll('.race-athlete-clock[data-start]').forEach(n=>{n.textContent=time(Date.now()-new Date(n.dataset.start).getTime());});},500);

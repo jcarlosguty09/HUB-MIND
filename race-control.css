@@ -69,3 +69,13 @@
 .race-modal .race-mode-tabs button.selected{background:#fff1bd;border-color:#e7b935;}
 .race-modal .race-athlete-results button{border-radius:7px;}
 @media(max-width:680px){#view-hyrox-race .race-header{padding:20px}#view-hyrox-race .race-toolbar>span{margin-left:0}#view-hyrox-race .race-panel{padding:16px}#view-hyrox-race .race-metrics>div{padding:16px}}
+
+/* V8 running splits */
+#view-hyrox-race .race-run-summary,#aview-hyrox-race .race-run-summary{display:grid;grid-template-columns:auto 1fr;gap:8px 15px;align-items:center;padding:14px;background:var(--surface2,#f4f5f8);border-radius:12px;margin:12px 0;}
+#view-hyrox-race .race-run-summary strong,#aview-hyrox-race .race-run-summary strong{font-variant-numeric:tabular-nums;color:#bd8e12;font-size:19px;}
+#view-hyrox-race .race-run-list,#aview-hyrox-race .race-run-list{display:grid;gap:6px;margin:12px 0;}
+#view-hyrox-race .race-run-line,#aview-hyrox-race .race-run-line{display:grid;grid-template-columns:70px 1fr 95px;gap:12px;align-items:center;padding:11px 13px;border:1px solid var(--border,#dce2e8);border-radius:10px;background:var(--surface,#fff);}
+#view-hyrox-race .race-run-line strong,#aview-hyrox-race .race-run-line strong{text-align:right;font-variant-numeric:tabular-nums;}
+#view-hyrox-race .race-run-number,#aview-hyrox-race .race-run-number{font-weight:800;color:#bd8e12;font-size:12px;}
+#view-hyrox-race .race-run-disclaimer,#aview-hyrox-race .race-run-disclaimer{font-size:12px;color:var(--text2,#667085);line-height:1.5;}
+@media(max-width:600px){#view-hyrox-race .race-run-line,#aview-hyrox-race .race-run-line{grid-template-columns:62px 1fr 76px;gap:6px;padding:9px;font-size:12px;}}
