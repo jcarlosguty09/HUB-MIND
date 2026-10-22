@@ -4552,6 +4552,22 @@ function showMembershipModal(member, membership, plans, onSaved) {
       : 'Los convenios externos no usan subtipos ni créditos de Hub Mind.';
   };
   modal.querySelector('#mm-channel').onchange = syncChannel;
+  // Sugerir vencimiento de acuerdo con la duración real del plan. La fecha
+  // sigue siendo editable y nunca se guarda sin confirmación del usuario.
+  const startInput = modal.querySelector('#mm-start');
+  const expiryInput = modal.querySelector('#mm-expiry');
+  const planInput = modal.querySelector('#mm-plan');
+  const suggestExpiry = () => {
+    if (modal.querySelector('#mm-channel').value !== 'hubmind') return;
+    const selected = plans.find(p => p.id === planInput.value);
+    const days = Number(selected?.duration_days);
+    if (!startInput.value || !Number.isFinite(days) || days <= 0) return;
+    const date = new Date(startInput.value + 'T12:00:00Z');
+    date.setUTCDate(date.getUTCDate() + days);
+    expiryInput.value = date.toISOString().slice(0, 10);
+  };
+  startInput.addEventListener('change', suggestExpiry);
+  planInput.addEventListener('change', suggestExpiry);
   syncChannel();
   modal.querySelector('#mm-cancel').onclick = () => modal.remove();
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
@@ -4564,6 +4580,17 @@ function showMembershipModal(member, membership, plans, onSaved) {
     const amountPaid = channel === 'hubmind' ? modal.querySelector('#mm-amount').value : '';
     if (!startsAt || (channel === 'hubmind' && !planId)) { showError('Completa el canal, plan y fecha de inicio'); return; }
     if (expiresAt && expiresAt < startsAt) { showError('El vencimiento no puede ser anterior al inicio'); return; }
+    // Cambiar un acceso existente puede modificar saldo o vigencia; pedir
+    // confirmación explícita antes de llamar al RPC transaccional.
+    if (membership?.id) {
+      const selected = plans.find(p => p.id === planId);
+      const summary = 'Confirmar cambio de acceso para ' +
+        (member.full_name || member.email || 'este miembro') + '?\\n' +
+        'Plan: ' + (channel === 'hubmind' ? (selected?.name || '—') : channel) + '\\n' +
+        'Inicio: ' + startsAt + '\\nVencimiento: ' + (expiresAt || 'sin fecha') +
+        '\\n\\nEl historial de asistencias debe conservarse. Verifica los créditos después de guardar.';
+      if (!window.confirm(summary.replace(/\\n/g, '\n'))) return;
+    }
     const btn = modal.querySelector('#mm-save');
     btn.disabled = true; btn.textContent = 'Guardando...'; errorEl.classList.add('hidden');
     try {
