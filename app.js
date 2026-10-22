@@ -147,7 +147,7 @@ function configureCreateUserRoles() {
   const select = el('cu-role');
   if (!select) return;
   const allowed = state.role === 'master_admin'
-    ? ['atleta','coach','sales','admin','master_admin'] : ['atleta'];
+    ? ['atleta','coach','sales','admin'] : ['atleta'];
   select.innerHTML = allowed.map(role => `<option value="${role}">${STAFF_ROLE_LABELS[role]}</option>`).join('');
   select.value = 'atleta';
   select.disabled = state.role !== 'master_admin';
