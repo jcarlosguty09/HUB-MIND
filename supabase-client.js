@@ -396,6 +396,10 @@ const AthleteAPI = {
 const AdminAPI = {
   async createUser(email, password, role, fullName, options = {}) {
     try {
+      const actorRole = await RoleAPI.getRole();
+      if (!(actorRole === 'master_admin' || (['admin','coach'].includes(actorRole) && role === 'atleta'))) {
+        throw new Error('No tienes permisos para crear usuarios con ese rol');
+      }
       const token = Auth.getToken();
 
       const body = {
@@ -874,6 +878,10 @@ async setMembership(userId, channel, subtype, expires) {
  // Cambiar rol dentro de la organización actual (admin)
 async setRole(userId, role) {
   try {
+    if (await RoleAPI.getRole() !== 'master_admin') {
+      console.warn('Solo Admin Maestro puede modificar roles');
+      return false;
+    }
     const token = Auth.getToken();
 
     // El frontend todavía usa "atleta".
