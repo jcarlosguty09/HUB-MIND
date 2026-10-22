@@ -25,8 +25,8 @@ Registrar ingresos, gastos y resultados por periodo desde la app; vincular cobro
 - **Utilidad neta**: solo cuando existan reglas de devengo, impuestos, depreciación y ajustes contables.
 - **Adeudos**: requieren una cuenta por cobrar separada, no se deducen de `amount_paid`.
 
-## Seguridad
-No exponer finanzas a atletas ni coaches. El rol `master_admin` debe verificarse del lado de Supabase, nunca confiar solo en `state.role`. RLS sin políticas permite denegación por defecto. Antes de activar accesos, implementar RPC de escritura con comprobación de pertenencia/rol y pruebas de roles.
+## Seguridad — DECISIÓN CONFIRMADA POR PROPIETARIO
+**Acceso exclusivo al rol `master_admin`**. Ningún `admin`, `coach`, `sales` ni `atleta` podrá ver, crear, editar, anular, exportar o consultar movimientos, categorías, métricas y reportes financieros. El rol `master_admin` debe comprobarse en Supabase dentro de la organización actual mediante RLS y RPC de escritura, no confiar solo en `state.role`. RLS sin políticas permite denegación por defecto. La UI ocultará la pestaña Finanzas a cualquier otro rol, pero esto NO reemplaza RLS. Implementar pruebas de denegación para todos los roles no autorizados, incluso peticiones REST directas y exportaciones. Los administradores ordinarios tampoco podrán registrar pagos financieros. Las vistas de reportes existentes que exponen `amount_paid` deben auditarse y restringirse si son financieras.
 
 ## Estado
 La migración es un borrador para revisión, **no se ha ejecutado en Supabase**. No hay todavía interfaz de finanzas ni reportes de ingresos reales.
