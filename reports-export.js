@@ -29,11 +29,18 @@
       <small style="flex-basis:100%;color:var(--text3)">Asistencias: periodo seleccionado. Membresías y montos: corte actual. Los montos registrados NO son un reporte de ingresos cobrados ni una contabilidad conciliada.</small>
     `;
     host.appendChild(div);
+    // Los importes y datos financieros solo son visibles a ADMIN MAESTRO.
+    if (typeof state !== 'undefined' && state.role !== 'master_admin') {
+      div.querySelector('[data-export="finance"]')?.remove();
+    }
     div.addEventListener('click', async event => {
       const button = event.target.closest('button[data-export]');
       if (!button) return;
       if (typeof state === 'undefined' || !['master_admin','admin'].includes(state.role)) {
         alert('Solo administradores pueden exportar reportes.'); return;
+      }
+      if (button.dataset.export === 'finance' && state.role !== 'master_admin') {
+        alert('El acceso financiero es exclusivo de ADMIN MAESTRO.'); return;
       }
       const start = document.getElementById('reports-start')?.value;
       const end = document.getElementById('reports-end')?.value;
@@ -72,10 +79,10 @@
           const planMap = Object.fromEntries(plans.map(p => [p.id,p]));
           if (kind === 'memberships') {
             saveCSV('hubmind_membresias_corte_' + end + '.csv',
-              ['membership_id','user_id','miembro','correo','plan','canal','inicio','vencimiento','estado','saldo_clases','monto_registrado'],
+              ['membership_id','user_id','miembro','correo','plan','canal','inicio','vencimiento','estado','saldo_clases'],
               memberships.map(m => [m.id,m.user_id,names[m.user_id]?.full_name,
                 names[m.user_id]?.email,planMap[m.plan_id]?.name,m.channel,m.starts_at,
-                m.expires_at,m.status,m.credit_balance,m.amount_paid]));
+                m.expires_at,m.status,m.credit_balance]));
           } else {
             saveCSV('hubmind_montos_registrados_NO_CONCILIADOS_' + end + '.csv',
               ['membership_id','user_id','miembro','plan','canal','inicio','monto_registrado','advertencia'],
