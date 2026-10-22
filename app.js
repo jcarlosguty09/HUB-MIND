@@ -137,6 +137,21 @@ const ROLE_ALLOWED_VIEWS = {
   atleta: new Set([]),
 };
 
+function canCreateRole(actorRole, targetRole) {
+  return actorRole === 'master_admin' || (['admin','coach'].includes(actorRole) && targetRole === 'atleta');
+}
+function canChangeMemberRole(actorRole) {
+  return actorRole === 'master_admin';
+}
+function configureCreateUserRoles() {
+  const select = el('cu-role');
+  if (!select) return;
+  const allowed = state.role === 'master_admin'
+    ? ['atleta','coach','sales','admin','master_admin'] : ['atleta'];
+  select.innerHTML = allowed.map(role => `<option value="${role}">${STAFF_ROLE_LABELS[role]}</option>`).join('');
+  select.value = 'atleta';
+  select.disabled = state.role !== 'master_admin';
+}
 function canRoleAccessView(role, view) {
   return ROLE_ALLOWED_VIEWS[role]?.has(view) || false;
 }
@@ -2220,7 +2235,7 @@ async function init() {
     el('cu-name').value = '';
     el('cu-email').value = '';
     el('cu-password').value = 'HubMindAtleta';
-    el('cu-role').value = 'atleta';
+    configureCreateUserRoles();
     el('cu-error').classList.add('hidden');
     el('cu-result').classList.add('hidden');
     el('create-user-modal').classList.remove('hidden');
@@ -2230,7 +2245,12 @@ async function init() {
     const name     = el('cu-name').value.trim();
     const email    = el('cu-email').value.trim();
     const password = el('cu-password').value.trim();
-    const role     = el('cu-role').value;
+    const role     = state.role === 'master_admin' ? el('cu-role').value : 'atleta';
+    if (!canCreateRole(state.role, role)) {
+      el('cu-error').textContent = 'No tienes permisos para crear ese rol';
+      el('cu-error').classList.remove('hidden');
+      return;
+    }
     const errEl    = el('cu-error');
     const resEl    = el('cu-result');
     const btn      = el('cu-save');
@@ -4879,21 +4899,12 @@ function showEditMemberModal(m, onSaved) {
       </div>
       ${m.birth_date ? `<div class="em-bday-hint"><i class="ti ti-cake"></i> ${fmtBirthday(m.birth_date)}</div>` : ''}
 
-      <div class="field-group">
+      ${canChangeMemberRole(state.role) ? `<div class="field-group">
         <label class="field-label">Rol</label>
         <select class="field-input" id="em-role">
-          <option value="atleta"${m.role === 'atleta' ? ' selected' : ''}>Atleta</option>
-          <option value="coach"${m.role === 'coach' ? ' selected' : ''}>Coach</option>
-          <option value="sales"${m.role === 'sales' ? ' selected' : ''}>Sales</option>
-          <option value="admin"${m.role === 'admin' ? ' selected' : ''}>Admin</option>
-          ${state.role === 'master_admin'
-            ? `<option value="master_admin"${m.role === 'master_admin' ? ' selected' : ''}>Admin Maestro</option>`
-            : ''}
+          ${['atleta','coach','sales','admin','master_admin'].map(r => `<option value="${r}"${m.role === r ? ' selected' : ''}>${STAFF_ROLE_LABELS[r]}</option>`).join('')}
         </select>
-        <span style="font-size:11px;color:var(--text3)">
-          Admin Maestro solo puede ser asignado por otro Admin Maestro.
-        </span>
-      </div>
+      </div>` : `<div class="field-group"><label class="field-label">Rol</label><div class="field-input">${STAFF_ROLE_LABELS[m.role] || m.role}</div></div>`}
 
       <div class="em-status-row">
         <div>
@@ -4948,7 +4959,7 @@ function showEditMemberModal(m, onSaved) {
     const btn = modal.querySelector('#em-save');
     const name   = modal.querySelector('#em-name').value.trim();
     const gender = modal.querySelector('#em-gender').value;
-    const role   = modal.querySelector('#em-role').value;
+    const role   = canChangeMemberRole(state.role) ? modal.querySelector('#em-role').value : m.role;
     const birth  = modal.querySelector('#em-birth').value;
     const phone  = modal.querySelector('#em-phone').value.trim();
 
@@ -4966,6 +4977,7 @@ function showEditMemberModal(m, onSaved) {
         phone: phone || null,
       }));
     }
+    if (role !== m.role && !canChangeMemberRole(state.role)) { showErr('Solo el Admin Maestro puede cambiar roles'); btn.disabled = false; return; }
     if (role !== m.role) {
       tasks.push(
         MemberAPI.setRole(m.id, role).then(ok => {
