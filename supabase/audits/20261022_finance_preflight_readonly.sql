@@ -7,11 +7,14 @@ WHERE table_schema='public'
   AND table_name IN ('organizations','organization_members','member_memberships','members_admin','finance_categories','finance_transactions')
 ORDER BY table_name,ordinal_position;
 
-SELECT schemaname,tablename,rowsecurity,forcerowsecurity
-FROM pg_tables
-WHERE schemaname='public'
- AND tablename IN ('organizations','organization_members','member_memberships','members_admin','finance_categories','finance_transactions')
-ORDER BY tablename;
+SELECT n.nspname AS schemaname, c.relname AS tablename,
+       c.relrowsecurity AS rowsecurity, c.relforcerowsecurity AS forcerowsecurity
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname='public'
+ AND c.relname IN ('organizations','organization_members','member_memberships','members_admin','finance_categories','finance_transactions')
+ AND c.relkind IN ('r','p')
+ORDER BY c.relname;
 
 SELECT schemaname,tablename,policyname,roles,cmd,qual,with_check
 FROM pg_policies
