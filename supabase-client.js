@@ -1431,10 +1431,18 @@ const ReportAPI = {
       d.setUTCDate(d.getUTCDate() + 1);
       const end = `${d.toISOString().slice(0, 10)}T06:00:00`;
 
-      const rows = await sbReq('GET',
-        `checkins?select=id,timestamp,user_id,assigned_class_id,is_manual&timestamp=gte.${start}&timestamp=lt.${end}&order=timestamp.asc&limit=5000`
-      );
-      return rows || [];
+      // Supabase/PostgREST aplica un máximo de filas por respuesta
+      // (habitualmente 1000), incluso si solicitamos limit=5000.
+      // Paginar evita que las métricas subestimen la asistencia real.
+      const all = [];
+      for (let offset = 0; ; offset += 1000) {
+        const rows = await sbReq('GET',
+          `checkins?select=id,timestamp,user_id,assigned_class_id,is_manual&timestamp=gte.${encodeURIComponent(start)}&timestamp=lt.${encodeURIComponent(end)}&order=timestamp.asc,id.asc&limit=1000&offset=${offset}`
+        );
+        all.push(...(rows || []));
+        if (!rows || rows.length < 1000) break;
+      }
+      return all;
     } catch(e) { console.warn('ReportAPI.checkinsInRange:', e.message); return []; }
   },
 // Miembros de la organización actual con su membresía
