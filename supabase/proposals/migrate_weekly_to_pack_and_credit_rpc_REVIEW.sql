@@ -26,12 +26,12 @@ CREATE OR REPLACE FUNCTION public.master_set_membership_credit_balance(
 ) RETURNS integer
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
 AS $$
-DECLARE v_org uuid; v_plan_access text; v_current numeric; v_delta numeric;
+DECLARE v_org uuid; v_user uuid; v_plan_access text; v_current numeric; v_delta integer;
 BEGIN
   IF p_balance IS NULL OR p_balance<0 OR p_balance>10000 THEN
     RAISE EXCEPTION 'Saldo inválido (0-10000)';
   END IF;
-  SELECT p.organization_id,p.access_type INTO v_org,v_plan_access
+  SELECT p.organization_id,m.user_id,p.access_type INTO v_org,v_user,v_plan_access
   FROM public.member_memberships m
   JOIN public.membership_plans p ON p.id=m.plan_id
   WHERE m.id=p_membership_id FOR UPDATE OF m;
@@ -46,8 +46,11 @@ BEGIN
   FROM public.membership_credit_ledger WHERE membership_id=p_membership_id;
   v_delta:=p_balance-v_current;
   IF v_delta<>0 THEN
-    INSERT INTO public.membership_credit_ledger(membership_id,quantity)
-    VALUES(p_membership_id,v_delta);
+    INSERT INTO public.membership_credit_ledger
+      (organization_id,membership_id,user_id,quantity,transaction_type,note,created_by)
+    VALUES
+      (v_org,p_membership_id,v_user,v_delta,'adjustment',
+       'Ajuste manual de saldo por ADMIN MAESTRO',auth.uid());
   END IF;
   RETURN p_balance;
 END $$;
