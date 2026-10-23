@@ -9,7 +9,7 @@ DO $$
 DECLARE r record; target uuid;
 BEGIN
   FOR r IN SELECT id,organization_id FROM public.membership_plans
-    WHERE lower(trim(name))='mensual 3 veces por semana' FOR UPDATE
+    WHERE lower(trim(name)) IN ('mensual 3 veces por semana','mensual · 3 días por semana') FOR UPDATE
   LOOP
     SELECT id INTO STRICT target FROM public.membership_plans
       WHERE organization_id=r.organization_id AND lower(trim(name))='paquete 12 clases'
