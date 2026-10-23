@@ -4474,12 +4474,39 @@ async function renderMembers() {
             <div class="member-email">${escHtml(m.email || '')}</div>
           </div>
           <button class="member-membership-btn" data-user="${m.id}" title="${m._membership ? 'Renovar membresía' : 'Asignar membresía'}"><i class="ti ti-id-badge-2"></i></button>
+          ${state.role === 'master_admin' && m._membership && m._plan?.access_type === 'class_pack' ? `<button class="member-credit-edit-btn btn-secondary" data-membership="${escHtml(m._membership.id)}" data-balance="${Number(m._membership.credit_balance || 0)}" data-name="${escHtml(m.full_name || m.email || '')}" title="Editar clases restantes"><i class="ti ti-adjustments"></i> Saldo</button>` : ''}
           <button class="member-edit-btn" data-user="${m.id}" title="Editar"><i class="ti ti-dots-vertical"></i></button>
           ${zkBadge}
         </div>
         ${membershipHTML}
         <div class="member-perms">${perms}</div>`;
       listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll('.member-credit-edit-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (state.role !== 'master_admin') return;
+        const current = Number(btn.dataset.balance || 0);
+        const raw = prompt('Clases restantes de ' + btn.dataset.name + ' (actual: ' + current + '):', String(current));
+        if (raw === null) return;
+        const next = Number(raw);
+        if (!/^\d+$/.test(raw.trim()) || !Number.isSafeInteger(next) || next > 10000) {
+          alert('Introduce un número entero entre 0 y 10000.'); return;
+        }
+        if (next === current) return;
+        if (!confirm('¿Establecer ' + next + ' clases restantes para ' + btn.dataset.name + '?')) return;
+        btn.disabled = true;
+        try {
+          await sbReq('POST','rpc/master_set_membership_credit_balance',{
+            p_membership_id:btn.dataset.membership,p_balance:next
+          });
+          showToast('Saldo actualizado a ' + next + ' clases');
+          await renderMembers();
+        } catch (err) {
+          alert('No se pudo cambiar el saldo: ' + err.message);
+          btn.disabled = false;
+        }
+      });
     });
 
     listEl.querySelectorAll('.member-zk-save').forEach(btn => {
