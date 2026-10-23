@@ -4490,7 +4490,7 @@ async function renderMembers() {
         const raw = prompt('Clases restantes de ' + btn.dataset.name + ' (actual: ' + current + '):', String(current));
         if (raw === null) return;
         const next = Number(raw);
-        if (!/^\\d+$/.test(raw.trim()) || !Number.isSafeInteger(next) || next > 10000) {
+        if (!/^\d+$/.test(raw.trim()) || !Number.isSafeInteger(next) || next > 10000) {
           alert('Introduce un número entero entre 0 y 10000.'); return;
         }
         if (next === current) return;
