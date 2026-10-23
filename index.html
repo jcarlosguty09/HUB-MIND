@@ -328,6 +328,15 @@
     .crm-team-toggle input{width:17px;height:17px;accent-color:var(--blue)}
     @media(max-width:699px){.crm-header-actions{flex-wrap:wrap;justify-content:flex-end}.crm-sales-team-modal-box{max-width:calc(100vw - 24px)}}
 
+    .fin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+    .fin-grid article{border:1px solid var(--border);border-radius:14px;padding:18px;background:rgba(128,128,128,.04)}
+    .fin-grid small{display:block;opacity:.75;margin-bottom:10px}
+    .fin-grid strong{font-size:clamp(18px,2vw,27px);font-weight:700}
+    .fin-note{opacity:.7;font-size:12px;line-height:1.5;margin:16px 0}
+    .fin-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px 0 12px}
+    .fin-scroll{overflow-x:auto}.fin-table{width:100%;border-collapse:collapse;text-align:left}
+    .fin-table th,.fin-table td{padding:12px;border-bottom:1px solid var(--border);font-size:13px;white-space:nowrap}
+    @media(max-width:700px){.fin-grid{grid-template-columns:1fr}}
   </style>
 
 </head>
@@ -393,6 +402,7 @@
       <button class="nav-tab" data-view="checkins"><i class="ti ti-scan"></i><span>Check-ins</span></button>
       <button class="nav-tab" data-view="members" id="nav-tab-members" style="display:none"><i class="ti ti-users"></i><span>Miembros</span></button>
       <button class="nav-tab" data-view="reports" id="nav-tab-reports" style="display:none"><i class="ti ti-chart-bar"></i><span>Reportes</span></button>
+      <button class="nav-tab" data-view="finance" id="nav-tab-finance" style="display:none"><i class="ti ti-wallet"></i><span>Finanzas</span></button>
       <button class="nav-tab" data-view="crm" id="nav-tab-crm" style="display:none"><i class="ti ti-address-book"></i><span>CRM</span></button>
       <button class="nav-tab" data-view="hyrox-race"><i class="ti ti-flag-checkered"></i><span>HYROX Race</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
@@ -536,6 +546,11 @@
         <div id="members-list" class="checkins-list"></div>
       </section>
 
+      <!-- FINANCE VIEW (master admin only) -->
+      <section id="view-finance" class="view">
+        <div class="checkins-header"><h2 class="checkins-title">Finanzas</h2><div class="checkins-subtitle">Ingresos, gastos y resultado operativo de caja · ADMIN MAESTRO</div></div>
+        <div id="finance-root"></div>
+      </section>
       <!-- REPORTS VIEW (admin only) -->
       <section id="view-reports" class="view">
         <div class="checkins-header">
@@ -1113,6 +1128,7 @@
   <script src="/timer.js"></script>
   <script src="/race-control.js?v=8"></script>
   <script src="/app.js"></script>
+  <script src="/finance-ui.js?v=1"></script>
   <script src="/whatsapp-inbox.js?v=wa-inbox-v1"></script>
 
 <!-- Membership Engine V2 deploy refresh: 2026-10-02 -->
