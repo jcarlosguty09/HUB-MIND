@@ -328,6 +328,10 @@
     .crm-team-toggle input{width:17px;height:17px;accent-color:var(--blue)}
     @media(max-width:699px){.crm-header-actions{flex-wrap:wrap;justify-content:flex-end}.crm-sales-team-modal-box{max-width:calc(100vw - 24px)}}
 
+    .fin-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 24px;align-items:end}
+    .fin-form label{display:flex;flex-direction:column;gap:6px;font-size:12px}
+    .fin-form .field-input{width:100%;box-sizing:border-box}
+    @media(max-width:800px){.fin-form{grid-template-columns:1fr}}
     .fin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
     .fin-grid article{border:1px solid var(--border);border-radius:14px;padding:18px;background:rgba(128,128,128,.04)}
     .fin-grid small{display:block;opacity:.75;margin-bottom:10px}
@@ -520,6 +524,7 @@
               <div class="checkins-subtitle">Gestión de usuarios y permisos</div>
             </div>
             <div class="checkins-stats" id="members-stats"></div>
+            <button type="button" class="btn-secondary" id="members-excel-export" style="display:none"><i class="ti ti-file-spreadsheet"></i> Descargar Excel</button>
           </div>
           <div class="checkins-filters members-v2-filters">
             <input type="text" class="field-input" id="members-search" placeholder="Buscar por nombre, email, rol o plan..." />
@@ -1128,7 +1133,9 @@
   <script src="/timer.js"></script>
   <script src="/race-control.js?v=8"></script>
   <script src="/app.js"></script>
-  <script src="/finance-ui.js?v=1"></script>
+  <script src="/membership-excel.js?v=1"></script>
+  <script src="/reports-export.js?v=2"></script>
+  <script src="/finance-ui-v2.js?v=2"></script>
   <script src="/whatsapp-inbox.js?v=wa-inbox-v1"></script>
 
 <!-- Membership Engine V2 deploy refresh: 2026-10-02 -->
