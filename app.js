@@ -122,7 +122,7 @@ const STAFF_ROLE_LABELS = {
 
 const ROLE_ALLOWED_VIEWS = {
   // Admin Maestro: acceso total de operación de la organización.
-  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race']),
+  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','finance','crm','leaderboard-admin','history','hyrox-race']),
 
   // Admin: entrenamiento + operación + CRM. No es el rol máximo.
   admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race']),
@@ -197,6 +197,7 @@ function showView(v) {
   if (v === 'dashboard-admin') renderAdminDashboard();
   if (v === 'members') renderMembers();
   if (v === 'reports') renderReports();
+  if (v === 'finance') FinanceUI.render();
   if (v === 'crm') renderCRM();
   if (v === 'hyrox-race') RaceControl.render('race-control-admin');
 }
