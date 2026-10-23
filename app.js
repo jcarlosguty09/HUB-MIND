@@ -196,7 +196,7 @@ function showView(v) {
   if (v === 'checkins') renderCheckins();
   if (v === 'dashboard-admin') renderAdminDashboard();
   if (v === 'members') renderMembers();
-  if (v === 'reports') renderReports();
+  if (v === 'reports') { renderReports(); window.refreshReportExportPermissions?.(); }
   if (v === 'finance') FinanceUI.render();
   if (v === 'crm') renderCRM();
   if (v === 'hyrox-race') RaceControl.render('race-control-admin');
