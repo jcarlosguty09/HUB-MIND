@@ -19,8 +19,14 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Impedir dos consumos para el mismo check-in, incluso en concurrencia.
+-- Si existen duplicados históricos, este índice aborta la transacción sin modificar datos.
+CREATE UNIQUE INDEX IF NOT EXISTS membership_credit_one_checkin_consumption
+ON public.membership_credit_ledger(checkin_id)
+WHERE transaction_type='checkin' AND checkin_id IS NOT NULL;
+
 -- Cambio de saldo como ajuste contable en el ledger (sin sobreescribir eventos).
--- IMPORTANTE: requiere que membership_credit_ledger acepte INSERT(membership_id,quantity).
+-- El ajuste escribe todos los campos obligatorios del ledger.
 CREATE OR REPLACE FUNCTION public.master_set_membership_credit_balance(
   p_membership_id uuid, p_balance integer
 ) RETURNS integer
