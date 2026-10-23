@@ -4290,6 +4290,27 @@ async function renderMembers() {
   const listEl = el('members-list');
   listEl.innerHTML = '<div class="atleta-loading"><i class="ti ti-loader-2"></i> Cargando...</div>';
 
+  const excelBtn = el('members-excel-export');
+  if (excelBtn) {
+    excelBtn.style.display = ['master_admin','admin'].includes(state.role) ? '' : 'none';
+    excelBtn.onclick = async () => {
+      if (excelBtn.disabled) return;
+      excelBtn.disabled = true;
+      const old = excelBtn.innerHTML;
+      excelBtn.textContent = 'Preparando Excel completo...';
+      try {
+        const result = await MembershipExcel.download();
+        showToast('Excel listo: ' + result.members + ' miembros, ' + result.memberships + ' membresías');
+      } catch (error) {
+        console.error('Membership Excel:', error);
+        alert('No se pudo exportar: ' + error.message);
+      } finally {
+        excelBtn.disabled = false;
+        excelBtn.innerHTML = old;
+      }
+    };
+  }
+
   const [members, retention, plans, memberships] = await Promise.all([
     MemberAPI.list(),
     RetentionAPI.dashboard(),
