@@ -75,8 +75,7 @@ export default function ReconciliationQueue({
     [checkins, query, source],
   );
 
-  const filteredMembers = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase();
+  const sortedMembers = useMemo(() => {
     // Never infer a match as authorization to reconcile.
     return [...members].sort((a, b) => a.full_name.localeCompare(b.full_name));
   }, [members]);
@@ -201,7 +200,7 @@ export default function ReconciliationQueue({
                 Miembro confirmado
                 <select style={inputStyle} value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} required>
                   <option value="">Seleccionar miembro…</option>
-                  {filteredMembers.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                  {sortedMembers.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                 </select>
                 <small>Verifica identidad y duplicados antes de guardar. La selección no es una coincidencia automática.</small>
               </label>
