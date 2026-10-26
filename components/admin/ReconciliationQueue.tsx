@@ -86,9 +86,14 @@ export default function ReconciliationQueue({
     try {
       const action = buildAction({ selected, decision, targetUserId, reason }) as ReconciliationAction;
       await onResolve(action);
-      await onRefresh();
       setSelected(null);
-      setSuccess("Decisión registrada. La lista se ha actualizado.");
+      setSuccess("Decisión registrada. Actualizando lista…");
+      try {
+        await onRefresh();
+        setSuccess("Decisión registrada. La lista se ha actualizado.");
+      } catch {
+        setSuccess("Decisión guardada, pero no se pudo actualizar la lista. Recarga la página antes de continuar.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar. Actualiza y revisa el registro.");
     } finally {
