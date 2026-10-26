@@ -1739,9 +1739,7 @@ async function renderCheckins() {
     }
   };
 
-  // Initial load
-  await load(today);
-  // Initial load
+  // Initial load (una sola consulta)
   await load(today);
 
   // Date change
@@ -1832,19 +1830,9 @@ async function showLinkModal(zkUserId, listEl, date, search, reloadFn) {
       });
 
       if (res.ok) {
-        // Update existing checkins with this zk_user_id
-        await fetch(`${SUPABASE_URL}/rest/v1/checkins?zk_user_id=eq.${zkUserId}&user_id=is.null`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_ANON,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal',
-          },
-          body: JSON.stringify({ user_id: selectedAthleteId }),
-        });
+        // La asignación de PIN no modifica asistencias históricas.
         modal.remove();
-        showToast(`✓ ZK#${zkUserId} vinculado a ${athlete?.display_name}`);
+        showToast(`✓ PIN ZK#${zkUserId} asociado. Asistencias históricas pendientes de revisión.`);
         AthleteAPI.clearCache();
         await reloadFn(date, search);
       } else {
@@ -4524,7 +4512,7 @@ async function renderMembers() {
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-device-floppy"></i>';
         if (ok) {
-          showToast(`✓ ZK#${zkId} asignado a ${name || 'miembro'}`);
+          showToast(`✓ ZK#${zkId} asignado. Asistencias históricas sin modificar.`);
           AthleteAPI.clearCache();
         } else showToast('Error al asignar ZK ID');
       });
