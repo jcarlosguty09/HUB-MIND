@@ -757,17 +757,7 @@ const MemberAPI = {
         body: JSON.stringify({ zk_user_id: zkUserId, user_id: userId, full_name: fullName }),
       });
       if (!res.ok) return false;
-      // 3. Actualizar los check-ins de ese ZK ID que estén sin vincular
-      await fetch(`${SUPABASE_URL}/rest/v1/checkins?zk_user_id=eq.${encodeURIComponent(zkUserId)}&user_id=is.null`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_ANON,
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify({ user_id: userId }),
-      });
+      // Asociar PIN no autoriza actualizar registros históricos: pueden existir PIN reutilizados.
       return true;
     } catch(e) { console.error('MemberAPI.setZkId:', e); return false; }
   },
