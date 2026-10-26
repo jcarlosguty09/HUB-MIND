@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { filterCheckins, validateAction, buildAction } from "./reconciliation-logic.mjs";
 
 /**
  * Admin review queue for unresolved check-ins.
@@ -60,20 +61,7 @@ export default function ReconciliationQueue({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const rows = useMemo(
-    () =>
-      checkins.filter((c) => {
-        const isManual = c.is_manual === true;
-        if (source === "manual" && !isManual) return false;
-        if (source === "biometric" && isManual) return false;
-        const text = [c.manual_name, c.zk_user_id, c.device_sn, c.id]
-          .filter(Boolean)
-          .join(" ")
-          .toLocaleLowerCase();
-        return text.includes(query.trim().toLocaleLowerCase());
-      }),
-    [checkins, query, source],
-  );
+  const rows = useMemo(() => filterCheckins(checkins, query, source) as PendingCheckin[], [checkins, query, source]);
 
   const sortedMembers = useMemo(() => {
     // Never infer a match as authorization to reconcile.
@@ -91,26 +79,12 @@ export default function ReconciliationQueue({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selected || busy) return;
-    if (!reason.trim()) {
-      setError("Explica la evidencia o el motivo de la decisión.");
-      return;
-    }
-    if (decision === "link_member" && !targetUserId) {
-      setError("Selecciona un usuario existente.");
-      return;
-    }
-    if (decision === "link_member" && !members.some((m) => m.id === targetUserId)) {
-      setError("El usuario seleccionado no pertenece a la lista autorizada.");
-      return;
-    }
+    const validationError = validateAction({ selected, busy, decision, targetUserId, reason, members });
+    if (validationError) { setError(validationError); return; }
     setBusy(true);
     setError(null);
     try {
-      const action: ReconciliationAction =
-        decision === "link_member"
-          ? { checkinId: selected.id, decision, targetUserId, reason: reason.trim() }
-          : { checkinId: selected.id, decision, reason: reason.trim() };
+      const action = buildAction({ selected, decision, targetUserId, reason }) as ReconciliationAction;
       await onResolve(action);
       await onRefresh();
       setSelected(null);
