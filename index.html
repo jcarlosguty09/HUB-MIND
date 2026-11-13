@@ -341,6 +341,12 @@
     .fin-scroll{overflow-x:auto}.fin-table{width:100%;border-collapse:collapse;text-align:left}
     .fin-table th,.fin-table td{padding:12px;border-bottom:1px solid var(--border);font-size:13px;white-space:nowrap}
     @media(max-width:700px){.fin-grid{grid-template-columns:1fr}}
+    .legal-links{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:9px;margin-top:18px;font-size:11px;line-height:1.5;color:var(--text3,#aaa)}
+    .legal-links a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+    .legal-links a:hover{color:var(--text,#fff)}
+    .topbar-legal{display:flex;gap:9px;align-items:center;font-size:10px;flex-wrap:wrap}
+    .topbar-legal a{color:var(--text2,#ccc);text-decoration:underline;text-underline-offset:2px}
+    @media(max-width:750px){.topbar-legal{display:none}}
   </style>
 
 </head>
@@ -377,6 +383,7 @@
         <div class="login-error hidden" id="login-error"></div>
         <button class="launch-btn" id="login-btn"><i class="ti ti-login"></i> Entrar</button>
       </div>
+      <div class="legal-links"><a href="/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad</a><span aria-hidden="true">·</span><a href="/data-deletion" target="_blank" rel="noopener noreferrer">Eliminación de datos</a></div>
     </div>
   </div>
 
@@ -390,6 +397,7 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <div class="topbar-legal"><a href="/privacy" target="_blank" rel="noopener noreferrer">Privacidad</a><a href="/data-deletion" target="_blank" rel="noopener noreferrer">Eliminar datos</a></div>
         <span class="role-badge" id="role-badge"></span>
         <button class="icon-btn" id="theme-toggle"><i class="ti ti-sun"></i></button>
         <button class="icon-btn" id="create-user-btn" title="Crear usuario"><i class="ti ti-user-plus"></i></button>
