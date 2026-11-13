@@ -1,0 +1,61 @@
+/* HUB MIND — mobile visual system. Scoped to phones; no data or behavior changes. */
+@media (max-width: 699px) {
+  html,body { width:100%; max-width:100%; overflow-x:hidden; }
+  #app.app { width:100%; max-width:100%; min-width:0; margin:0; }
+  #app > .topbar {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px;
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    min-width:0; align-items:center;
+  }
+  #app .topbar-brand { min-width:0; }
+  #app .brand-name { font-size:17px; letter-spacing:.09em; line-height:1.05; }
+  #app .brand-sub { font-size:10px; letter-spacing:.04em; line-height:1.25; margin-top:4px; }
+  #app .topbar-actions { display:flex; flex-wrap:nowrap; gap:5px; min-width:0; }
+  #app .topbar-actions .icon-btn { width:36px; height:36px; min-width:36px; padding:0; display:grid; place-items:center; }
+  #app .topbar-actions .icon-btn i { font-size:18px; }
+  #app .topbar-actions .role-badge { font-size:9px; max-width:94px; line-height:1.25; overflow-wrap:anywhere; text-align:center; padding:5px 6px; }
+  #app .topbar-actions .sync-dot { width:7px; height:7px; flex-shrink:0; }
+  #app .topbar-legal { display:none; }
+  #app > .nav-tabs {
+    display:flex; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
+    overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; gap:3px; padding:3px 12px 0;
+    scroll-snap-type:x proximity; max-width:100%;
+  }
+  #app > .nav-tabs::-webkit-scrollbar { display:none; }
+  #app .nav-tab {
+    flex:0 0 76px; width:76px; min-width:76px; min-height:60px;
+    padding:9px 4px 8px; gap:5px; scroll-snap-align:start;
+    font-size:10px; line-height:1.2; white-space:normal; overflow-wrap:normal;
+    border-bottom-width:3px;
+  }
+  #app .nav-tab i { font-size:21px; line-height:1; }
+  #app .nav-tab span { display:block; width:100%; text-align:center; overflow-wrap:break-word; }
+  #app .nav-tab.active { font-weight:700; }
+  #app > .main-content { min-width:0; width:100%; overflow-x:hidden; }
+  #app .view { width:100%; min-width:0; padding:18px 14px 28px; }
+  #view-calendar .cal-header { margin-bottom:16px; gap:12px; }
+  #view-calendar .cal-month-label { font-size:20px; text-align:center; letter-spacing:-.025em; }
+  #view-calendar .cal-header .icon-btn { width:42px; height:42px; min-width:42px; border-radius:12px; }
+  #view-calendar .cal-grid { border-radius:16px; margin-bottom:18px; gap:1px; }
+  #view-calendar .cal-day-name { padding:10px 1px; font-size:10px; font-weight:700; }
+  #view-calendar .cal-day { min-height:75px; padding:6px 3px; }
+  #view-calendar .cal-day-num { font-size:12px; font-weight:650; margin-bottom:5px; }
+  #view-calendar .cal-wods { gap:3px; }
+  #view-calendar .cal-wod-dot { font-size:8px; line-height:1.35; padding:2px 3px; border-radius:4px; }
+  #app .day-panel { border-radius:14px; min-width:0; }
+  #app .modal-overlay .modal-box { max-width:calc(100vw - 24px); }
+  #app button, #app input, #app select { touch-action:manipulation; }
+}
+@media (max-width: 390px) {
+  #app > .topbar { padding-left:11px; padding-right:11px; gap:6px; }
+  #app .topbar-actions { gap:3px; }
+  #app .topbar-actions .icon-btn { width:31px; height:34px; min-width:31px; }
+  #app .topbar-actions .role-badge { max-width:76px; font-size:8px; padding:4px; }
+  #app .brand-name { font-size:15px; }
+  #app .brand-sub { font-size:9px; }
+  #app .nav-tab { flex-basis:72px; min-width:72px; width:72px; }
+  #app .view { padding-inline:10px; }
+  #view-calendar .cal-day { min-height:68px; padding-inline:2px; }
+  #view-calendar .cal-wod-dot { font-size:7px; padding-inline:2px; }
+}
