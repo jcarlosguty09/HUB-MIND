@@ -30,6 +30,11 @@ function obj(value: unknown): Json | null {
 function str(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
+// Accept both plain Instagram IDs and Meta's nested { id } identifiers.
+function metaId(value: unknown): string | null {
+  return id(value) ?? id(obj(value)?.id);
+}
+
 function timestamp(value: unknown): string | null {
   if (typeof value !== "number" && typeof value !== "string") return null;
   const n = Number(value);
