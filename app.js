@@ -2543,8 +2543,9 @@ function crmPeriodStart(period) {
   if (period === 'all') return null;
   const days = Number(period) || 30;
   const d = new Date();
-  d.setDate(d.getDate() - days);
   d.setHours(0, 0, 0, 0);
+  // Include today as day 1, so a 30-day view spans exactly 30 calendar dates.
+  d.setDate(d.getDate() - (days - 1));
   return d;
 }
 
@@ -2571,7 +2572,10 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const start = crmPeriodStart(crmDashboardPeriod);
 
   const periodLeads = start
-    ? allLeads.filter(l => new Date(l.created_at) >= start)
+    ? allLeads.filter(l => {
+        const created = new Date(l.created_at);
+        return Number.isFinite(created.getTime()) && created >= start && created <= new Date();
+      })
     : [...allLeads];
 
   const won = periodLeads.filter(l => l.stage === 'won');
