@@ -2448,13 +2448,13 @@ function crmTaskIsDueToday(task) {
   if (!task?.due_at || task.status !== 'pending') return false;
   const due = new Date(task.due_at);
   const { start, end } = crmTodayRange();
-  return due >= start && due <= end;
+  return Number.isFinite(due.getTime()) && due >= new Date() && due <= end;
 }
 
 function crmTaskIsOverdue(task) {
   if (!task?.due_at || task.status !== 'pending') return false;
-  const { start } = crmTodayRange();
-  return new Date(task.due_at) < start;
+  const due = new Date(task.due_at);
+  return Number.isFinite(due.getTime()) && due < new Date();
 }
 
 function crmStaffName(userId) {
@@ -2707,7 +2707,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
       <div class="crm-kpi-card${overdueTasks.length ? ' warning' : ''}">
         <div class="crm-kpi-label">Seguimientos vencidos</div>
         <div class="crm-kpi-value">${overdueTasks.length}</div>
-        <div class="crm-kpi-sub">${dueToday.length} programados para hoy · todas las fechas</div>
+        <div class="crm-kpi-sub">${dueToday.length} pendientes para el resto de hoy · todas las fechas</div>
       </div>
       <div class="crm-kpi-card${attentionLeads.length ? ' warning' : ''}">
         <div class="crm-kpi-label">Atención requerida</div>
