@@ -1563,5 +1563,17 @@ const InstagramCRMAPI = {
   },
   async listMessages(conversationId) {
     return await sbReq('GET', 'crm_instagram_messages?select=*&conversation_id=eq.' + encodeURIComponent(conversationId) + '&order=instagram_timestamp.asc.nullslast&limit=200');
+  },
+  async sendMessage(conversationId, text) {
+    const token = Auth.getToken();
+    if (!token) throw new Error('Inicia sesión para enviar mensajes.');
+    const response = await fetch(SUPABASE_URL + '/functions/v1/instagram-send', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, text })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.sent) throw new Error(data.error || 'No se pudo enviar el mensaje');
+    return data;
   }
 };
