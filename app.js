@@ -2593,7 +2593,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const pendingTasks = tasks.filter(t => t.status === 'pending');
   const overdueTasks = pendingTasks.filter(crmTaskIsOverdue);
   const dueToday = pendingTasks.filter(crmTaskIsDueToday);
-  const attentionLeads = periodLeads.filter(crmLeadNeedsAttention);
+  const attentionLeads = allLeads.filter(crmLeadNeedsAttention);
 
   // Funnel
   const funnelData = CRM_STAGES
@@ -2694,14 +2694,14 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-kpi-sub">Lead → ganado</div>
       </div>
       <div class="crm-kpi-card${overdueTasks.length ? ' warning' : ''}">
-        <div class="crm-kpi-label">Seguimientos</div>
-        <div class="crm-kpi-value">${dueToday.length}</div>
-        <div class="crm-kpi-sub">${overdueTasks.length} vencidos</div>
+        <div class="crm-kpi-label">Seguimientos vencidos</div>
+        <div class="crm-kpi-value">${overdueTasks.length}</div>
+        <div class="crm-kpi-sub">${dueToday.length} programados para hoy · todas las fechas</div>
       </div>
       <div class="crm-kpi-card${attentionLeads.length ? ' warning' : ''}">
         <div class="crm-kpi-label">Atención requerida</div>
         <div class="crm-kpi-value">${attentionLeads.length}</div>
-        <div class="crm-kpi-sub">Leads estancados / vencidos</div>
+        <div class="crm-kpi-sub">Leads activos estancados / vencidos · total</div>
       </div>
     </div>
 
