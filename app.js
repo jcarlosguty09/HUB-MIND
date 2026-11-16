@@ -2594,7 +2594,8 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const closeRate = closedCount ? won.length / closedCount : 0;
 
   const cycleDays = won
-    .map(l => crmDaysBetween(l.created_at, l.closed_at || l.updated_at))
+    .filter(l => l.closed_at)
+    .map(l => crmDaysBetween(l.created_at, l.closed_at))
     .filter(v => v !== null);
   const avgCycle = cycleDays.length
     ? cycleDays.reduce((a,b) => a + b, 0) / cycleDays.length
@@ -2699,9 +2700,9 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-kpi-sub">${won.length} ganados · ${lost.length} perdidos</div>
       </div>
       <div class="crm-kpi-card">
-        <div class="crm-kpi-label">Ciclo estimado</div>
+        <div class="crm-kpi-label">Ciclo de venta registrado</div>
         <div class="crm-kpi-value">${avgCycle === null ? '—' : `${avgCycle.toFixed(1)}d`}</div>
-        <div class="crm-kpi-sub">Lead → ganado</div>
+        <div class="crm-kpi-sub">${cycleDays.length} ventas con fecha de cierre</div>
       </div>
       <div class="crm-kpi-card${overdueTasks.length ? ' warning' : ''}">
         <div class="crm-kpi-label">Seguimientos vencidos</div>
