@@ -3244,3 +3244,8 @@ body {
 .ig-message.outbound{align-self:flex-end;background:rgba(139,198,63,.18)}.ig-message small{display:block;margin-top:5px;text-align:right}
 .ig-compose-disabled{padding:13px 16px;border-top:1px solid #444;font-size:12px;opacity:.75}.ig-muted,.ig-error{padding:14px;font-size:13px;opacity:.75}.ig-error{color:#f87171}
 @media(max-width:650px){.ig-layout{grid-template-columns:1fr;max-height:none}.ig-list{max-height:220px;border-right:0;border-bottom:1px solid #444}.ig-thread{min-height:300px;max-height:430px}.ig-head{flex-wrap:wrap}}
+
+/* Instagram outbound reply composer */
+.ig-compose{padding:12px 16px;border-top:1px solid #444;display:flex;flex-direction:column;gap:8px}
+.ig-compose label{font-size:12px;font-weight:700}.ig-compose textarea{width:100%;box-sizing:border-box;resize:vertical;border-radius:8px;padding:10px;background:rgba(100,100,100,.1);border:1px solid #666;color:inherit;font:inherit}
+.ig-compose-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}.ig-compose-actions small{font-size:11px;opacity:.8}.ig-compose-actions button:disabled{opacity:.5;cursor:wait}
