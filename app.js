@@ -2223,7 +2223,7 @@ async function init() {
   el('create-user-btn').addEventListener('click', () => {
     el('cu-name').value = '';
     el('cu-email').value = '';
-    el('cu-password').value = 'HubMindAtleta';
+    el('cu-password').value = '';
     configureCreateUserRoles();
     el('cu-error').classList.add('hidden');
     el('cu-result').classList.add('hidden');
@@ -2252,6 +2252,11 @@ async function init() {
       errEl.classList.remove('hidden');
       return;
     }
+    if (password.length < 12) {
+      errEl.textContent = 'La contraseña inicial debe tener al menos 12 caracteres y ser única para cada usuario';
+      errEl.classList.remove('hidden');
+      return;
+    }
 
     btn.textContent = 'Creando...'; btn.disabled = true;
     try {
@@ -2263,6 +2268,7 @@ async function init() {
       // Clear form for next user
       el('cu-name').value = '';
       el('cu-email').value = '';
+      el('cu-password').value = '';
     } catch(e) {
       errEl.textContent = e.message || 'Error al crear usuario';
       errEl.classList.remove('hidden');
