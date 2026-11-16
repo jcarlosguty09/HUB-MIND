@@ -198,7 +198,7 @@ function showView(v) {
   if (v === 'members') renderMembers();
   if (v === 'reports') { renderReports(); window.refreshReportExportPermissions?.(); }
   if (v === 'finance') FinanceUI.render();
-  if (v === 'crm') renderCRM();
+  if (v === 'crm') { renderCRM(); window.InstagramInbox?.render(); }
   if (v === 'hyrox-race') RaceControl.render('race-control-admin');
 }
 

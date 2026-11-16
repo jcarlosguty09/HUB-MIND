@@ -1555,3 +1555,13 @@ const WodAPI = {
     } catch (e) { console.warn('WodAPI.getHistory:', e.message); return []; }
   },
 };
+
+// Instagram inbox: read-only queries through the current user's JWT and Supabase RLS.
+const InstagramCRMAPI = {
+  async listConversations() {
+    return await sbReq('GET', 'crm_instagram_conversations?select=*&order=last_message_at.desc.nullslast&limit=100');
+  },
+  async listMessages(conversationId) {
+    return await sbReq('GET', 'crm_instagram_messages?select=*&conversation_id=eq.' + encodeURIComponent(conversationId) + '&order=instagram_timestamp.asc.nullslast&limit=200');
+  }
+};

@@ -3229,3 +3229,18 @@ body {
 .checkin-delete-btn { border:0; background:transparent; color:#EF4444; width:34px; height:34px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
 .checkin-delete-btn:hover { background:color-mix(in srgb,#EF4444 12%,transparent); }
 .checkin-delete-btn:disabled { opacity:.45; cursor:wait; }
+
+/* Instagram CRM inbox */
+.ig-inbox{margin:20px 0 26px;border:1px solid #404040;border-radius:16px;overflow:hidden;background:var(--card-bg,#17191b)}
+.ig-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 20px;border-bottom:1px solid #444}
+.ig-head h3{margin:0;font-size:17px}.ig-head p{margin:4px 0 0;opacity:.7;font-size:12px}
+.ig-layout{display:grid;grid-template-columns:minmax(200px,32%) minmax(0,1fr);min-height:320px;max-height:560px}
+.ig-list{border-right:1px solid #444;overflow:auto}.ig-thread{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.ig-conversation{display:flex;flex-direction:column;gap:5px;width:100%;padding:13px 16px;background:transparent;border:0;border-bottom:1px solid #444;color:inherit;text-align:left;cursor:pointer}
+.ig-conversation:hover,.ig-conversation.active{background:rgba(139,198,63,.12)}.ig-conversation strong{font-size:13px}.ig-conversation span{font-size:12px;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.ig-conversation small,.ig-message small{font-size:10px;opacity:.65}
+.ig-thread-title{padding:14px 18px;border-bottom:1px solid #444;font-weight:700;font-size:13px}
+.ig-messages{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:16px}
+.ig-message{align-self:flex-start;max-width:85%;padding:10px 12px;background:rgba(120,120,120,.18);border-radius:12px;overflow-wrap:anywhere;font-size:13px}
+.ig-message.outbound{align-self:flex-end;background:rgba(139,198,63,.18)}.ig-message small{display:block;margin-top:5px;text-align:right}
+.ig-compose-disabled{padding:13px 16px;border-top:1px solid #444;font-size:12px;opacity:.75}.ig-muted,.ig-error{padding:14px;font-size:13px;opacity:.75}.ig-error{color:#f87171}
+@media(max-width:650px){.ig-layout{grid-template-columns:1fr;max-height:none}.ig-list{max-height:220px;border-right:0;border-bottom:1px solid #444}.ig-thread{min-height:300px;max-height:430px}.ig-head{flex-wrap:wrap}}
