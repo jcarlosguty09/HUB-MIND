@@ -1,7 +1,7 @@
 // HUB MIND — Instagram CRM visual inbox (read-only until outbound integration is verified)
 (() => {
   'use strict';
-  let conversations = [], selected = null, busy = false, poller = null, threadRequest = 0;
+  let conversations = [], selected = null, busy = false, poller = null, threadRequest = 0, sending = false;
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date = v => { if (!v) return ''; const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
@@ -21,8 +21,26 @@
     try {
       const messages = await InstagramCRMAPI.listMessages(id);
       if (requestId !== threadRequest || selected !== id || !$('ig-thread')) return;
-      pane.innerHTML = '<div class="ig-thread-title">'+esc(conversation?.instagram_sender_id || 'Conversación')+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><div class="ig-compose-disabled"><i class="ti ti-lock"></i> Respuestas desde HUB MIND pendientes de habilitar y verificar con Meta.</div>';
+      pane.innerHTML = '<div class="ig-thread-title">'+esc(conversation?.instagram_sender_id || 'Conversación')+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">El envío requiere activar instagram-send en Supabase. Los mensajes enviados aún no se guardan en el historial.</small><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
       const scroll = pane.querySelector('.ig-messages'); if (scroll) scroll.scrollTop = scroll.scrollHeight;
+      const form = pane.querySelector('#ig-compose');
+      form?.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (sending || selected !== id) return;
+        const input = form.querySelector('#ig-reply-text');
+        const button = form.querySelector('#ig-send-btn');
+        const status = form.querySelector('#ig-send-status');
+        const message = input.value.trim();
+        if (!message) return;
+        sending = true; button.disabled = true; status.textContent = 'Enviando…';
+        try {
+          const result = await InstagramCRMAPI.sendMessage(id, message);
+          input.value = '';
+          status.textContent = result.persisted ? 'Enviado y registrado.' : 'Enviado a Meta. Aún no se guarda en el historial.';
+        } catch (error) {
+          status.textContent = 'No enviado: ' + (error?.message || 'Error de conexión');
+        } finally { sending = false; button.disabled = false; }
+      });
     } catch (e) { if (requestId === threadRequest && selected === id && $('ig-thread')) pane.innerHTML = '<p class="ig-error">No se pudieron cargar los mensajes. Revisa permisos RLS y conexión.</p>'; console.warn('Instagram inbox messages:',e); }
   }
   async function render(force = false) {
