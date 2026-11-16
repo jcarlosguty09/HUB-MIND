@@ -2621,7 +2621,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   }).sort((a,b) => b.leads - a.leads);
 
   const bestSource = [...sourceRows]
-    .filter(r => r.leads >= 1)
+    .filter(r => r.leads >= 5)
     .sort((a,b) => (b.rate - a.rate) || (b.wins - a.wins))[0];
 
   // Staff performance
@@ -2737,7 +2737,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-analytics-head">
           <div>
             <div class="crm-analytics-title">Fuentes de leads</div>
-            <div class="crm-analytics-sub">${bestSource ? `Mejor conversión: ${escHtml(bestSource.label)} · ${crmPercent(bestSource.rate)}` : 'Aún no hay suficientes datos'}</div>
+            <div class="crm-analytics-sub">${bestSource ? `Mejor conversión: ${escHtml(bestSource.label)} · ${crmPercent(bestSource.rate)} (mín. 5 leads)` : 'Se requieren al menos 5 leads por fuente para comparar conversión'}</div>
           </div>
         </div>
         <div class="crm-source-table">
@@ -2782,7 +2782,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-analytics-head">
           <div>
             <div class="crm-analytics-title">Equipo comercial</div>
-            <div class="crm-analytics-sub">${unassigned} leads sin responsable</div>
+            <div class="crm-analytics-sub">${unassigned} leads captados en el período sin responsable</div>
           </div>
         </div>
         <div class="crm-team-list">
