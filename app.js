@@ -2571,6 +2571,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
   const won = periodLeads.filter(l => l.stage === 'won');
   const lost = periodLeads.filter(l => l.stage === 'lost');
   const active = periodLeads.filter(l => !['won', 'lost'].includes(l.stage));
+  const pipelineActive = allLeads.filter(l => !['won', 'lost'].includes(l.stage)).length;
   const trialsScheduled = periodLeads.filter(l =>
     ['trial_scheduled','trial_completed','negotiating','won'].includes(l.stage)
   ).length;
@@ -2673,17 +2674,17 @@ function renderCRMDashboard(allLeads, tasks, staff) {
 
     <div class="crm-kpi-grid">
       <div class="crm-kpi-card">
-        <div class="crm-kpi-label">Leads</div>
+        <div class="crm-kpi-label">Nuevos leads · período</div>
         <div class="crm-kpi-value">${periodLeads.length}</div>
-        <div class="crm-kpi-sub">${active.length} activos</div>
+        <div class="crm-kpi-sub">${pipelineActive} activos en pipeline total</div>
       </div>
       <div class="crm-kpi-card">
-        <div class="crm-kpi-label">Conversión total</div>
+        <div class="crm-kpi-label">Conversión · cohorte de captación</div>
         <div class="crm-kpi-value">${crmPercent(conversionRate)}</div>
         <div class="crm-kpi-sub">${won.length} ganados de ${periodLeads.length}</div>
       </div>
       <div class="crm-kpi-card">
-        <div class="crm-kpi-label">Tasa de cierre</div>
+        <div class="crm-kpi-label">Cierre · cohorte de captación</div>
         <div class="crm-kpi-value">${crmPercent(closeRate)}</div>
         <div class="crm-kpi-sub">${won.length} ganados · ${lost.length} perdidos</div>
       </div>
@@ -2709,7 +2710,7 @@ function renderCRMDashboard(allLeads, tasks, staff) {
         <div class="crm-analytics-head">
           <div>
             <div class="crm-analytics-title">Embudo</div>
-            <div class="crm-analytics-sub">Distribución actual de los leads del periodo</div>
+            <div class="crm-analytics-sub">Etapa actual de leads captados en el período</div>
           </div>
         </div>
         <div class="crm-funnel-list">
