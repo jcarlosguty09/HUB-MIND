@@ -1,5 +1,5 @@
 /**
- * HUB MIND — Instagram outbound messaging (staged, not deployed).
+ * HUB MIND — Instagram outbound messaging (outbound history).
  *
  * Required secrets: SUPABASE_URL, SUPABASE_ANON_KEY,
  * INSTAGRAM_SEND_ACCESS_TOKEN, INSTAGRAM_SEND_ACCOUNT_ID,
@@ -7,7 +7,7 @@
  *
  * One connected Instagram account only. Never expose tokens to the browser.
  * Uses the caller JWT and RLS to authorize access to the conversation.
- * IMPORTANT: Outbound persistence / production testing remains a separate step.
+ * Requires SUPABASE_SERVICE_ROLE_KEY and crm_instagram_record_outbound migration.
  */
 const cors = (request: Request) => {
   const origin = request.headers.get("origin") || "";
@@ -35,9 +35,10 @@ Deno.serve(async (request: Request) => {
   const base = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   const accessToken = Deno.env.get("INSTAGRAM_SEND_ACCESS_TOKEN");
-  const accountId = Deno.env.get("INSTAGRAM_SEND_ACCOUNT_ID");
+  const accountId = Deno.env.get("INSTAGRAM_SEND_ACCOUNT_ID")?.trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const version = Deno.env.get("INSTAGRAM_GRAPH_API_VERSION");
-  if (!base || !anon || !accessToken || !accountId || !version || !/^v\d+\.\d+$/.test(version)) {
+  if (!base || !anon || !serviceKey || !accessToken || !accountId || !version || !/^v\d+\.\d+$/.test(version)) {
     return sendReply({ error: "server_not_configured" }, 503);
   }
   const authorization = request.headers.get("authorization");
@@ -50,8 +51,10 @@ Deno.serve(async (request: Request) => {
     const headers = { apikey: anon, Authorization: authorization };
     const userResponse = await fetch(base + "/auth/v1/user", { headers });
     if (!userResponse.ok) return sendReply({ error: "unauthorized" }, 401);
+    const user: unknown = await userResponse.json();
+    if (!isRecord(user) || !validId(user.id)) return sendReply({ error: "unauthorized" }, 401);
     // Read through caller's RLS: a conversation invisible to the caller cannot be messaged.
-    const path = "/rest/v1/crm_instagram_conversations?select=id,instagram_sender_id,account_id&id=eq." +
+    const path = "/rest/v1/crm_instagram_conversations?select=id,organization_id,instagram_sender_id,account_id&id=eq." +
       encodeURIComponent(input.conversation_id) + "&limit=1";
     const conversationResponse = await fetch(base + path, { headers });
     if (!conversationResponse.ok) return sendReply({ error: "conversation_access_failed" }, 403);
@@ -66,7 +69,8 @@ Deno.serve(async (request: Request) => {
     if (!accountResponse.ok) return sendReply({ error: "account_access_failed" }, 403);
     const accounts: unknown = await accountResponse.json();
     const account = Array.isArray(accounts) ? accounts[0] : null;
-    if (!isRecord(account) || account.instagram_user_id !== accountId) return sendReply({ error: "account_not_configured" }, 403);
+    if (!isRecord(account)) return sendReply({ error: "account_not_visible_to_user" }, 403);
+    if (String(account.instagram_user_id).trim() !== accountId) return sendReply({ error: "account_id_secret_mismatch" }, 403);
 
     const response = await fetch("https://graph.instagram.com/" + version + "/" + encodeURIComponent(accountId) + "/messages", {
       method: "POST",
@@ -80,8 +84,29 @@ Deno.serve(async (request: Request) => {
     const data: unknown = await response.json();
     const messageId = isRecord(data) && typeof data.message_id === "string" ? data.message_id : null;
     if (!messageId) return sendReply({ error: "meta_response_missing_message_id" }, 502);
-    // Deliberately no fake database write: outbound persistence needs a verified schema/RPC.
-    return sendReply({ sent: true, message_id: messageId, persisted: false });
+    // Meta has accepted the message. A history failure must never invite a resend.
+    try {
+      const saved = await fetch(base + "/rest/v1/rpc/crm_instagram_record_outbound", {
+        method: "POST",
+        headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "content-type": "application/json" },
+        body: JSON.stringify({
+          p_conversation_id: conversation.id,
+          p_actor_id: user.id,
+          p_instagram_account_id: accountId,
+          p_message_id: messageId,
+          p_body: input.text.trim(),
+          p_sent_at: new Date().toISOString()
+        }),
+      });
+      const record: unknown = await saved.json().catch(() => null);
+      if (saved.ok && isRecord(record) && record.persisted === true) {
+        return sendReply({ sent: true, message_id: messageId, persisted: true });
+      }
+      console.error("instagram_history_failed", { status: saved.status, message_id: messageId });
+    } catch {
+      console.error("instagram_history_unavailable", { message_id: messageId });
+    }
+    return sendReply({ sent: true, message_id: messageId, persisted: false, warning: "history_not_saved" });
   } catch (error) {
     console.error("instagram_send_error", error instanceof Error ? error.message : "unknown");
     return sendReply({ error: "send_unavailable" }, 503);
