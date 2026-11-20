@@ -1558,8 +1558,18 @@ const WodAPI = {
 
 // Instagram inbox: read-only queries through the current user's JWT and Supabase RLS.
 const InstagramCRMAPI = {
-  async listConversations() {
-    return await sbReq('GET', 'crm_instagram_conversations?select=*&order=last_message_at.desc.nullslast&limit=100');
+  async listConversations(limit = 100) {
+    const target = Number.isSafeInteger(limit) && limit > 0 ? limit : 100;
+    const rows = [];
+    // Request small pages to respect the server row cap.
+    while (rows.length < target) {
+      const size = Math.min(100, target - rows.length);
+      const page = await sbReq('GET', 'crm_instagram_conversations?select=*&order=last_message_at.desc.nullslast,id.asc&limit=' + size + '&offset=' + rows.length);
+      if (!Array.isArray(page)) throw new Error('Respuesta de conversaciones inválida');
+      rows.push(...page);
+      if (page.length < size) break;
+    }
+    return [...new Map(rows.map(row => [row.id, row])).values()];
   },
   async listMessages(conversationId) {
     return await sbReq('GET', 'crm_instagram_messages?select=*&conversation_id=eq.' + encodeURIComponent(conversationId) + '&order=instagram_timestamp.asc.nullslast&limit=200');
