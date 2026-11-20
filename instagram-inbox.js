@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   let conversations = [], selected = null, busy = false, poller = null, threadRequest = 0, sending = false;
+  let visibleLimit = 100;
   const drafts = new Map();
   const sendStatuses = new Map();
   const $ = id => document.getElementById(id);
@@ -9,8 +10,9 @@
   const date = v => { if (!v) return ''; const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
   function shell() {
     const root = $('crm-instagram-inbox'); if (!root) return null;
-    root.innerHTML = '<div class="ig-head"><div><h3><i class="ti ti-brand-instagram"></i> Instagram · Mensajes</h3><p>Conversaciones conectadas al CRM</p></div><button type="button" class="secondary-btn" id="ig-refresh"><i class="ti ti-refresh"></i> Actualizar</button></div><div class="ig-layout"><div id="ig-conversations" class="ig-list" aria-label="Conversaciones"></div><div id="ig-thread" class="ig-thread" aria-live="polite"></div></div>';
+    root.innerHTML = '<div class="ig-head"><div><h3><i class="ti ti-brand-instagram"></i> Instagram · Mensajes</h3><p>Conversaciones conectadas al CRM</p></div><button type="button" class="secondary-btn" id="ig-refresh"><i class="ti ti-refresh"></i> Actualizar</button></div><div class="ig-layout"><div><div id="ig-conversations" class="ig-list" aria-label="Conversaciones"></div><p id="ig-list-count" class="ig-muted" role="status"></p><button type="button" id="ig-load-more" class="secondary-btn" hidden>Cargar conversaciones anteriores</button></div><div id="ig-thread" class="ig-thread" aria-live="polite"></div></div>';
     $('ig-refresh').addEventListener('click', () => render(true));
+    $('ig-load-more').addEventListener('click', () => render(true, visibleLimit + 100));
     return root;
   }
   async function openThread(id) {
@@ -66,11 +68,12 @@
       });
     } catch (e) { if (requestId === threadRequest && selected === id && $('ig-thread')) pane.innerHTML = '<p class="ig-error">No se pudieron cargar los mensajes. Revisa permisos RLS y conexión.</p>'; console.warn('Instagram inbox messages:',e); }
   }
-  async function render(force = false) {
+  async function render(force = false, requestedLimit = visibleLimit) {
     if (busy || !$('crm-instagram-inbox')) return;
     const root = $('crm-instagram-inbox');
     if (!force && (document.hidden || !root.closest('.view.active'))) return;
     busy = true;
+    if ($('ig-load-more')) $('ig-load-more').disabled = true;
     const firstLoad = !$('ig-conversations');
     if (firstLoad) {
       shell();
@@ -78,7 +81,11 @@
       $('ig-thread').innerHTML = '<p class="ig-muted">Selecciona una conversación para ver sus mensajes.</p>';
     }
     try {
-      conversations = await InstagramCRMAPI.listConversations();
+      const rows = await InstagramCRMAPI.listConversations(requestedLimit);
+      conversations = rows;
+      visibleLimit = requestedLimit;
+      if ($('ig-list-count')) $('ig-list-count').textContent = conversations.length + ' conversaciones cargadas';
+      if ($('ig-load-more')) $('ig-load-more').hidden = conversations.length < visibleLimit;
       if (!$('ig-conversations')) return;
       $('ig-conversations').innerHTML = conversations.length ? conversations.map(c => '<button type="button" class="ig-conversation" data-id="'+esc(c.id)+'"><strong>'+esc(c.instagram_sender_id || 'Cuenta de Instagram')+'</strong><span>'+esc(c.last_message_preview || 'Sin vista previa')+'</span><small>'+esc(date(c.last_message_at))+'</small></button>').join('') : '<p class="ig-muted">Sin conversaciones todavía. Envía un DM de prueba a la cuenta conectada y actualiza.</p>';
       $('ig-conversations').querySelectorAll('.ig-conversation').forEach(btn => btn.addEventListener('click', () => openThread(btn.dataset.id)));
@@ -86,7 +93,7 @@
       if (selected && conversations.some(c => c.id === selected) && !sending && document.activeElement?.id !== 'ig-reply-text') await openThread(selected);
       else if (!selected && conversations.length) await openThread(conversations[0].id);
     } catch(e) { $('ig-conversations').innerHTML = '<p class="ig-error">No se pudo consultar Instagram. Verifica las tablas, permisos RLS y la conexión.</p>'; console.warn('Instagram inbox:',e); }
-    finally { busy = false; }
+    finally { busy = false; if ($('ig-load-more')) $('ig-load-more').disabled = false; }
   }
   function startPolling() {
     if (poller) return;
