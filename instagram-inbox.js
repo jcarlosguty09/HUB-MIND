@@ -10,7 +10,8 @@
   const date = v => { if (!v) return ''; const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
   function shell() {
     const root = $('crm-instagram-inbox'); if (!root) return null;
-    root.innerHTML = '<div class="ig-head"><div><h3><i class="ti ti-brand-instagram"></i> Instagram · Mensajes</h3><p>Conversaciones conectadas al CRM</p></div><button type="button" class="secondary-btn" id="ig-refresh"><i class="ti ti-refresh"></i> Actualizar</button></div><div class="ig-layout"><div><div id="ig-conversations" class="ig-list" aria-label="Conversaciones"></div><p id="ig-list-count" class="ig-muted" role="status"></p><button type="button" id="ig-load-more" class="secondary-btn" hidden>Cargar conversaciones anteriores</button></div><div id="ig-thread" class="ig-thread" aria-live="polite"></div></div>';
+    root.innerHTML = '<div class="ig-head"><div><h3><i class="ti ti-brand-instagram"></i> Instagram · Mensajes</h3><p>Conversaciones conectadas al CRM</p></div><div class="ig-head-actions"><button type="button" class="secondary-btn" id="ig-refresh"><i class="ti ti-refresh"></i> Actualizar</button><button type="button" class="icon-btn" id="ig-close" aria-label="Cerrar Instagram"><i class="ti ti-x"></i></button></div></div><div class="ig-layout"><div class="ig-list-panel"><div id="ig-conversations" class="ig-list" aria-label="Conversaciones"></div><p id="ig-list-count" class="ig-muted" role="status"></p><button type="button" id="ig-load-more" class="secondary-btn" hidden>Cargar conversaciones anteriores</button></div><div id="ig-thread" class="ig-thread" aria-live="polite"></div></div>';
+    $('ig-close').addEventListener('click', () => root.close());
     $('ig-refresh').addEventListener('click', () => render(true));
     $('ig-load-more').addEventListener('click', () => render(true, visibleLimit + 100));
     return root;
@@ -69,9 +70,7 @@
     } catch (e) { if (requestId === threadRequest && selected === id && $('ig-thread')) pane.innerHTML = '<p class="ig-error">No se pudieron cargar los mensajes. Revisa permisos RLS y conexión.</p>'; console.warn('Instagram inbox messages:',e); }
   }
   async function render(force = false, requestedLimit = visibleLimit) {
-    if (busy || !$('crm-instagram-inbox')) return;
-    const root = $('crm-instagram-inbox');
-    if (!force && (document.hidden || !root.closest('.view.active'))) return;
+    if (busy || !$('crm-instagram-inbox')?.open || (!force && document.hidden)) return;
     busy = true;
     if ($('ig-load-more')) $('ig-load-more').disabled = true;
     const firstLoad = !$('ig-conversations');
@@ -98,9 +97,22 @@
   function startPolling() {
     if (poller) return;
     poller = setInterval(() => {
-      if (!document.hidden && $('crm-instagram-inbox')?.closest('.view.active')) render();
+      render();
     }, 15000);
   }
-  startPolling();
+  const trigger = $('crm-instagram-inbox-btn');
+  const dialog = $('crm-instagram-inbox');
+  trigger?.addEventListener('click', () => {
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    render(true);
+    $('ig-close')?.focus();
+    startPolling();
+  });
+  dialog?.addEventListener('close', () => {
+    clearInterval(poller);
+    poller = null;
+    trigger?.focus();
+  });
   window.InstagramInbox = { render };
 })();

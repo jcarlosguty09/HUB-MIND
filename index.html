@@ -349,6 +349,15 @@
     .topbar-legal{display:flex;gap:9px;align-items:center;font-size:10px;flex-wrap:wrap}
     .topbar-legal a{color:var(--text2,#ccc);text-decoration:underline;text-underline-offset:2px}
     @media(max-width:750px){.topbar-legal{display:none}}
+      .wa-inbox-btn.ig-inbox-btn{border-color:color-mix(in srgb,#d62976 40%,var(--border))!important;background:color-mix(in srgb,#d62976 8%,var(--surface))!important}
+    .wa-inbox-btn.ig-inbox-btn:hover{background:color-mix(in srgb,#d62976 15%,var(--surface))!important}
+    .ig-inbox-btn>i{color:#d62976}
+    dialog.ig-inbox[open]{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;display:flex;flex-direction:column;overflow:auto}
+    .ig-inbox[open] .ig-layout{flex:1;min-height:0;max-height:none}
+    .ig-inbox[open] .ig-head-actions{display:flex;align-items:center;gap:8px}
+    .ig-inbox[open] .ig-list-panel{display:flex;flex-direction:column;min-height:0}
+    .ig-inbox[open] .ig-thread{min-height:0;max-height:none}
+    @media(max-width:650px){.ig-inbox[open] .ig-layout{grid-template-rows:auto minmax(260px,1fr)}}
   </style>
 
 </head>
@@ -602,11 +611,12 @@
             <div class="checkins-subtitle">Pipeline comercial de Hub Mind</div>
           </div>
           <div class="crm-header-actions">
+            <button type="button" class="secondary-btn wa-inbox-btn ig-inbox-btn" id="crm-instagram-inbox-btn" aria-haspopup="dialog" aria-controls="crm-instagram-inbox"><i class="ti ti-brand-instagram"></i> Instagram</button>
             <button class="secondary-btn" id="crm-sales-team-btn"><i class="ti ti-users"></i> Equipo de ventas</button>
             <button class="save-btn" id="crm-new-btn"><i class="ti ti-user-plus"></i> Nuevo lead</button>
           </div>
         </div>
-        <section id="crm-instagram-inbox" class="ig-inbox" aria-label="Bandeja de Instagram"></section>
+        <dialog id="crm-instagram-inbox" class="ig-inbox" aria-label="Bandeja de Instagram"></dialog>
         <div id="crm-sales-command-center" class="crm-sales-command-center"></div>
         <div id="crm-revenue-recovery" class="crm-revenue-recovery"></div>
         <div id="crm-dashboard" class="crm-dashboard"></div>
@@ -1148,7 +1158,7 @@
   <script src="/reports-export.js?v=2"></script>
   <script src="/finance-ui-v2.js?v=2"></script>
   <script src="/whatsapp-inbox.js?v=wa-inbox-v1"></script>
-  <script src="/instagram-inbox.js?v=ig-inbox-v1"></script>
+  <script src="/instagram-inbox.js?v=ig-inbox-v2"></script>
 
 <!-- Membership Engine V2 deploy refresh: 2026-10-02 -->
 </body>
