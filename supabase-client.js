@@ -1571,6 +1571,18 @@ const InstagramCRMAPI = {
     }
     return [...new Map(rows.map(row => [row.id, row])).values()];
   },
+  async listProfiles(conversationIds) {
+    const token = Auth.getToken();
+    if (!token) return [];
+    const response = await fetch(SUPABASE_URL + '/functions/v1/instagram-profiles', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_ids: conversationIds })
+    });
+    if (!response.ok) throw new Error('No se pudieron consultar los perfiles de Instagram.');
+    const { profiles } = await response.json();
+    return profiles;
+  },
   async listMessages(conversationId) {
     return await sbReq('GET', 'crm_instagram_messages?select=*&conversation_id=eq.' + encodeURIComponent(conversationId) + '&order=instagram_timestamp.asc.nullslast&limit=200');
   },

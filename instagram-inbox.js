@@ -8,6 +8,43 @@
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date = v => { if (!v) return ''; const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
+  const profiles = new Map();
+  const attemptedProfiles = new Map();
+  let loadingProfiles = false;
+  let retryProfilesAfter = 0;
+
+  function contactLabel(id) {
+    const profile = profiles.get(id);
+    const name = profile?.name?.trim();
+    const username = profile?.username?.trim().replace(/^@/, '');
+    if (name && username && name.toLowerCase() !== username.toLowerCase()) return name + ' · @' + username;
+    return (username ? '@' + username : name) || 'Cuenta de Instagram';
+  }
+
+  async function refreshProfiles() {
+    if (loadingProfiles || !$('crm-instagram-inbox')?.open || Date.now() < retryProfilesAfter) return;
+    const ids = [...new Set([selected, ...conversations.map(row => row.id)])]
+      .filter(id => id && !profiles.has(id) && (attemptedProfiles.get(id) || 0) < Date.now())
+      .slice(0, 10);
+    if (!ids.length) return;
+
+    loadingProfiles = true;
+    try {
+      const rows = await InstagramCRMAPI.listProfiles(ids);
+      ids.forEach(id => attemptedProfiles.set(id, Date.now() + 10 * 60 * 1000));
+      rows.forEach(profile => profiles.set(profile.id, profile));
+      $('ig-conversations').querySelectorAll('.ig-conversation').forEach(button => {
+        button.querySelector('strong').textContent = contactLabel(button.dataset.id);
+      });
+      const title = $('ig-thread').querySelector('.ig-thread-title');
+      if (title && selected) title.textContent = contactLabel(selected);
+    } catch {
+      retryProfilesAfter = Date.now() + 60 * 1000;
+    } finally {
+      loadingProfiles = false;
+    }
+  }
+
   function shell() {
     const root = $('crm-instagram-inbox'); if (!root) return null;
     root.innerHTML = '<div class="ig-head"><div><h3><i class="ti ti-brand-instagram"></i> Instagram · Mensajes</h3><p>Conversaciones conectadas al CRM</p></div><div class="ig-head-actions"><button type="button" class="secondary-btn" id="ig-refresh"><i class="ti ti-refresh"></i> Actualizar</button><button type="button" class="icon-btn" id="ig-close" aria-label="Cerrar Instagram"><i class="ti ti-x"></i></button></div></div><div class="ig-layout"><div class="ig-list-panel"><div id="ig-conversations" class="ig-list" aria-label="Conversaciones"></div><p id="ig-list-count" class="ig-muted" role="status"></p><button type="button" id="ig-load-more" class="secondary-btn" hidden>Cargar conversaciones anteriores</button></div><div id="ig-thread" class="ig-thread" aria-live="polite"></div></div>';
@@ -20,18 +57,18 @@
     const oldInput = $('ig-reply-text');
     if (selected && oldInput) drafts.set(selected, oldInput.value);
     selected = id;
+    void refreshProfiles();
     const requestId = ++threadRequest;
     const pane = $('ig-thread'); if (!pane) return;
-    const conversation = conversations.find(x => x.id === id);
     // Preserve the current composer while refreshing the selected conversation.
     const existingComposer = pane.querySelector('#ig-compose');
     const composerWasFocused = document.activeElement?.id === 'ig-reply-text';
-    if (!existingComposer || !composerWasFocused) pane.innerHTML = '<div class="ig-thread-title">'+esc(conversation?.instagram_sender_id || 'Conversación')+'</div><p class="ig-muted">Cargando mensajes…</p>';
+    if (!existingComposer || !composerWasFocused) pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><p class="ig-muted">Cargando mensajes…</p>';
     document.querySelectorAll('.ig-conversation').forEach(x => x.classList.toggle('active', x.dataset.id === id));
     try {
       const messages = await InstagramCRMAPI.listMessages(id);
       if (requestId !== threadRequest || selected !== id || !$('ig-thread')) return;
-      pane.innerHTML = '<div class="ig-thread-title">'+esc(conversation?.instagram_sender_id || 'Conversación')+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
+      pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
       const scroll = pane.querySelector('.ig-messages'); if (scroll) scroll.scrollTop = scroll.scrollHeight;
       const input = pane.querySelector('#ig-reply-text');
       if (input) {
@@ -86,11 +123,12 @@
       if ($('ig-list-count')) $('ig-list-count').textContent = conversations.length + ' conversaciones cargadas';
       if ($('ig-load-more')) $('ig-load-more').hidden = conversations.length < visibleLimit;
       if (!$('ig-conversations')) return;
-      $('ig-conversations').innerHTML = conversations.length ? conversations.map(c => '<button type="button" class="ig-conversation" data-id="'+esc(c.id)+'"><strong>'+esc(c.instagram_sender_id || 'Cuenta de Instagram')+'</strong><span>'+esc(c.last_message_preview || 'Sin vista previa')+'</span><small>'+esc(date(c.last_message_at))+'</small></button>').join('') : '<p class="ig-muted">Sin conversaciones todavía. Envía un DM de prueba a la cuenta conectada y actualiza.</p>';
+      $('ig-conversations').innerHTML = conversations.length ? conversations.map(c => '<button type="button" class="ig-conversation" data-id="'+esc(c.id)+'"><strong>'+esc(contactLabel(c.id))+'</strong><span>'+esc(c.last_message_preview || 'Sin vista previa')+'</span><small>'+esc(date(c.last_message_at))+'</small></button>').join('') : '<p class="ig-muted">Sin conversaciones todavía. Envía un DM de prueba a la cuenta conectada y actualiza.</p>';
       $('ig-conversations').querySelectorAll('.ig-conversation').forEach(btn => btn.addEventListener('click', () => openThread(btn.dataset.id)));
       // Avoid rebuilding the composer while typing or while an outbound request is in flight.
       if (selected && conversations.some(c => c.id === selected) && !sending && document.activeElement?.id !== 'ig-reply-text') await openThread(selected);
       else if (!selected && conversations.length) await openThread(conversations[0].id);
+      void refreshProfiles();
     } catch(e) { $('ig-conversations').innerHTML = '<p class="ig-error">No se pudo consultar Instagram. Verifica las tablas, permisos RLS y la conexión.</p>'; console.warn('Instagram inbox:',e); }
     finally { busy = false; if ($('ig-load-more')) $('ig-load-more').disabled = false; }
   }
