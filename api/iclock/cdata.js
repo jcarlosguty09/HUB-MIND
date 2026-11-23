@@ -64,7 +64,12 @@ export default async function handler(req, res) {
           `${process.env.SUPABASE_URL}/rest/v1/zk_user_map?zk_user_id=in.(${pins.join(',')})&select=zk_user_id,user_id`,
           { headers }
         );
-        const mappings = mapResp.ok ? await mapResp.json() : [];
+        if (!mapResp.ok) {
+          console.error('[zk_user_map lookup error]', mapResp.status);
+          return res.status(503).send('ERROR: mapping unavailable\
+');
+        }
+        const mappings = await mapResp.json();
         const pinToUser = {};
         for (const m of mappings) pinToUser[m.zk_user_id] = m.user_id;
 
@@ -80,12 +85,16 @@ export default async function handler(req, res) {
         if (!resp.ok) {
           const errText = await resp.text();
           console.error('[checkins insert error]', resp.status, errText);
+          return res.status(503).send('ERROR: checkins not saved\
+');
         } else {
           console.log(`[checkins] inserted ${rows.length} row(s)`);
         }
       }
     } catch (e) {
       console.error('[rtlog parse error]', e.message);
+      return res.status(503).send('ERROR: ingestion failed\
+');
     }
     return res.status(200).send('OK\n');
   }
