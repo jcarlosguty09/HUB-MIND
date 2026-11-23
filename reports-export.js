@@ -68,9 +68,26 @@
           }
           const members = await MemberAPI.list();
           const names = Object.fromEntries(members.map(m => [m.id, m.full_name || m.email || '']));
+          // Read the plan associated with the membership active at the check-in time,
+          // not necessarily the member's current plan.
+          const [memberships, plans] = await Promise.all([
+            MembershipExcel.all('member_memberships?select=user_id,plan_id,starts_at,expires_at,status'),
+            MembershipExcel.all('membership_plans?select=id,name')
+          ]);
+          const planNames = Object.fromEntries(plans.map(p => [p.id, p.name]));
+          const byMember = {};
+          memberships.forEach(m => (byMember[m.user_id] ||= []).push(m));
+          const membershipAt = c => {
+            const at = new Date(c.timestamp).getTime();
+            const matches = (byMember[c.user_id] || []).filter(m =>
+              (!m.starts_at || new Date(m.starts_at).getTime() <= at) &&
+              (!m.expires_at || new Date(m.expires_at).getTime() >= at));
+            matches.sort((a,b) => new Date(b.starts_at || 0) - new Date(a.starts_at || 0));
+            return matches.length ? (planNames[matches[0].plan_id] || 'Plan no encontrado') : 'Sin membresía identificada';
+          };
           saveCSV('hubmind_asistencias_' + start + '_' + end + '.csv',
-            ['checkin_id','fecha_hora','user_id','miembro','clase_id','manual'],
-            records.map(c => [c.id,c.timestamp,c.user_id,names[c.user_id] || '',c.assigned_class_id,c.is_manual]));
+            ['checkin_id','fecha_hora','user_id','miembro','tipo_membresia','clase_id','manual'],
+            records.map(c => [c.id,c.timestamp,c.user_id,names[c.user_id] || '',membershipAt(c),c.assigned_class_id,c.is_manual]));
         } else {
           const [members, plans, memberships, ledger] = await Promise.all([
             MembershipExcel.all('members_admin?select=*&order=full_name.asc'),
