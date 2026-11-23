@@ -330,6 +330,12 @@ const CheckinAPI = {
   // Check-in manual para un atleta YA registrado
   async createForUser(userId, fullName) {
     try {
+      // Defense in depth: the UI check alone cannot prevent a duplicate when
+      // a face scan arrives between selecting an athlete and pressing save.
+      // A database-side uniqueness/ingestion rule is still required for races.
+      if (await this.hasCheckinToday(userId)) {
+        throw new Error('Este atleta ya tiene un check-in hoy');
+      }
       const token = Auth.getToken();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/checkins`, {
         method: 'POST',
