@@ -451,6 +451,7 @@
   async function selectConversation(id) {
     const conversation = WA.conversations.find(c => c.id === id);
     if (!conversation) return;
+    if (WA.activeId !== id) clearImages();
     WA.activeId = id;
     WA.activeConversation = conversation;
     WA.activeLead = null;
