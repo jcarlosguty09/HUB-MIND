@@ -11,22 +11,16 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_day date;
-  v_identity text;
 BEGIN
   IF NEW.user_id IS NULL AND NEW.zk_user_id IS NULL THEN
     RETURN NEW;
   END IF;
 
   v_day := (NEW."timestamp" AT TIME ZONE 'America/Mexico_City')::date;
-  v_identity := CASE
-    WHEN NEW.user_id IS NOT NULL THEN 'user:' || NEW.user_id::text
-    ELSE 'zk:' || NEW.zk_user_id::text
-  END;
-
   -- Prevent two concurrent check-ins for the same identified athlete.
   PERFORM pg_advisory_xact_lock(
     hashtextextended(
-      NEW.organization_id::text || ':' || v_day::text || ':' || v_identity,
+      NEW.organization_id::text || ':' || v_day::text,
       0
     )
   );
