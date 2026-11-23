@@ -7,6 +7,28 @@
   const sendStatuses = new Map();
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // Only render outbound images from our dedicated public Storage bucket.
+  // Never treat arbitrary message text as an image URL.
+  const outboundImage = message => {
+    if (message.direction !== 'outbound' || typeof message.body !== 'string') return null;
+    const prefix = '[Imagen enviada] ';
+    if (!message.body.startsWith(prefix)) return null;
+    try {
+      const url = new URL(message.body.slice(prefix.length));
+      const storage = new URL(SUPABASE_URL);
+      if (url.protocol !== 'https:' || url.origin !== storage.origin ||
+          !/^\/storage\/v1\/object\/public\/crm-instagram-outbound\/[a-f0-9-]{36}\.jpg$/i.test(url.pathname) ||
+          url.search || url.hash) return null;
+      return url.href;
+    } catch { return null; }
+  };
+  const renderMessageBody = message => {
+    const imageUrl = outboundImage(message);
+    if (imageUrl) return '<a href="' + esc(imageUrl) + '" target="_blank" rel="noopener noreferrer" title="Abrir imagen en tamaño completo">' +
+      '<img src="' + esc(imageUrl) + '" alt="Imagen enviada por Instagram" loading="lazy" style="display:block;max-width:240px;max-height:300px;width:auto;height:auto;border-radius:10px;object-fit:contain" onerror="this.style.display=\'none\';this.parentNode.insertAdjacentText(\'beforeend\',\'Imagen no disponible\')" />' +
+      '</a>';
+    return esc(message.body || (message.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'));
+  };
   const date = v => { if (!v) return ''; const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
   const profiles = new Map();
   const attemptedProfiles = new Map();
@@ -68,7 +90,7 @@
     try {
       const messages = await InstagramCRMAPI.listMessages(id);
       if (requestId !== threadRequest || selected !== id || !$('ig-thread')) return;
-      pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><label for="ig-image-file" class="secondary-btn" style="cursor:pointer">📎 JPG</label><input type="file" id="ig-image-file" accept="image/jpeg" style="display:none"><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
+      pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+renderMessageBody(m)+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><label for="ig-image-file" class="secondary-btn" style="cursor:pointer">📎 JPG</label><input type="file" id="ig-image-file" accept="image/jpeg" style="display:none"><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
       const scroll = pane.querySelector('.ig-messages'); if (scroll) scroll.scrollTop = scroll.scrollHeight;
       const input = pane.querySelector('#ig-reply-text');
       if (input) {
