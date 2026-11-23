@@ -84,6 +84,8 @@
     if (input && button) {
       input.disabled = !info.open;
       button.disabled = !info.open;
+      const picker = shell.querySelector(".wa-image-picker");
+      if (picker) picker.disabled = !info.open;
       input.placeholder = info.open ? 'Escribe un mensaje...' : 'Ventana cerrada · usa una plantilla';
     }
     if (note) {
@@ -283,7 +285,7 @@
             </div>
             <div class="wa-compose">
               <div class="wa-compose-box">
-                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off">
+                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off"><button type="button" class="secondary-btn wa-image-picker" title="Enviar JPG">📎 JPG</button><input type="file" class="wa-image-input" accept="image/jpeg" hidden>
                 <button class="save-btn" title="Enviar mensaje"><i class="ti ti-send"></i></button>
               </div>
               <div class="wa-compose-note">Enter para enviar · Los mensajes salen desde el WhatsApp de Hub Mind.</div>
@@ -304,6 +306,10 @@
 
     const composeInput = shell.querySelector('.wa-compose-input');
     const composeButton = shell.querySelector('.wa-compose .save-btn');
+    const imagePicker = shell.querySelector('.wa-image-picker');
+    const imageInput = shell.querySelector('.wa-image-input');
+    imagePicker?.addEventListener('click', () => { if (WA.serviceWindowOpen) imageInput.click(); });
+    imageInput?.addEventListener('change', async () => { const file = imageInput.files?.[0]; imageInput.value = ''; if (file) await sendActiveImage(file); });
     const templateSelect = $('wa-template-select');
     const templateSend = $('wa-template-send');
     if (templateSelect) templateSelect.addEventListener('change', updateTemplatePreview);
@@ -431,6 +437,31 @@
         refreshBadge();
       }
     }
+  }
+
+  async function sendActiveImage(file) {
+    if (!WA.activeId || !WA.serviceWindowOpen) { alert('La ventana de WhatsApp de 24 horas está cerrada.'); return; }
+    if (file.type !== 'image/jpeg' || file.size > 5000000) { alert('Selecciona un JPG de máximo 5 MB.'); return; }
+    const token = Auth.getToken();
+    if (!token) { alert('Inicia sesión nuevamente.'); return; }
+    const picker = document.querySelector('#wa-inbox-shell .wa-image-picker');
+    if (picker) picker.disabled = true;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (bytes[0] !== 255 || bytes[1] !== 216 || bytes[bytes.length - 2] !== 255 || bytes[bytes.length - 1] !== 217) throw new Error('JPG inválido.');
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      const response = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-send-image', {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+        body: JSON.stringify({ conversation_id: WA.activeId, image_base64: btoa(binary) })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.sent) throw new Error(result.error || 'No se pudo enviar la imagen.');
+      alert('WhatsApp aceptó la imagen. El historial puede tardar en actualizarse.');
+      await renderActiveMessages(true);
+    } catch (error) { alert('Error al enviar JPG: ' + error.message); }
+    finally { updateComposerWindow(WA.activeMessages); }
   }
 
   async function sendActiveMessage() {
