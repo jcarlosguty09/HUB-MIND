@@ -451,13 +451,18 @@
       if (bytes[0] !== 255 || bytes[1] !== 216 || bytes[bytes.length - 2] !== 255 || bytes[bytes.length - 1] !== 217) throw new Error('JPG inválido.');
       let binary = '';
       for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-      const response = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-send-image', {
+      let response;
+      try {
+        response = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-send-image', {
         method: 'POST',
         headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + token, 'content-type': 'application/json' },
         body: JSON.stringify({ conversation_id: WA.activeId, image_base64: btoa(binary) })
-      });
+        });
+      } catch (networkError) {
+        throw new Error('No se pudo conectar a whatsapp-send-image. Comprueba que la Edge Function esté desplegada en Supabase y que responda al preflight CORS (OPTIONS).');
+      }
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.sent) throw new Error(result.error || 'No se pudo enviar la imagen.');
+      if (!response.ok || !result.sent) throw new Error((result.error || 'No se pudo enviar la imagen.') + ' (HTTP ' + response.status + (result.meta_code ? ', Meta ' + result.meta_code : '') + ')');
       alert('WhatsApp aceptó la imagen. El historial puede tardar en actualizarse.');
       await renderActiveMessages(true);
     } catch (error) { alert('Error al enviar JPG: ' + error.message); }
