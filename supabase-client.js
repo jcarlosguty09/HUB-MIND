@@ -1606,7 +1606,7 @@ const InstagramCRMAPI = {
       body: JSON.stringify({ conversation_id: conversationId, image_base64: btoa(binary) })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.sent) throw new Error(data.error === 'meta_send_failed' ? ('Instagram rechazó la imagen (HTTP ' + (data.status || '?') + ', código ' + (data.meta_code ?? '?') + ', subcódigo ' + (data.meta_subcode ?? '—') + ').') : (data.error || 'No se pudo enviar la imagen'));
+    if (!response.ok || !data.sent) throw new Error(data.error === 'image_upload_failed' ? ('Falló Storage (HTTP ' + (data.storage_status || '?') + ', código ' + (data.storage_code || '—') + '). Verifica el bucket crm-instagram-outbound.') : data.error === 'meta_send_failed' ? ('Instagram rechazó la imagen (HTTP ' + (data.status || '?') + ', código ' + (data.meta_code ?? '?') + ', subcódigo ' + (data.meta_subcode ?? '—') + ').') : (data.error || 'No se pudo enviar la imagen'));
     return data;
   },
   async sendMessage(conversationId, text) {
