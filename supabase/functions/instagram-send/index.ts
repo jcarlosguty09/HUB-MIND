@@ -45,8 +45,10 @@ Deno.serve(async (request: Request) => {
   if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) return sendReply({ error: "unauthorized" }, 401);
   let input: unknown;
   try { input = await request.json(); } catch { return sendReply({ error: "invalid_json" }, 400); }
-  if (!isRecord(input) || !validId(input.conversation_id) || typeof input.text !== "string" ||
-      !input.text.trim() || input.text.length > 1000) return sendReply({ error: "invalid_input" }, 400);
+  if (!isRecord(input) || !validId(input.conversation_id) || (typeof input.text !== "string" || !input.text.trim() || input.text.length > 1000) && typeof input.image_base64 !== "string") return sendReply({ error: "invalid_input" }, 400);
+  const imageBase64 = typeof input.image_base64 === "string" ? input.image_base64 : null;
+  if (imageBase64 && (imageBase64.length > 7_000_000 || !/^\/9j\//.test(imageBase64))) return sendReply({error:"invalid_image_jpeg_max_5mb"},400);
+  if (imageBase64 && typeof input.text === "string" && input.text.trim()) return sendReply({error:"send_image_or_text_separately"},400);
   try {
     const headers = { apikey: anon, Authorization: authorization };
     const userResponse = await fetch(base + "/auth/v1/user", { headers });
@@ -72,10 +74,21 @@ Deno.serve(async (request: Request) => {
     if (!isRecord(account)) return sendReply({ error: "account_not_visible_to_user" }, 403);
     if (String(account.instagram_user_id).trim() !== accountId) return sendReply({ error: "account_id_secret_mismatch" }, 403);
 
+    let imageUrl: string | null = null;
+    if (imageBase64) {
+      const bytes = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+      if (bytes.length > 5_000_000 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length-2] !== 0xff || bytes[bytes.length-1] !== 0xd9) return sendReply({error:"invalid_jpeg"},400);
+      const objectName = crypto.randomUUID() + ".jpg";
+      const upload = await fetch(base + "/storage/v1/object/crm-instagram-outbound/" + objectName, {
+        method:"POST", headers:{apikey:serviceKey,Authorization:"Bearer "+serviceKey,"content-type":"image/jpeg","x-upsert":"false"},body:bytes
+      });
+      if (!upload.ok) return sendReply({error:"image_upload_failed"},502);
+      imageUrl = base + "/storage/v1/object/public/crm-instagram-outbound/" + objectName;
+    }
     const response = await fetch("https://graph.instagram.com/" + version + "/" + encodeURIComponent(accountId) + "/messages", {
       method: "POST",
       headers: { Authorization: "Bearer " + accessToken, "content-type": "application/json" },
-      body: JSON.stringify({ recipient: { id: conversation.instagram_sender_id }, message: { text: input.text.trim() } }),
+      body: JSON.stringify({ recipient: { id: conversation.instagram_sender_id }, message: imageUrl ? { attachment: { type:"image", payload:{ url:imageUrl } } } : { text: String(input.text).trim() } }),
     });
     if (!response.ok) {
       console.error("instagram_send_failed", { status: response.status });
@@ -94,7 +107,7 @@ Deno.serve(async (request: Request) => {
           p_actor_id: user.id,
           p_instagram_account_id: accountId,
           p_message_id: messageId,
-          p_body: input.text.trim(),
+          p_body: imageUrl ? "[Imagen enviada] " + imageUrl : String(input.text).trim(),
           p_sent_at: new Date().toISOString()
         }),
       });

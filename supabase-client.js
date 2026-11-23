@@ -1592,6 +1592,23 @@ const InstagramCRMAPI = {
   async listMessages(conversationId) {
     return await sbReq('GET', 'crm_instagram_messages?select=*&conversation_id=eq.' + encodeURIComponent(conversationId) + '&order=instagram_timestamp.asc.nullslast&limit=200');
   },
+  async sendImage(conversationId, file) {
+    if (!file || file.type !== 'image/jpeg' || file.size > 5_000_000) throw new Error('Selecciona una imagen JPG de máximo 5 MB.');
+    const token = Auth.getToken();
+    if (!token) throw new Error('Inicia sesión para enviar imágenes.');
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length-2] !== 0xff || bytes[bytes.length-1] !== 0xd9) throw new Error('Archivo JPG inválido.');
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    const response = await fetch(SUPABASE_URL + '/functions/v1/instagram-send', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, image_base64: btoa(binary) })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.sent) throw new Error(data.error || 'No se pudo enviar la imagen');
+    return data;
+  },
   async sendMessage(conversationId, text) {
     const token = Auth.getToken();
     if (!token) throw new Error('Inicia sesión para enviar mensajes.');
