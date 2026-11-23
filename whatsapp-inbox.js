@@ -77,7 +77,11 @@
         headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+token,'content-type':'application/json'},
         body:JSON.stringify({message_id:messageId})
       });
-      if (!res.ok) throw new Error('Imagen no disponible');
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        const code = typeof detail.error === 'string' ? detail.error : 'http_error';
+        throw new Error(code + ' (HTTP ' + res.status + (typeof detail.status === 'number' ? ', Meta ' + detail.status : '') + ')');
+      }
       const blob = await res.blob();
       if (!blob.type.startsWith('image/')) throw new Error('Formato inválido');
       if (WA.activeId !== conversationId) return;
@@ -85,10 +89,10 @@
       imageUrls.set(messageId,url);
       const node = [...document.querySelectorAll('.wa-image-preview')].find(x=>x.dataset.imageId===messageId);
       if (node) node.innerHTML = '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(url) + '" alt="Imagen de WhatsApp" loading="lazy"></a>';
-    } catch {
+    } catch (error) {
       if (WA.activeId === conversationId) {
         const node = [...document.querySelectorAll('.wa-image-preview')].find(x=>x.dataset.imageId===messageId);
-        if (node) node.textContent = '🖼 Imagen no disponible';
+        if (node) node.textContent = '🖼 Imagen no disponible · ' + (error?.message || 'Error desconocido');
       }
     } finally { pendingImages.delete(messageId); }
   }
