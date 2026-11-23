@@ -68,7 +68,7 @@
     try {
       const messages = await InstagramCRMAPI.listMessages(id);
       if (requestId !== threadRequest || selected !== id || !$('ig-thread')) return;
-      pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
+      pane.innerHTML = '<div class="ig-thread-title">'+esc(contactLabel(id))+'</div><div class="ig-messages">'+(messages.length ? messages.map(m => '<div class="ig-message '+(m.direction === 'outbound' ? 'outbound' : 'inbound')+'"><div>'+esc(m.body || (m.message_type === 'attachment' ? 'Adjunto recibido' : 'Mensaje sin texto'))+'</div><small>'+esc(date(m.instagram_timestamp || m.created_at))+'</small></div>').join('') : '<p class="ig-muted">Aún no hay mensajes en esta conversación.</p>')+'</div><form id="ig-compose" class="ig-compose"><label for="ig-reply-text">Responder a esta conversación</label><textarea id="ig-reply-text" rows="2" maxlength="1000" placeholder="Escribe una respuesta…" required></textarea><div class="ig-compose-actions"><small id="ig-send-status">Las respuestas confirmadas se guardan en el historial.</small><label for="ig-image-file" class="secondary-btn" style="cursor:pointer">📎 JPG</label><input type="file" id="ig-image-file" accept="image/jpeg" style="display:none"><button type="submit" class="save-btn" id="ig-send-btn">Enviar</button></div></form>';
       const scroll = pane.querySelector('.ig-messages'); if (scroll) scroll.scrollTop = scroll.scrollHeight;
       const input = pane.querySelector('#ig-reply-text');
       if (input) {
@@ -79,6 +79,25 @@
       if (savedStatus && pane.querySelector('#ig-send-status')) pane.querySelector('#ig-send-status').textContent = savedStatus;
       if (sending && pane.querySelector('#ig-send-btn')) pane.querySelector('#ig-send-btn').disabled = true;
       const form = pane.querySelector('#ig-compose');
+      form?.querySelector('#ig-image-file')?.addEventListener('change', async event => {
+        const file = event.target.files?.[0];
+        if (!file || sending || selected !== id) return;
+        const status = form.querySelector('#ig-send-status');
+        const button = form.querySelector('#ig-send-btn');
+        sending = true; button.disabled = true; status.textContent = 'Enviando imagen…';
+        try {
+          const result = await InstagramCRMAPI.sendImage(id, file);
+          status.textContent = result.persisted ? 'Imagen enviada y registrada.' : 'Imagen enviada, pero no registrada. No la reenvíes.';
+          sendStatuses.set(id, status.textContent);
+          if (result.persisted && selected === id) await openThread(id);
+        } catch (error) {
+          status.textContent = 'No enviado: ' + (error?.message || 'Error de conexión');
+          sendStatuses.set(id, status.textContent);
+        } finally {
+          sending = false; button.disabled = false;
+          if (event.target.isConnected) event.target.value = '';
+        }
+      });
       form?.addEventListener('submit', async event => {
         event.preventDefault();
         if (sending || selected !== id) return;
