@@ -463,7 +463,7 @@
       }
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.sent) throw new Error((result.error || 'No se pudo enviar la imagen.') + ' (HTTP ' + response.status + (result.meta_code ? ', Meta ' + result.meta_code : '') + ')');
-      alert('WhatsApp aceptó la imagen. El historial puede tardar en actualizarse.');
+      alert(result.persisted ? 'Imagen enviada y registrada en el historial.' : 'Imagen enviada a WhatsApp, pero no se pudo registrar en el historial. No la reenvíes.');
       await renderActiveMessages(true);
     } catch (error) { alert('Error al enviar JPG: ' + error.message); }
     finally { updateComposerWindow(WA.activeMessages); }
