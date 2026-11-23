@@ -36,7 +36,7 @@
 .wa-inbox-topbar .icon-btn,.ig-head .icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid #e7ecf3;background:#fff}
 .wa-template-panel{padding:16px 20px}.wa-template-select{min-height:42px;border-radius:12px}
 .ig-inbox{--msg-accent:#b444a1}
-.ig-inbox[open]{border:0!important;border-radius:18px!important;box-shadow:0 28px 85px rgba(15,23,42,.22)!important;overflow:hidden}
+.ig-inbox[open]{border:0!important;overflow:hidden}
 .ig-inbox .ig-head{padding:19px 24px!important;background:#fff;border-bottom:1px solid var(--msg-line)}
 .ig-inbox .ig-head h3{font-size:19px!important;letter-spacing:-.035em;margin:0 0 5px}
 .ig-inbox .ig-head p{font-size:11px;color:var(--msg-muted)}
@@ -66,3 +66,5 @@
 .ig-inbox #ig-send-btn:hover{background:#8f3185!important}
 @media(max-width:1100px){.wa-inbox-main{grid-template-columns:280px minmax(0,1fr)}.wa-lead-panel{display:none}}
 @media(max-width:699px){.wa-inbox-topbar{height:62px;flex-basis:62px;padding:0 14px}.wa-inbox-main{display:block}.wa-chat-head{height:64px;flex-basis:64px;padding:0 12px}.wa-messages{padding:14px}.wa-bubble{max-width:88%}.wa-compose{padding:12px}.wa-image-picker{padding:0 10px!important}.ig-inbox .ig-head{padding:14px!important}.ig-inbox .ig-messages{padding:14px!important}.ig-inbox .ig-compose{padding:12px!important}}
+
+.wa-image-picker i,.ig-inbox label[for="ig-image-file"] i{font-size:17px;line-height:1}
