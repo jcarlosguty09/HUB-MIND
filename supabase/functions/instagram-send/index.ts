@@ -91,8 +91,16 @@ Deno.serve(async (request: Request) => {
       body: JSON.stringify({ recipient: { id: conversation.instagram_sender_id }, message: imageUrl ? { attachment: { type:"image", payload:{ url:imageUrl } } } : { text: String(input.text).trim() } }),
     });
     if (!response.ok) {
-      console.error("instagram_send_failed", { status: response.status });
-      return sendReply({ error: "meta_send_failed", status: response.status }, 502);
+      // Meta may return user-identifying content and request traces. Only expose numeric
+      // error codes and a generic category; keep full messages/tokens out of responses.
+      const failure: unknown = await response.json().catch(() => null);
+      const metaError = isRecord(failure) && isRecord(failure.error) ? failure.error : null;
+      const code = typeof metaError?.code === "number" ? metaError.code : null;
+      const subcode = typeof metaError?.error_subcode === "number" ? metaError.error_subcode : null;
+      const category = typeof metaError?.type === "string" && /^[A-Za-z_]{1,80}$/.test(metaError.type)
+        ? metaError.type : null;
+      console.error("instagram_send_failed", { status: response.status, code, subcode, category });
+      return sendReply({ error: "meta_send_failed", status: response.status, meta_code: code, meta_subcode: subcode, meta_type: category }, 502);
     }
     const data: unknown = await response.json();
     const messageId = isRecord(data) && typeof data.message_id === "string" ? data.message_id : null;
