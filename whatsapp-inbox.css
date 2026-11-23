@@ -68,3 +68,6 @@
 .wa-template-send{white-space:nowrap!important}.wa-template-send:disabled{cursor:not-allowed;opacity:.45}
 .wa-template-preview{margin-top:8px;padding:10px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:10px;line-height:1.45;color:var(--text2);white-space:pre-wrap}
 @media(max-width:699px){.wa-template-controls{align-items:stretch;flex-direction:column}.wa-template-send{width:100%}}
+
+.wa-image-preview{min-width:130px;min-height:32px;font-size:11px;color:var(--text3)}
+.wa-image-preview img{display:block;max-width:min(260px,60vw);max-height:320px;width:auto;height:auto;object-fit:contain;border-radius:9px}

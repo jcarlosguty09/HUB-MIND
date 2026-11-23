@@ -51,6 +51,47 @@
     return '';
   };
 
+  // Fetch media only for image records visible through the caller's RLS.
+  // Blob URLs stay in this browser session and are revoked on conversation changes.
+  const imageUrls = new Map();
+  const pendingImages = new Set();
+  const clearImages = () => {
+    for (const url of imageUrls.values()) URL.revokeObjectURL(url);
+    imageUrls.clear();
+    pendingImages.clear();
+  };
+  const isImage = m => m.message_type === 'image' && /^[a-f0-9-]{36}$/i.test(m.id || '');
+  const renderBody = m => isImage(m)
+    ? '<div class="wa-image-preview" data-image-id="' + esc(m.id) + '">' +
+      (imageUrls.has(m.id) ? '<a href="' + esc(imageUrls.get(m.id)) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(imageUrls.get(m.id)) + '" alt="Imagen de WhatsApp" loading="lazy"></a>' : '<span>🖼 Cargando imagen…</span>') +
+      '</div>'
+    : esc(m.body || '[' + (m.message_type || 'mensaje') + ']');
+  async function loadImage(messageId, conversationId) {
+    if (pendingImages.has(messageId) || imageUrls.has(messageId)) return;
+    pendingImages.add(messageId);
+    try {
+      const token = Auth.getToken();
+      if (!token) throw new Error('Sesión expirada');
+      const res = await fetch(SUPABASE_URL + '/functions/v1/whatsapp-media', {
+        method:'POST',
+        headers:{apikey:SUPABASE_ANON,Authorization:'Bearer '+token,'content-type':'application/json'},
+        body:JSON.stringify({message_id:messageId})
+      });
+      if (!res.ok) throw new Error('Imagen no disponible');
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('Formato inválido');
+      if (WA.activeId !== conversationId) return;
+      const url = URL.createObjectURL(blob);
+      imageUrls.set(messageId,url);
+      const node = [...document.querySelectorAll('.wa-image-preview')].find(x=>x.dataset.imageId===messageId);
+      if (node) node.innerHTML = '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"><img src="' + esc(url) + '" alt="Imagen de WhatsApp" loading="lazy"></a>';
+    } catch {
+      if (WA.activeId === conversationId) {
+        const node = [...document.querySelectorAll('.wa-image-preview')].find(x=>x.dataset.imageId===messageId);
+        if (node) node.textContent = '🖼 Imagen no disponible';
+      }
+    } finally { pendingImages.delete(messageId); }
+  }
   const getServiceWindow = messages => {
     const inbound = [...messages].reverse().find(m => m.direction === 'inbound');
     if (!inbound) return { open:false, until:null };
@@ -410,6 +451,7 @@
   async function selectConversation(id) {
     const conversation = WA.conversations.find(c => c.id === id);
     if (!conversation) return;
+    if (WA.activeId !== id) clearImages();
     WA.activeId = id;
     WA.activeConversation = conversation;
     WA.activeLead = null;
@@ -541,9 +583,10 @@
     }
     root.innerHTML = messages.map(m => `
       <div class="wa-bubble ${m.direction === 'outbound' ? 'outbound' : 'inbound'}">
-        <div class="wa-bubble-body">${esc(m.body || '[' + (m.message_type || 'mensaje') + ']')}</div>
+        <div class="wa-bubble-body">${renderBody(m)}</div>
         <div class="wa-bubble-meta"><span>${esc(fmtDateTime(m.whatsapp_timestamp || m.created_at))}</span>${statusIndicator(m)}</div>
       </div>`).join('');
+    messages.filter(isImage).forEach(m => { if (!imageUrls.has(m.id)) void loadImage(m.id, WA.activeId); });
     if (scrollBottom) requestAnimationFrame(() => { root.scrollTop = root.scrollHeight; });
   }
 
