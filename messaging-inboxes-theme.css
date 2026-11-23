@@ -1,0 +1,70 @@
+/* HUB MIND — Unified messaging workspace refresh. Scoped; does not change messaging logic. */
+.wa-inbox-shell,.ig-inbox{--msg-accent:#16a34a;--msg-line:#e6eaf0;--msg-muted:#64748b;--msg-soft:#f7f9fc;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wa-inbox-shell{background:#f7f9fc}
+.wa-inbox-topbar{height:76px;flex-basis:76px;padding:0 26px;background:#fff;border-bottom:1px solid var(--msg-line);box-shadow:0 2px 14px rgba(15,23,42,.025)}
+.wa-inbox-title{font-size:19px;letter-spacing:-.035em}.wa-inbox-title i{font-size:24px}
+.wa-inbox-sub{font-size:11px;margin-top:5px;letter-spacing:.01em}
+.wa-inbox-main{grid-template-columns:minmax(265px,310px) minmax(390px,1fr) minmax(245px,285px);gap:0;background:#f7f9fc}
+.wa-panel{background:#fff;border-color:var(--msg-line)}
+.wa-list-head{padding:18px 14px}.wa-search{height:44px;border-radius:12px;background:#f6f8fb;border:1px solid #e8edf3;font-size:12px;padding-left:15px;transition:border-color .15s,box-shadow .15s}
+.wa-search:focus{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.1)}
+.wa-conv{padding:17px 16px;gap:12px;border-color:#f0f2f5;transition:background .15s}
+.wa-conv:hover{background:#f8fafc}.wa-conv.active{background:#effaf3;box-shadow:inset 3px 0 #22c55e}
+.wa-avatar{width:42px;height:42px;border-radius:15px;background:#f1f5f9;border-color:#e7edf4;font-size:12px;color:#334155}
+.wa-conv-name{font-size:12px}.wa-conv-preview{font-size:11px;margin-top:6px}.wa-conv-time{font-size:10px}
+.wa-chat-head{height:76px;flex-basis:76px;padding:0 22px;background:#fff;border-color:var(--msg-line)}
+.wa-chat-name{font-size:14px;letter-spacing:-.02em}.wa-chat-phone{font-size:11px;margin-top:4px}
+.wa-window-status{font-size:10px;padding:8px 11px;font-weight:700}
+.wa-messages{padding:26px 28px;gap:11px;background:radial-gradient(circle at 80% 8%,rgba(34,197,94,.035),transparent 35%),#f7f9fc}
+.wa-bubble{max-width:min(76%,580px);padding:12px 14px;border-radius:16px 16px 16px 5px;background:#fff;border:1px solid #e8edf2;box-shadow:0 2px 9px rgba(15,23,42,.035)}
+.wa-bubble.outbound{border-radius:16px 16px 5px 16px;background:#e6f8ed;border-color:#c8ead6}
+.wa-bubble-body{font-size:12px;line-height:1.6}.wa-bubble-meta{font-size:10px;margin-top:7px;gap:7px}
+.wa-image-preview img{max-width:min(310px,58vw);max-height:360px;border-radius:12px}
+.wa-compose{padding:16px 20px 14px;border-color:var(--msg-line);background:#fff}
+.wa-compose-box{gap:10px;align-items:center}
+.wa-compose-input{min-height:46px;border:1px solid #e4e9f0!important;background:#f8fafc!important;border-radius:13px!important;padding:12px 15px!important;font-size:12px!important}
+.wa-compose-input:focus{outline:0!important;border-color:#22c55e!important;box-shadow:0 0 0 3px rgba(34,197,94,.1)!important}
+.wa-image-picker{height:44px!important;min-width:44px!important;display:inline-flex!important;align-items:center;justify-content:center;gap:7px;border-radius:12px!important;border:1px solid #e4e9f0!important;background:#fff!important;color:#334155!important;font-size:12px!important;font-weight:700!important;padding:0 12px!important;cursor:pointer}
+.wa-image-picker:hover{background:#f1f5f9!important}
+.wa-compose .save-btn{height:44px!important;min-width:46px!important;border-radius:12px!important;background:#16a34a!important;border:0!important;box-shadow:0 4px 12px rgba(22,163,74,.18)}
+.wa-compose .save-btn:hover{background:#15803d!important}
+.wa-compose-note{font-size:10px!important;line-height:1.5;margin-top:8px;color:#94a3b8!important}
+.wa-lead-panel{padding:22px 16px;background:#fff}.wa-lead-label{font-size:10px;letter-spacing:.1em}.wa-lead-name{font-size:17px;line-height:1.3;letter-spacing:-.03em}
+.wa-lead-contact{font-size:11px;margin-top:5px}.wa-lead-grid{gap:10px;margin-top:22px}
+.wa-lead-field{padding:13px 14px;border-radius:12px;border:1px solid #edf0f4;background:#f8fafc}
+.wa-lead-field span{font-size:9px;margin-bottom:7px}.wa-lead-field strong{font-size:12px}
+.wa-inbox-topbar .icon-btn,.ig-head .icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid #e7ecf3;background:#fff}
+.wa-template-panel{padding:16px 20px}.wa-template-select{min-height:42px;border-radius:12px}
+.ig-inbox{--msg-accent:#b444a1}
+.ig-inbox[open]{border:0!important;overflow:hidden}
+.ig-inbox .ig-head{padding:19px 24px!important;background:#fff;border-bottom:1px solid var(--msg-line)}
+.ig-inbox .ig-head h3{font-size:19px!important;letter-spacing:-.035em;margin:0 0 5px}
+.ig-inbox .ig-head p{font-size:11px;color:var(--msg-muted)}
+.ig-inbox .ig-head-actions .secondary-btn{border-radius:11px!important;padding:10px 14px!important;background:#f8fafc!important;border:1px solid #e5eaf0!important;font-weight:700}
+.ig-inbox .ig-layout{background:#fff}
+.ig-inbox .ig-list-panel{background:#fff;border-right:1px solid var(--msg-line)}
+.ig-inbox .ig-conversation{padding:17px 16px!important;border-bottom:1px solid #edf0f5!important;transition:background .15s}
+.ig-inbox .ig-conversation:hover{background:#faf8fc!important}.ig-inbox .ig-conversation.active{background:#f9f0fa!important;box-shadow:inset 3px 0 #c45ab6}
+.ig-inbox .ig-conversation strong{font-size:12px;letter-spacing:-.01em}
+.ig-inbox .ig-conversation span{font-size:11px;color:var(--msg-muted)}
+.ig-inbox .ig-conversation small{font-size:10px}
+.ig-inbox .ig-thread{background:#f7f9fc}
+.ig-inbox .ig-thread-title{background:#fff!important;padding:19px 22px!important;font-size:14px!important;font-weight:800!important;border-bottom:1px solid var(--msg-line)}
+.ig-inbox .ig-messages{padding:24px!important;gap:11px!important;background:#f7f9fc}
+.ig-inbox .ig-message{padding:12px 14px!important;border-radius:16px 16px 16px 5px!important;border:1px solid #e8edf2;background:#fff!important;box-shadow:0 2px 9px rgba(15,23,42,.035);font-size:12px;line-height:1.55}
+.ig-inbox .ig-message.outbound{background:#f5eafa!important;border-color:#ead8f0!important;border-radius:16px 16px 5px 16px!important}
+.ig-inbox .ig-message img{border-radius:12px!important;max-width:min(300px,60vw)!important;max-height:360px!important}
+.ig-inbox .ig-message small{font-size:10px;color:#94a3b8}
+.ig-inbox .ig-compose{background:#fff!important;border-top:1px solid var(--msg-line);padding:16px 20px!important}
+.ig-inbox .ig-compose label[for="ig-reply-text"]{font-size:11px;font-weight:700;margin-bottom:7px}
+.ig-inbox #ig-reply-text{background:#f8fafc!important;border:1px solid #e4e9f0!important;border-radius:13px!important;padding:12px 14px!important;font-size:12px!important;resize:vertical}
+.ig-inbox #ig-reply-text:focus{outline:0;border-color:#c45ab6!important;box-shadow:0 0 0 3px rgba(196,90,182,.09)}
+.ig-inbox .ig-compose-actions{display:flex;align-items:center;gap:10px;margin-top:10px}
+.ig-inbox #ig-send-status{font-size:10px;color:#94a3b8;margin-right:auto}
+.ig-inbox label[for="ig-image-file"]{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 14px!important;border:1px solid #e4e9f0!important;background:#fff!important;color:#334155!important;border-radius:11px!important;font-size:12px;font-weight:700;white-space:nowrap}
+.ig-inbox #ig-send-btn{min-height:40px;border:0!important;border-radius:11px!important;background:#a83b9b!important;color:#fff!important;padding:0 19px!important;font-weight:800}
+.ig-inbox #ig-send-btn:hover{background:#8f3185!important}
+@media(max-width:1100px){.wa-inbox-main{grid-template-columns:280px minmax(0,1fr)}.wa-lead-panel{display:none}}
+@media(max-width:699px){.wa-inbox-topbar{height:62px;flex-basis:62px;padding:0 14px}.wa-inbox-main{display:block}.wa-chat-head{height:64px;flex-basis:64px;padding:0 12px}.wa-messages{padding:14px}.wa-bubble{max-width:88%}.wa-compose{padding:12px}.wa-image-picker{padding:0 10px!important}.ig-inbox .ig-head{padding:14px!important}.ig-inbox .ig-messages{padding:14px!important}.ig-inbox .ig-compose{padding:12px!important}}
+
+.wa-image-picker i,.ig-inbox label[for="ig-image-file"] i{font-size:17px;line-height:1}

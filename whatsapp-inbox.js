@@ -330,7 +330,7 @@
             </div>
             <div class="wa-compose">
               <div class="wa-compose-box">
-                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off"><button type="button" class="secondary-btn wa-image-picker" title="Enviar JPG">📎 JPG</button><input type="file" class="wa-image-input" accept="image/jpeg" hidden>
+                <input class="wa-compose-input" value="" placeholder="Escribe un mensaje..." autocomplete="off"><button type="button" class="secondary-btn wa-image-picker" title="Adjuntar fotografía JPG" aria-label="Adjuntar fotografía JPG"><i class="ti ti-photo-plus" aria-hidden="true"></i><span>Foto</span></button><input type="file" class="wa-image-input" accept="image/jpeg" hidden>
                 <button class="save-btn" title="Enviar mensaje"><i class="ti ti-send"></i></button>
               </div>
               <div class="wa-compose-note">Enter para enviar · Los mensajes salen desde el WhatsApp de Hub Mind.</div>
