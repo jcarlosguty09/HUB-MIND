@@ -82,7 +82,7 @@ Deno.serve(async (request: Request) => {
       const upload = await fetch(base + "/storage/v1/object/crm-instagram-outbound/" + objectName, {
         method:"POST", headers:{apikey:serviceKey,Authorization:"Bearer "+serviceKey,"content-type":"image/jpeg","x-upsert":"false"},body:bytes
       });
-      if (!upload.ok) return sendReply({error:"image_upload_failed"},502);
+      if (!upload.ok) { const detail = await upload.json().catch(() => null); console.error("instagram_image_upload_failed", { status: upload.status, code: isRecord(detail) && typeof detail.error === "string" ? detail.error : null }); return sendReply({error:"image_upload_failed",storage_status:upload.status,storage_code:isRecord(detail) && typeof detail.error === "string" ? detail.error : null},502); }
       imageUrl = base + "/storage/v1/object/public/crm-instagram-outbound/" + objectName;
     }
     const response = await fetch("https://graph.instagram.com/" + version + "/" + encodeURIComponent(accountId) + "/messages", {
