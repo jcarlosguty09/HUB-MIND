@@ -76,7 +76,7 @@ export default async function handler(req, res) {
         // Asignar user_id (null si no está mapeado todavía)
         for (const r of rows) r.user_id = pinToUser[r.zk_user_id] || null;
 
-        const resp = await fetch(`${process.env.SUPABASE_URL}/rest/v1/checkins`, {
+        const resp = await fetch(`${process.env.SUPABASE_URL}/rest/v1/checkins?on_conflict=organization_id,zk_user_id,checkin_date`, {
           method: 'POST',
           headers: { ...headers, 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
 
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
           return res.status(503).send('ERROR: checkins not saved\
 ');
         } else {
-          console.log(`[checkins] inserted ${rows.length} row(s)`);
+          console.log(`[checkins] accepted ${rows.length} row(s), including duplicates`);
         }
       }
     } catch (e) {
