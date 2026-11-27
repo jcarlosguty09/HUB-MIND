@@ -361,6 +361,7 @@
     @media(max-width:650px){.ig-inbox[open] .ig-layout{grid-template-rows:auto minmax(260px,1fr)}}
   </style>
 
+<link rel="stylesheet" href="/competition.css">
 </head>
 <body data-theme="dark">
 
@@ -428,6 +429,7 @@
       <button class="nav-tab" data-view="reports" id="nav-tab-reports" style="display:none"><i class="ti ti-chart-bar"></i><span>Reportes</span></button>
       <button class="nav-tab" data-view="finance" id="nav-tab-finance" style="display:none"><i class="ti ti-wallet"></i><span>Finanzas</span></button>
       <button class="nav-tab" data-view="crm" id="nav-tab-crm" style="display:none"><i class="ti ti-address-book"></i><span>CRM</span></button>
+      <button class="nav-tab" data-view="competitions"><span>Competitions</span></button>
       <button class="nav-tab" data-view="hyrox-race"><i class="ti ti-flag-checkered"></i><span>HYROX Race</span></button>
       <button class="nav-tab" data-view="leaderboard-admin"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-view="history"><i class="ti ti-history"></i><span>Historial</span></button>
@@ -948,6 +950,7 @@
       </div>
 
       <!-- LEADERBOARD VIEW (admin/coach) -->
+      <section id="view-competitions" class="view"><div id="competition-admin"></div></section>
       <section id="view-hyrox-race" class="view"><div id="race-control-admin"></div></section>
       <section id="view-leaderboard-admin" class="view">
       </section>
@@ -980,6 +983,7 @@
       <button class="nav-tab active" data-aview="today"><i class="ti ti-barbell"></i><span>Hoy</span></button>
       <button class="nav-tab" data-aview="tomorrow"><i class="ti ti-calendar-event"></i><span>Mañana</span></button>
       <button class="nav-tab" data-aview="classes"><i class="ti ti-clock"></i><span>Clases</span></button>
+      <button class="nav-tab" data-aview="competitions"><span>Competitions</span></button>
       <button class="nav-tab" data-aview="hyrox-race"><i class="ti ti-flag-checkered"></i><span>HYROX Race</span></button>
       <button class="nav-tab" data-aview="leaderboard"><i class="ti ti-trophy"></i><span>Ranking</span></button>
       <button class="nav-tab" data-aview="dashboard"><i class="ti ti-user"></i><span>Mi Perfil</span></button>
@@ -1000,6 +1004,7 @@
         </div>
         <div id="aclasses-list" class="classes-list"></div>
       </section>
+      <section id="aview-competitions" class="view"><div id="competition-athlete"></div></section>
       <section id="aview-hyrox-race" class="view"><div id="race-control-athlete"></div></section>
       <section id="aview-leaderboard" class="view">
         <!-- Injected by renderGlobalLeaderboard('atleta') -->
@@ -1154,6 +1159,8 @@
   <script src="/supabase-client.js?v=ig-profiles-v1"></script>
   <script src="/timer.js"></script>
   <script src="/race-control.js?v=8"></script>
+  <script src="/competition-engine.js"></script>
+  <script src="/competition-control.js"></script>
   <script src="/app.js"></script>
   <script src="/membership-excel.js?v=1"></script>
   <script src="/reports-export.js?v=2"></script>
