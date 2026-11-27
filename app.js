@@ -122,13 +122,13 @@ const STAFF_ROLE_LABELS = {
 
 const ROLE_ALLOWED_VIEWS = {
   // Admin Maestro: acceso total de operación de la organización.
-  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','finance','crm','leaderboard-admin','history','hyrox-race']),
+  master_admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','finance','crm','leaderboard-admin','history','hyrox-race','competitions']),
 
   // Admin: entrenamiento + operación + CRM. No es el rol máximo.
-  admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race']),
+  admin: new Set(['dashboard-admin','calendar','today','classes','checkins','members','reports','crm','leaderboard-admin','history','hyrox-race','competitions']),
 
   // Coach: entrenamiento y operación deportiva. NO ve CRM.
-  coach: new Set(['calendar','today','classes','checkins','leaderboard-admin','history','hyrox-race']),
+  coach: new Set(['calendar','today','classes','checkins','leaderboard-admin','history','hyrox-race','competitions']),
 
   // Sales: solamente CRM.
   sales: new Set(['crm']),
@@ -199,6 +199,7 @@ function showView(v) {
   if (v === 'reports') { renderReports(); window.refreshReportExportPermissions?.(); }
   if (v === 'finance') FinanceUI.render();
   if (v === 'crm') { renderCRM(); window.InstagramInbox?.render(); }
+  if (v === 'competitions') CompetitionControl.render('competition-admin');
   if (v === 'hyrox-race') RaceControl.render('race-control-admin');
 }
 
@@ -2311,6 +2312,7 @@ async function init() {
       if (btn.dataset.aview === 'dashboard')   renderAthleteDashboard();
       if (btn.dataset.aview === 'leaderboard') renderGlobalLeaderboard('aview-leaderboard');
       if (btn.dataset.aview === 'classes')     renderClasses('aclasses-list', 'aclasses-date-label');
+      if (btn.dataset.aview === 'competitions') CompetitionControl.render('competition-athlete');
       if (btn.dataset.aview === 'hyrox-race') RaceControl.render('race-control-athlete');
     });
   });
