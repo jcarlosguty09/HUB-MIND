@@ -1,1 +1,28 @@
 .comp-shell{max-width:1200px;margin:auto;padding:16px}.comp-shell nav{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.comp-shell button,.comp-shell input,.comp-shell select{font:inherit;padding:10px;border:1px solid #777;border-radius:8px;background:transparent;color:inherit;margin:4px}.comp-shell button{cursor:pointer}.comp-shell button[aria-current=page]{background:#287d46;color:white}.comp-shell article{border:1px solid #7775;border-radius:12px;padding:16px;margin:10px 0}.comp-clock{font-size:clamp(48px,10vw,120px);font-weight:800;text-align:center;font-variant-numeric:tabular-nums}.comp-counter{display:flex;align-items:center;gap:12px;justify-content:space-between}.comp-counter button{min-width:48px;min-height:48px}.comp-total{font-size:32px}.comp-arenas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.comp-arenas p{font-size:clamp(18px,3vw,36px)}.comp-shell [data-error]{color:#e65b5b}
+/* Competition-only visual system; independent of global theme. */
+.comp-shell{--c-bg:#0b1018;--c-panel:#151e2c;--c-line:#344258;--c-ink:#f4f7ff;--c-accent:#75baff;box-sizing:border-box;color:var(--c-ink);background:radial-gradient(ellipse at top right,#19395c 0,transparent 48%),var(--c-bg);border:1px solid var(--c-line);border-radius:22px;padding:clamp(16px,3vw,40px);margin:24px auto;box-shadow:0 16px 48px #0003;min-height:65vh;font-family:system-ui,sans-serif}
+.comp-shell h2{font-size:clamp(24px,4vw,46px);font-weight:900;letter-spacing:-.045em;line-height:1.05;margin:8px 0 20px;color:var(--c-ink)}
+.comp-shell>h2:before{content:"HUB MIND / COMPETITION SERIES";display:block;font-size:11px;letter-spacing:.22em;color:var(--c-accent);margin-bottom:14px}
+.comp-shell h3{font-size:19px;font-weight:800;letter-spacing:.025em;margin:22px 0 12px;color:var(--c-ink)}
+.comp-shell nav{border-bottom:1px solid var(--c-line);padding:12px 0 18px;gap:8px}
+.comp-shell button,.comp-shell input,.comp-shell select{box-sizing:border-box;background:#1c293b;color:var(--c-ink);border:1px solid var(--c-line);border-radius:9px;padding:12px 16px;min-height:44px;font-weight:650;max-width:100%}
+.comp-shell select option{background:#172334;color:#fff}
+.comp-shell input::placeholder{color:#a7b6cc}
+.comp-shell button:hover{border-color:var(--c-accent);background:#253b55}
+.comp-shell button:focus-visible,.comp-shell input:focus-visible,.comp-shell select:focus-visible{outline:3px solid var(--c-accent);outline-offset:2px}
+.comp-shell button[aria-current=page],.comp-shell button[data-action^="start:"]{background:#75baff;color:#081423;border-color:#75baff;font-weight:850}
+.comp-shell button[data-action^="cancel:"],.comp-shell button[data-action^="dq:"]{color:#ffb4b4;border-color:#85474d}
+.comp-shell article{background:linear-gradient(135deg,#1a283a,#121b28);border:1px solid var(--c-line);border-left:4px solid #75baff;border-radius:12px;padding:20px;box-shadow:0 5px 18px #0002;overflow-wrap:anywhere}
+.comp-shell article p{color:#d5e1f3}
+.comp-shell .comp-clock{background:#080d15;border:1px solid #35465e;border-radius:16px;padding:16px 8px;margin:18px 0;font-size:clamp(64px,13vw,180px);line-height:1.05;letter-spacing:-.07em;color:#fff;text-shadow:0 0 35px #75baff30}
+.comp-shell .comp-total{display:block;font-size:clamp(36px,6vw,68px);font-weight:900;color:#75baff;font-variant-numeric:tabular-nums}
+.comp-shell .comp-counter{border-top:1px solid #344258;padding:10px 0;gap:8px}
+.comp-shell .comp-counter b{font-size:24px;font-variant-numeric:tabular-nums}
+.comp-shell .comp-counter button{min-width:52px;min-height:52px;font-size:24px;padding:6px}
+.comp-shell .comp-arenas{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:20px}
+.comp-shell .comp-arenas article:nth-child(2){border-left-color:#f4bb68}
+.comp-shell .comp-arenas h2{font-size:clamp(22px,3vw,38px);text-transform:uppercase;letter-spacing:-.025em}
+.comp-shell .comp-arenas p{border-top:1px solid var(--c-line);padding-top:16px;font-size:clamp(20px,3vw,40px)}
+.comp-shell .comp-arenas strong{color:#75baff;font-variant-numeric:tabular-nums}
+.comp-shell [data-error]{color:#ffb4b4;font-weight:700}
+@media(max-width:600px){.comp-shell{margin:8px auto;border-radius:12px;padding:14px}.comp-shell nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.comp-shell nav button{margin:0;padding:10px 5px}.comp-shell article{padding:14px}.comp-shell .comp-counter{flex-wrap:wrap}.comp-shell input{width:100%}}
