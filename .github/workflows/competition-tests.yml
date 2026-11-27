@@ -1,0 +1,17 @@
+name: Competition checks
+on:
+  pull_request:
+  push:
+    branches: [feat/competition-engine-v1]
+jobs:
+  competition:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check competition-control.js
+      - run: node --check competition-engine.js
+      - run: node --check app.js
+      - run: node tests/competition-engine.test.cjs
