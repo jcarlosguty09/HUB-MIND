@@ -26,3 +26,5 @@
 .comp-shell .comp-arenas strong{color:#75baff;font-variant-numeric:tabular-nums}
 .comp-shell [data-error]{color:#ffb4b4;font-weight:700}
 @media(max-width:600px){.comp-shell{margin:8px auto;border-radius:12px;padding:14px}.comp-shell nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.comp-shell nav button{margin:0;padding:10px 5px}.comp-shell article{padding:14px}.comp-shell .comp-counter{flex-wrap:wrap}.comp-shell input{width:100%}}
+
+.comp-brief-nav{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.comp-brief-nav button{border-color:#75baff}.comp-brief-body{font-size:clamp(22px,4vw,48px);line-height:1.5;font-weight:750}.comp-brief h3{color:#75baff;font-size:clamp(20px,3vw,36px)}
