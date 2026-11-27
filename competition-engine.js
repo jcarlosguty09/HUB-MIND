@@ -9,10 +9,11 @@ function pair(athletes, random=Math.random){
 }
 function plan(teams,events,history,{heat=1,restHeats=0}={}){
  const done=new Set(history.filter(h=>h.status==='confirmed').map(h=>JSON.stringify([h.team_id,h.event_id])));
- const blocked=new Set(history.filter(h=>['running','scheduled','review'].includes(h.status)).map(h=>h.team_id));
+ const blocked=new Set(history.filter(h=>['running','scheduled','ready','review'].includes(h.status)).map(h=>h.team_id));
  const last=new Map();for(const h of history.filter(h=>h.status==='confirmed'))last.set(h.team_id,Math.max(last.get(h.team_id)||0,h.heat||0));
+ const completed=new Map();for(const key of done){const [id]=JSON.parse(key);completed.set(id,(completed.get(id)||0)+1);}
  const eligible=teams.filter(t=>t.status==='active'&&!blocked.has(t.id)&&(!last.has(t.id)||heat-last.get(t.id)>restHeats))
- .sort((a,b)=>String(a.activated_at).localeCompare(String(b.activated_at))||String(a.id).localeCompare(String(b.id)));
+ .sort((a,b)=>(completed.get(a.id)||0)-(completed.get(b.id)||0)||(last.get(a.id)||0)-(last.get(b.id)||0)||String(a.activated_at).localeCompare(String(b.activated_at))||String(a.id).localeCompare(String(b.id)));
  const slots=events.flatMap(e=>Array.from({length:e.capacity},(_,i)=>({event_id:e.id,lane:i+1})));
  // Augmenting paths maximize occupied lanes without double-booking a team.
  const assigned=new Map();
