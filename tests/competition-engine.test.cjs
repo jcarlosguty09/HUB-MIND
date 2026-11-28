@@ -19,3 +19,13 @@ assert.throws(()=>score({rounds:1,partial:20,bonus:0},{roundValue:20,bonusValue:
 assert.equal(plan([{id:1,status:'active'}],events,[{team_id:1,event_id:1,status:'running'}]).length,0);
 const ranked=leaderboard([{id:1},{id:2},{id:3,status:'disqualified'}],[{id:1}],[{team_id:1,event_id:1,status:'confirmed',score:10},{team_id:2,event_id:1,status:'confirmed',score:20},{team_id:3,event_id:1,status:'confirmed',score:30}]);assert.equal(ranked[0].team_id,2);assert.equal(ranked[2].team_id,3);
 console.log('Competition engine tests passed');
+
+const queue=Array.from({length:24},(_,i)=>({id:i+1,status:'active',activated_at:String(i).padStart(3,'0')}));
+const prior=queue.slice(0,12).flatMap(t=>[{team_id:t.id,event_id:1,status:'confirmed',heat:1},{team_id:t.id,event_id:2,status:'confirmed',heat:2}]);
+const saturated=plan(queue,events,prior,{heat:3});
+assert.equal(saturated.length,12);
+assert(saturated.every(a=>a.team_id>12),'First-time teams must take priority over returning teams');
+const ready=plan([{id:1,status:'active'}],events,[{team_id:1,event_id:1,status:'ready'}]);assert.equal(ready.length,0);
+const mixed=plan(queue.slice(0,20),events,prior,{heat:3});
+assert(mixed.filter(a=>a.team_id>12).length===8);
+assert.equal(mixed.length,12);
